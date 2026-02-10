@@ -46,7 +46,7 @@ async function runPlay(
   if (testArg) {
     files = [path.resolve(testArg)];
   } else {
-    const testDir = config.testDir ?? "tests";
+    const testDir = config.testDir ?? "e2e";
     files = await globby(`${testDir}/**/*.{yaml,yml}`);
     if (files.length === 0) {
       throw new UserError(

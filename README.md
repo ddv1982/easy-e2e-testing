@@ -104,7 +104,7 @@ Each `selector` field supports:
 Create `easy-e2e.config.yaml`:
 
 ```yaml
-testDir: tests
+testDir: e2e
 baseUrl: http://localhost:3000
 headed: false
 timeout: 10000

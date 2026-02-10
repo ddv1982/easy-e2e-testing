@@ -52,7 +52,7 @@ async function runRecord(opts: {
     name,
     url,
     description: description || undefined,
-    outputDir: config.testDir ?? "tests",
+    outputDir: config.testDir ?? "e2e",
   });
 
   console.log();

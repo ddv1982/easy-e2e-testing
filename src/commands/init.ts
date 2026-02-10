@@ -32,7 +32,7 @@ async function runInit() {
 
   const testDir = await input({
     message: "Where should tests be stored?",
-    default: "tests",
+    default: "e2e",
   });
 
   const baseUrl = await input({

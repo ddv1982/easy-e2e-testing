@@ -21,7 +21,7 @@ export function registerList(program: Command) {
 
 async function runList() {
   const config = await loadConfig();
-  const testDir = config.testDir ?? "tests";
+  const testDir = config.testDir ?? "e2e";
 
   const files = await globby(`${testDir}/**/*.{yaml,yml}`);
 
