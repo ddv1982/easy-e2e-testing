@@ -5,8 +5,15 @@ No-code E2E testing framework - record and replay browser tests with YAML.
 ## Installation
 
 ```bash
-npm install --save-dev easy-e2e
+# from this repo (local)
+npm install --save-dev .
+
+# from GitHub
+npm install --save-dev github:ddv1982/easy-e2e-testing#main
 ```
+
+`easy-e2e` is not currently published to npm with installable versions, so
+`npm install --save-dev easy-e2e` will fail with `ENOVERSIONS`.
 
 ## Quick Start
 
