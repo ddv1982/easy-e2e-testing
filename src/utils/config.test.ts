@@ -85,6 +85,7 @@ testDir: integration-tests
 baseUrl: https://staging.example.com
 headed: false
 timeout: 15000
+delay: 2000
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 
@@ -94,12 +95,14 @@ timeout: 15000
     expect(config.baseUrl).toBe("https://staging.example.com");
     expect(config.headed).toBe(false);
     expect(config.timeout).toBe(15000);
+    expect(config.delay).toBe(2000);
   });
 
   it("should reject invalid config types", async () => {
     const configContent = `
 timeout: "5000"
 headed: yes
+delay: -1
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 

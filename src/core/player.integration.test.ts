@@ -183,6 +183,16 @@ describe("player integration - step execution", () => {
     }
   }, 30000);
 
+  it("should apply delay between steps", async () => {
+    const testFile = await prepareFixtureYaml("valid-test.yaml");
+    const start = Date.now();
+    const result = await play(testFile, { headed: false, delayMs: 2000 });
+    const elapsed = Date.now() - start;
+
+    expect(result.passed).toBe(true);
+    expect(elapsed).toBeGreaterThanOrEqual(1900);
+  }, 30000);
+
   it("should execute chained locator expressions", async () => {
     const testFile = await writeInlineFixture("chained-locator.yaml", {
       name: "Chained Locator Test",
@@ -197,6 +207,37 @@ describe("player integration - step execution", () => {
     });
 
     const result = await play(testFile, { headed: false, timeout: 5000 });
+    expect(result.passed).toBe(true);
+  }, 30000);
+
+  it("should use play options baseUrl when test file omits baseUrl", async () => {
+    const testFile = await writeInlineFixture("fallback-baseurl.yaml", {
+      name: "Fallback Base URL Test",
+      steps: [
+        { action: "navigate", url: "/simple-form.html" },
+        { action: "assertVisible", selector: "h1" },
+      ],
+    });
+
+    const result = await play(testFile, { headed: false, timeout: 5000, baseUrl });
+    expect(result.passed).toBe(true);
+  }, 30000);
+
+  it("should prefer test baseUrl over play options baseUrl", async () => {
+    const testFile = await writeInlineFixture("test-baseurl-precedence.yaml", {
+      name: "Base URL Precedence Test",
+      baseUrl,
+      steps: [
+        { action: "navigate", url: "/simple-form.html" },
+        { action: "assertVisible", selector: "h1" },
+      ],
+    });
+
+    const result = await play(testFile, {
+      headed: false,
+      timeout: 5000,
+      baseUrl: "http://127.0.0.1:1",
+    });
     expect(result.passed).toBe(true);
   }, 30000);
 

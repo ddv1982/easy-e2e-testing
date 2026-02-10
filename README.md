@@ -108,6 +108,7 @@ testDir: e2e
 baseUrl: http://localhost:3000
 headed: false
 timeout: 10000
+delay: 2000 # optional; milliseconds between steps
 ```
 
 ## Development

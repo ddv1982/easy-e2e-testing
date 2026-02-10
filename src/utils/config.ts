@@ -9,6 +9,7 @@ const configSchema = z.object({
   baseUrl: z.string().url().optional(),
   headed: z.boolean().optional(),
   timeout: z.number().int().positive().optional(),
+  delay: z.number().int().nonnegative().optional(),
 });
 
 export type EasyE2EConfig = z.infer<typeof configSchema>;
@@ -63,7 +64,7 @@ export async function loadConfig(): Promise<EasyE2EConfig> {
 
       throw new UserError(
         `Invalid config in ${filename}: ${issues}`,
-        "Expected shape: { testDir?: string, baseUrl?: URL, headed?: boolean, timeout?: positive integer }."
+        "Expected shape: { testDir?: string, baseUrl?: URL, headed?: boolean, timeout?: positive integer, delay?: non-negative integer }."
       );
     }
 

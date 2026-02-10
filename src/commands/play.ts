@@ -13,6 +13,7 @@ export function registerPlay(program: Command) {
     .argument("[test]", "Path to a specific test file, or omit to run all")
     .option("--headed", "Run browser in headed mode (visible)")
     .option("--timeout <ms>", "Step timeout in milliseconds")
+    .option("--delay <ms>", "Delay between steps in milliseconds")
     .action(async (testArg, opts) => {
       try {
         await runPlay(testArg, opts);
@@ -24,7 +25,7 @@ export function registerPlay(program: Command) {
 
 async function runPlay(
   testArg: string | undefined,
-  opts: { headed?: boolean; timeout?: string }
+  opts: { headed?: boolean; timeout?: string; delay?: string }
 ) {
   const config = await loadConfig();
   const headed = opts.headed ?? config.headed ?? false;
@@ -33,11 +34,23 @@ async function runPlay(
       ? parseTimeout(opts.timeout, "CLI flag --timeout")
       : undefined;
   const timeout = cliTimeout ?? config.timeout ?? 10_000;
+  const cliDelay =
+    opts.delay !== undefined
+      ? parseNonNegativeInt(opts.delay, "CLI flag --delay")
+      : undefined;
+  const delayMs = cliDelay ?? config.delay ?? 0;
 
   if (!Number.isFinite(timeout) || timeout <= 0 || !Number.isInteger(timeout)) {
     throw new UserError(
       `Invalid timeout value: ${timeout}`,
       "Timeout must be a positive integer in milliseconds."
+    );
+  }
+
+  if (!Number.isFinite(delayMs) || delayMs < 0 || !Number.isInteger(delayMs)) {
+    throw new UserError(
+      `Invalid delay value: ${delayMs}`,
+      "Delay must be a non-negative integer in milliseconds."
     );
   }
 
@@ -64,7 +77,12 @@ async function runPlay(
 
   for (const file of files) {
     ui.info(`Test: ${file}`);
-    const result = await play(file, { headed, timeout });
+    const result = await play(file, {
+      headed,
+      timeout,
+      baseUrl: config.baseUrl,
+      delayMs,
+    });
     results.push(result);
     console.log();
   }
@@ -92,6 +110,17 @@ function parseTimeout(input: string, source: string): number {
     throw new UserError(
       `Invalid timeout value from ${source}: ${input}`,
       "Use a positive integer in milliseconds, for example: --timeout 10000"
+    );
+  }
+  return value;
+}
+
+function parseNonNegativeInt(input: string, source: string): number {
+  const value = Number(input);
+  if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+    throw new UserError(
+      `Invalid delay value from ${source}: ${input}`,
+      "Use a non-negative integer in milliseconds, for example: --delay 2000"
     );
   }
   return value;

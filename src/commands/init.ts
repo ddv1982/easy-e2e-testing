@@ -11,6 +11,7 @@ interface EasyE2EConfig {
   baseUrl: string;
   headed: boolean;
   timeout: number;
+  delay?: number;
 }
 
 export function registerInit(program: Command) {
@@ -51,11 +52,23 @@ async function runInit() {
     validate: (v) => (!isNaN(Number(v)) && Number(v) > 0 ? true : "Must be a positive number"),
   });
 
+  const delay = await input({
+    message: "Delay between steps in milliseconds? (optional, blank for no delay)",
+    default: "",
+    validate: (v) => {
+      if (v.trim().length === 0) return true;
+      return !isNaN(Number(v)) && Number(v) >= 0 && Number.isInteger(Number(v))
+        ? true
+        : "Must be a non-negative integer or blank";
+    },
+  });
+
   const config: EasyE2EConfig = {
     testDir,
     baseUrl,
     headed,
     timeout: Number(timeout),
+    ...(delay.trim().length > 0 ? { delay: Number(delay) } : {}),
   };
 
   const configPath = path.resolve("easy-e2e.config.yaml");
@@ -71,7 +84,6 @@ async function runInit() {
     const sample = {
       name: "Example Test",
       description: "A sample test to get you started",
-      baseUrl,
       steps: [
         { action: "navigate", url: "/" },
         {

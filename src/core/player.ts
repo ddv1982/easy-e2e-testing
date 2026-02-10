@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { setTimeout as sleep } from "node:timers/promises";
 import { chromium, type Browser, type Page } from "playwright";
 import { testSchema, type Step } from "./yaml-schema.js";
 import { yamlToTest } from "./transformer.js";
@@ -12,6 +13,8 @@ import {
 export interface PlayOptions {
   headed?: boolean;
   timeout?: number;
+  baseUrl?: string;
+  delayMs?: number;
 }
 
 export interface StepResult {
@@ -35,6 +38,15 @@ export async function play(
   options: PlayOptions = {}
 ): Promise<TestResult> {
   const timeout = options.timeout ?? 10_000;
+  const delayMs = options.delayMs ?? 0;
+
+  if (!Number.isFinite(delayMs) || delayMs < 0 || !Number.isInteger(delayMs)) {
+    throw new UserError(
+      `Invalid delay value: ${delayMs}`,
+      "Delay must be a non-negative integer in milliseconds."
+    );
+  }
+
   const content = await fs.readFile(filePath, "utf-8");
   const raw = yamlToTest(content);
   const parsed = testSchema.safeParse(raw);
@@ -50,6 +62,7 @@ export async function play(
   }
 
   const test = parsed.data;
+  const effectiveBaseUrl = test.baseUrl ?? options.baseUrl;
   const stepResults: StepResult[] = [];
   const testStart = Date.now();
 
@@ -66,7 +79,7 @@ export async function play(
       const desc = stepDescription(step, i);
 
       try {
-        await executeStep(page, step, timeout, test.baseUrl);
+        await executeStep(page, step, timeout, effectiveBaseUrl);
         const result: StepResult = {
           step,
           index: i,
@@ -75,6 +88,10 @@ export async function play(
         };
         stepResults.push(result);
         ui.success(`${desc} (${result.durationMs}ms)`);
+
+        if (delayMs > 0 && i < test.steps.length - 1) {
+          await sleep(delayMs);
+        }
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         const result: StepResult = {
