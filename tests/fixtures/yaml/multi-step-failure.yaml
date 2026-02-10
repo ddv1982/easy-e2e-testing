@@ -1,0 +1,10 @@
+name: Multi Step with Failure
+baseUrl: http://localhost:8888
+steps:
+  - action: navigate
+    url: /simple-form.html
+  - action: click
+    selector: "#does-not-exist"
+  - action: fill
+    selector: 'input[name="username"]'
+    text: should-not-reach

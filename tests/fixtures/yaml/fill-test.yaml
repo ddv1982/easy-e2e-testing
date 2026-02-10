@@ -1,0 +1,8 @@
+name: Fill Test
+baseUrl: http://localhost:8888
+steps:
+  - action: navigate
+    url: /simple-form.html
+  - action: fill
+    selector: 'input[name="username"]'
+    text: testuser

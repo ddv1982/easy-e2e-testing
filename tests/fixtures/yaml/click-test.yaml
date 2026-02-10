@@ -1,0 +1,7 @@
+name: Click Test
+baseUrl: http://localhost:8888
+steps:
+  - action: navigate
+    url: /buttons.html
+  - action: click
+    selector: "#btn1"
