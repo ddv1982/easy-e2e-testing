@@ -1,0 +1,9 @@
+name: Valid Test
+description: A valid test fixture
+baseUrl: http://localhost:8888
+steps:
+  - action: navigate
+    url: /simple-form.html
+  - action: assertVisible
+    selector: h1
+    description: Check heading is visible
