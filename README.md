@@ -23,19 +23,43 @@ npm install --save-dev github:ddv1982/easy-e2e-testing#main
 npx easy-e2e init
 ```
 
-### 2. Record a test
+### 2. Start your app at `baseUrl`
+
+`easy-e2e play` and `easy-e2e record` need your app running and reachable at
+the configured `baseUrl`.
+
+Common start commands:
+
+```bash
+# React / Vite
+npm run dev
+
+# Next.js
+npm run dev -- -p 4000
+
+# Express / Node
+npm run start
+```
+
+Then confirm it is reachable:
+
+```bash
+curl -I http://localhost:4000
+```
+
+### 3. Record a test
 
 ```bash
 npx easy-e2e record
 ```
 
-### 3. Run tests
+### 4. Run tests
 
 ```bash
 npx easy-e2e play
 ```
 
-### 4. List tests
+### 5. List tests
 
 ```bash
 npx easy-e2e list

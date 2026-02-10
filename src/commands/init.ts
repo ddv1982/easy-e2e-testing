@@ -116,9 +116,11 @@ async function runInit() {
   ui.success(`Test directory created: ${testDir}/`);
   console.log();
   ui.info("Next steps:");
+  ui.step(`Start your app so it is reachable at: ${baseUrl}`);
   ui.step("Record a test: npx easy-e2e record");
   ui.step("Run tests: npx easy-e2e play");
   ui.step("List tests: npx easy-e2e list");
+  ui.dim("Tip: update easy-e2e.config.yaml baseUrl if your app runs on a different host or port.");
 }
 
 function validateBaseOrigin(value: string): true | string {
