@@ -56,6 +56,10 @@ npx easy-e2e record
 ### 4. Run tests
 
 ```bash
+# auto-start app using config.startCommand
+npx easy-e2e play --start
+
+# or run against an already running app
 npx easy-e2e play
 ```
 
@@ -130,6 +134,7 @@ Create `easy-e2e.config.yaml`:
 ```yaml
 testDir: e2e
 baseUrl: http://localhost:3000
+startCommand: npm run dev # optional; used by `easy-e2e play --start`
 headed: false
 timeout: 10000
 delay: 2000 # optional; milliseconds between steps

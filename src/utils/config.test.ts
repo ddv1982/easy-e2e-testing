@@ -16,6 +16,7 @@ testDir: e2e-tests
 baseUrl: https://example.com
 headed: true
 timeout: 5000
+startCommand: npm run dev
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 
@@ -24,6 +25,7 @@ timeout: 5000
     expect(config).toEqual({
       testDir: "e2e-tests",
       baseUrl: "https://example.com",
+      startCommand: "npm run dev",
       headed: true,
       timeout: 5000,
     });
@@ -103,6 +105,7 @@ delay: 2000
 timeout: "5000"
 headed: yes
 delay: -1
+startCommand: 123
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 

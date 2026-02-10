@@ -9,6 +9,7 @@ import { handleError } from "../utils/errors.js";
 interface EasyE2EConfig {
   testDir: string;
   baseUrl: string;
+  startCommand?: string;
   headed: boolean;
   timeout: number;
   delay?: number;
@@ -55,6 +56,11 @@ async function runInit() {
     default: false,
   });
 
+  const startCommand = await input({
+    message: "App start command? (optional, used by `easy-e2e play --start`)",
+    default: "npm run dev",
+  });
+
   const timeout = await input({
     message: "Default step timeout in milliseconds?",
     default: "10000",
@@ -75,6 +81,7 @@ async function runInit() {
   const config: EasyE2EConfig = {
     testDir,
     baseUrl,
+    ...(startCommand.trim().length > 0 ? { startCommand: startCommand.trim() } : {}),
     headed,
     timeout: Number(timeout),
     ...(delay.trim().length > 0 ? { delay: Number(delay) } : {}),
@@ -117,6 +124,7 @@ async function runInit() {
   console.log();
   ui.info("Next steps:");
   ui.step(`Start your app so it is reachable at: ${baseUrl}`);
+  ui.step("Or auto-start app: npx easy-e2e play --start");
   ui.step("Record a test: npx easy-e2e record");
   ui.step("Run tests: npx easy-e2e play");
   ui.step("List tests: npx easy-e2e list");
