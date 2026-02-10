@@ -4,3 +4,6 @@ dist/
 .DS_Store
 coverage/
 *.log
+easy-e2e.config.yaml
+easy-e2e.config.yml
+e2e/
