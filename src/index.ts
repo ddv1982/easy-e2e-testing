@@ -5,6 +5,7 @@ import { registerRecord } from "./commands/record.js";
 import { registerPlay } from "./commands/play.js";
 import { registerList } from "./commands/list.js";
 import { registerExampleApp } from "./commands/example-app.js";
+import { registerSetup } from "./commands/setup.js";
 
 export function run() {
   const program = new Command();
@@ -15,6 +16,7 @@ export function run() {
     .version("0.1.0");
 
   registerInit(program);
+  registerSetup(program);
   registerRecord(program);
   registerPlay(program);
   registerList(program);

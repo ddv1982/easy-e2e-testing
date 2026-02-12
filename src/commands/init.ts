@@ -18,13 +18,17 @@ interface EasyE2EConfig {
 interface PromptApi {
   input: typeof prompts.input;
   confirm: typeof prompts.confirm;
+  select: typeof prompts.select;
 }
+
+type InitIntent = "example" | "running" | "custom";
 
 const DEFAULT_BASE_ORIGIN = "http://127.0.0.1";
 const DEFAULT_PORT = "5173";
 const DEFAULT_TEST_DIR = "e2e";
 const DEFAULT_TIMEOUT = 10_000;
 const DEFAULT_HEADED = false;
+const DEFAULT_INIT_INTENT: InitIntent = "example";
 
 export function registerInit(program: Command) {
   program
@@ -41,7 +45,7 @@ export function registerInit(program: Command) {
 }
 
 async function runInit(
-  opts: { yes?: boolean; promptApi?: PromptApi } = {}
+  opts: { yes?: boolean; promptApi?: PromptApi; overwriteSample?: boolean } = {}
 ) {
   ui.heading("easy-e2e project setup");
   console.log();
@@ -53,6 +57,18 @@ async function runInit(
     : await promptApi.input({
         message: "Where should tests be stored?",
         default: DEFAULT_TEST_DIR,
+      });
+
+  const intent = useDefaults
+    ? DEFAULT_INIT_INTENT
+    : await promptApi.select<InitIntent>({
+        message: "What are you testing?",
+        default: DEFAULT_INIT_INTENT,
+        choices: [
+          { name: "Built-in example app", value: "example" },
+          { name: "Already-running website", value: "running" },
+          { name: "Custom app with start command", value: "custom" },
+        ],
       });
 
   const baseOrigin = useDefaults
@@ -81,12 +97,16 @@ async function runInit(
         default: DEFAULT_HEADED,
       });
 
-  const startCommand = useDefaults
-    ? defaultStartCommand
-    : await promptApi.input({
-        message: "App start command? (optional, used by `easy-e2e play`)",
-        default: defaultStartCommand,
-      });
+  const startCommand =
+    intent === "example"
+      ? defaultStartCommand
+      : intent === "custom"
+        ? await promptApi.input({
+            message: "App start command? (required for auto-start with `easy-e2e play`)",
+            default: defaultStartCommand,
+            validate: (v) => (v.trim().length > 0 ? true : "Start command is required"),
+          })
+        : "";
 
   const timeoutInput = useDefaults
     ? String(DEFAULT_TIMEOUT)
@@ -126,20 +146,23 @@ async function runInit(
   // Create a sample test file
   const samplePath = path.join(path.resolve(testDir), "example.yaml");
   const sampleExists = await fs.access(samplePath).then(() => true).catch(() => false);
+  const sample = {
+    name: "Example Test",
+    description: "A sample test to get you started",
+    steps: [
+      { action: "navigate", url: "/" },
+      {
+        action: "assertVisible",
+        description: "App root is visible",
+        selector: "#app",
+      },
+    ],
+  };
 
-  if (!sampleExists) {
-    const sample = {
-      name: "Example Test",
-      description: "A sample test to get you started",
-      steps: [
-        { action: "navigate", url: "/" },
-        {
-          action: "assertVisible",
-          description: "App root is visible",
-          selector: "#app",
-        },
-      ],
-    };
+  if (opts.overwriteSample) {
+    await fs.writeFile(samplePath, yaml.dump(sample, { quotingType: '"' }), "utf-8");
+    ui.step(`Reset sample test with defaults: ${samplePath}`);
+  } else if (!sampleExists) {
     await fs.writeFile(samplePath, yaml.dump(sample, { quotingType: '"' }), "utf-8");
     ui.step(`Created sample test: ${samplePath}`);
   } else {
@@ -154,13 +177,17 @@ async function runInit(
   ui.success(`Test directory created: ${testDir}/`);
   console.log();
   ui.info("Next steps:");
-  ui.step("Run tests (auto-starts app): npx easy-e2e play");
-  if (defaultStartCommand) {
-    ui.step(`Manual mode app start: ${defaultStartCommand}`);
+  if (config.startCommand) {
+    ui.step("Run tests (auto-starts app): npx easy-e2e play");
+    ui.step(`Manual mode app start: ${config.startCommand}`);
+    ui.step("Manual mode test run: npx easy-e2e play --no-start");
   } else {
-    ui.step("Manual mode app start: <your app start command>");
+    ui.step("Start your app manually.");
+    ui.step("Run tests against running app: npx easy-e2e play --no-start");
+    ui.dim(
+      "Tip: `npx easy-e2e play` without --no-start expects `startCommand` in config or a reachable baseUrl."
+    );
   }
-  ui.step("Manual mode test run: npx easy-e2e play --no-start");
   ui.step("Record a test: npx easy-e2e record");
   ui.step("List tests: npx easy-e2e list");
   ui.dim("Tip: update easy-e2e.config.yaml baseUrl if your app runs on a different host or port.");
@@ -277,6 +304,7 @@ export {
   DEFAULT_TEST_DIR,
   DEFAULT_TIMEOUT,
   DEFAULT_HEADED,
+  DEFAULT_INIT_INTENT,
   buildBaseUrl,
   buildDefaultStartCommand,
   validateBaseOrigin,

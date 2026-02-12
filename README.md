@@ -17,17 +17,28 @@ npm install --save-dev github:ddv1982/easy-e2e-testing#main
 
 ## Quick Start
 
-### 1. Install and initialize
+### 1. Install and run setup
 
 ```bash
 npm install --save-dev .
-npx easy-e2e init
+npx easy-e2e setup
 ```
 
-Accept the defaults for the built-in Vue example app:
+`setup` creates config/sample files (if needed) and installs Chromium for Playwright.
+No Git Bash is required on Windows for this flow.
+
+Default generated values for the built-in Vue example app:
 
 - `baseUrl`: `http://127.0.0.1:5173`
 - `startCommand`: `npx easy-e2e example-app --host 127.0.0.1 --port 5173`
+
+### Init Modes (Interactive `npx easy-e2e init`)
+
+`init` now asks what you are testing and only configures `startCommand` when relevant:
+
+- `Built-in example app` (default): auto-generates `startCommand`.
+- `Already-running website`: no `startCommand` is written.
+- `Custom app with start command`: prompts for command and stores it.
 
 ### 2. Run tests (one command)
 
@@ -62,9 +73,10 @@ npx easy-e2e list
 
 | Command | What it runs | Main audience |
 | --- | --- | --- |
+| `npx easy-e2e setup` | First-run project setup (config + browser install) | End users onboarding quickly |
 | `npx easy-e2e play` | YAML browser tests from `testDir` | End users testing an app |
 | `npm test` | Vitest framework suite (unit + integration in `src/**/*.test.ts` and `src/**/*.integration.test.ts`) | Maintainers of `easy-e2e` |
-| `npm run test:smoke` | Consumer-style packaged smoke (`init --yes` -> `play`) | Maintainers validating onboarding |
+| `npm run test:smoke` | Consumer-style packaged smoke (`setup` -> `play`) | Maintainers validating onboarding |
 
 ## Common Confusion
 
@@ -75,6 +87,11 @@ If you run `npm test`, you will **not** see your YAML `headed` browser flow.
 
 - `npx easy-e2e play`
 - `npx easy-e2e play --headed --delay 2000`
+
+## Troubleshooting Setup
+
+- Linux browser dependency issue: if setup reports missing dependencies, run `npx playwright install-deps chromium`.
+- Proxy/firewall environments: browser download may fail if outbound access is blocked; configure npm/proxy settings and rerun `npx easy-e2e setup`.
 
 ## Test Format
 
@@ -147,6 +164,9 @@ timeout: 10000
 delay: 2000 # optional; milliseconds between steps
 ```
 
+`startCommand` is optional and only needed if you want `easy-e2e play` to auto-start your app.
+If omitted, start your app manually and run `npx easy-e2e play --no-start`.
+
 ## Development
 
 ### Running Tests
@@ -156,7 +176,7 @@ delay: 2000 # optional; milliseconds between steps
 npm test
 npm run test:framework
 
-# Consumer onboarding smoke (pack -> install -> init --yes -> play)
+# Consumer onboarding smoke (pack -> install -> setup -> play)
 npm run test:smoke
 
 # Run unit tests only

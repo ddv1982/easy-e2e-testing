@@ -63,14 +63,10 @@ async function main() {
 
     runStep("Create temp workspace", "npm", ["init", "-y"], workspace);
     runStep("Install packed CLI", "npm", ["install", "--save-dev", tarballPath], workspace);
-    runStep(
-      "Install Playwright Chromium",
-      "npx",
-      ["playwright", "install", "chromium"],
-      workspace,
-      { printStdout: false, stdio: "inherit" }
-    );
-    runStep("Initialize config with defaults", "npx", ["easy-e2e", "init", "--yes"], workspace);
+    runStep("Run easy-e2e setup", "npx", ["easy-e2e", "setup"], workspace, {
+      printStdout: false,
+      stdio: "inherit",
+    });
     runStep("Run YAML browser test", "npx", ["easy-e2e", "play"], workspace);
 
     console.log("\n[smoke] Consumer smoke test passed.");

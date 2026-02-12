@@ -6,6 +6,7 @@ import yaml from "js-yaml";
 import {
   DEFAULT_BASE_ORIGIN,
   DEFAULT_HEADED,
+  DEFAULT_INIT_INTENT,
   DEFAULT_PORT,
   DEFAULT_TEST_DIR,
   DEFAULT_TIMEOUT,
@@ -28,6 +29,7 @@ describe("init URL helpers", () => {
     expect(DEFAULT_TEST_DIR).toBe("e2e");
     expect(DEFAULT_TIMEOUT).toBe(10_000);
     expect(DEFAULT_HEADED).toBe(false);
+    expect(DEFAULT_INIT_INTENT).toBe("example");
     expect(buildDefaultStartCommand("http://127.0.0.1:5173")).toBe(
       "npx easy-e2e example-app --host 127.0.0.1 --port 5173"
     );
@@ -122,6 +124,9 @@ describe("runInit --yes", () => {
     const confirmSpy = vi.fn(async () => {
       throw new Error("confirm prompt should not be called for --yes");
     });
+    const selectSpy = vi.fn(async () => {
+      throw new Error("select prompt should not be called for --yes");
+    });
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-yes-test-"));
     const prevCwd = process.cwd();
 
@@ -132,11 +137,13 @@ describe("runInit --yes", () => {
         promptApi: {
           input: inputSpy as never,
           confirm: confirmSpy as never,
+          select: selectSpy as never,
         },
       });
 
       expect(inputSpy).not.toHaveBeenCalled();
       expect(confirmSpy).not.toHaveBeenCalled();
+      expect(selectSpy).not.toHaveBeenCalled();
 
       const configPath = path.join(dir, "easy-e2e.config.yaml");
       const configText = await fs.readFile(configPath, "utf-8");
@@ -154,6 +161,143 @@ describe("runInit --yes", () => {
       const samplePath = path.join(dir, "e2e", "example.yaml");
       const sampleText = await fs.readFile(samplePath, "utf-8");
       expect(sampleText).toContain('selector: "#app"');
+    } finally {
+      process.chdir(prevCwd);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("overwrites existing sample when overwriteSample is true", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-overwrite-test-"));
+    const prevCwd = process.cwd();
+
+    try {
+      process.chdir(dir);
+      await fs.mkdir(path.join(dir, "e2e"), { recursive: true });
+      await fs.writeFile(
+        path.join(dir, "e2e", "example.yaml"),
+        `name: "Custom Example"\nsteps:\n  - action: navigate\n    url: "/custom"\n`,
+        "utf-8"
+      );
+
+      await runInit({ yes: true, overwriteSample: true });
+
+      const samplePath = path.join(dir, "e2e", "example.yaml");
+      const sampleText = await fs.readFile(samplePath, "utf-8");
+      expect(sampleText).toContain("name: Example Test");
+      expect(sampleText).toContain('selector: "#app"');
+      expect(sampleText).not.toContain("/custom");
+    } finally {
+      process.chdir(prevCwd);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("runInit interactive intents", () => {
+  it("uses example intent by default and auto-populates startCommand", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-intent-example-test-"));
+    const prevCwd = process.cwd();
+    const inputSpy = vi
+      .fn()
+      .mockResolvedValueOnce("e2e")
+      .mockResolvedValueOnce("http://127.0.0.1")
+      .mockResolvedValueOnce("5173")
+      .mockResolvedValueOnce("10000")
+      .mockResolvedValueOnce("");
+    const confirmSpy = vi.fn().mockResolvedValue(false);
+    const selectSpy = vi.fn().mockResolvedValue("example");
+
+    try {
+      process.chdir(dir);
+      await runInit({
+        promptApi: {
+          input: inputSpy as never,
+          confirm: confirmSpy as never,
+          select: selectSpy as never,
+        },
+      });
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      const selectArg = selectSpy.mock.calls[0]?.[0] as { default?: string };
+      expect(selectArg.default).toBe("example");
+      expect(inputSpy).toHaveBeenCalledTimes(5);
+
+      const configPath = path.join(dir, "easy-e2e.config.yaml");
+      const configText = await fs.readFile(configPath, "utf-8");
+      const config = yaml.load(configText) as Record<string, unknown>;
+      expect(config.startCommand).toBe("npx easy-e2e example-app --host 127.0.0.1 --port 5173");
+    } finally {
+      process.chdir(prevCwd);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("omits startCommand for running-site intent", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-intent-running-test-"));
+    const prevCwd = process.cwd();
+    const inputSpy = vi
+      .fn()
+      .mockResolvedValueOnce("e2e")
+      .mockResolvedValueOnce("http://localhost")
+      .mockResolvedValueOnce("3000")
+      .mockResolvedValueOnce("10000")
+      .mockResolvedValueOnce("");
+    const confirmSpy = vi.fn().mockResolvedValue(false);
+    const selectSpy = vi.fn().mockResolvedValue("running");
+
+    try {
+      process.chdir(dir);
+      await runInit({
+        promptApi: {
+          input: inputSpy as never,
+          confirm: confirmSpy as never,
+          select: selectSpy as never,
+        },
+      });
+
+      expect(inputSpy).toHaveBeenCalledTimes(5);
+
+      const configPath = path.join(dir, "easy-e2e.config.yaml");
+      const configText = await fs.readFile(configPath, "utf-8");
+      const config = yaml.load(configText) as Record<string, unknown>;
+      expect(config).not.toHaveProperty("startCommand");
+    } finally {
+      process.chdir(prevCwd);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("prompts for and stores startCommand for custom intent", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-intent-custom-test-"));
+    const prevCwd = process.cwd();
+    const inputSpy = vi
+      .fn()
+      .mockResolvedValueOnce("e2e")
+      .mockResolvedValueOnce("http://localhost")
+      .mockResolvedValueOnce("3000")
+      .mockResolvedValueOnce("npm run my-app")
+      .mockResolvedValueOnce("10000")
+      .mockResolvedValueOnce("");
+    const confirmSpy = vi.fn().mockResolvedValue(false);
+    const selectSpy = vi.fn().mockResolvedValue("custom");
+
+    try {
+      process.chdir(dir);
+      await runInit({
+        promptApi: {
+          input: inputSpy as never,
+          confirm: confirmSpy as never,
+          select: selectSpy as never,
+        },
+      });
+
+      expect(inputSpy).toHaveBeenCalledTimes(6);
+
+      const configPath = path.join(dir, "easy-e2e.config.yaml");
+      const configText = await fs.readFile(configPath, "utf-8");
+      const config = yaml.load(configText) as Record<string, unknown>;
+      expect(config.startCommand).toBe("npm run my-app");
     } finally {
       process.chdir(prevCwd);
       await fs.rm(dir, { recursive: true, force: true });
