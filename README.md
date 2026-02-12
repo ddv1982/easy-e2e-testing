@@ -27,6 +27,13 @@ npx easy-e2e setup
 `setup` creates config/sample files (if needed) and installs Chromium for Playwright.
 No Git Bash is required on Windows for this flow.
 
+Need command help?
+
+```bash
+npx easy-e2e help
+npx easy-e2e --help
+```
+
 Default generated values for the built-in Vue example app:
 
 - `baseUrl`: `http://127.0.0.1:5173`
@@ -73,10 +80,14 @@ npx easy-e2e list
 
 | Command | What it runs | Main audience |
 | --- | --- | --- |
+| `npx easy-e2e help` | Full CLI command help | End users and maintainers |
 | `npx easy-e2e setup` | First-run project setup (config + browser install) | End users onboarding quickly |
 | `npx easy-e2e play` | YAML browser tests from `testDir` | End users testing an app |
 | `npm test` | Vitest framework suite (unit + integration in `src/**/*.test.ts` and `src/**/*.integration.test.ts`) | Maintainers of `easy-e2e` |
 | `npm run test:smoke` | Consumer-style packaged smoke (`setup` -> `play`) | Maintainers validating onboarding |
+| `npm run help` | Friendly repo-local command guide | Maintainers working in this repository |
+
+For installed usage in your own app, use `npx easy-e2e help` or `npx easy-e2e --help`.
 
 ## Common Confusion
 
