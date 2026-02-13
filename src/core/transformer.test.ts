@@ -135,6 +135,22 @@ describe("jsonlToRecordingSteps", () => {
     expect(out.stats.stableSelectors).toBe(1);
     expect(out.stats.fallbackSelectors).toBe(1);
   });
+
+  it("ignores unsupported actions without affecting selector stats", () => {
+    const out = jsonlToRecordingSteps(
+      [
+        '{"type":"noop","selector":"#ignored","locator":{"kind":"nth","body":"not-a-number"}}',
+        '{"name":"noop","selector":"#also-ignored"}',
+        '{"type":"navigate","url":"/"}',
+      ].join("\n")
+    );
+
+    expect(out.steps).toEqual([{ action: "navigate", url: "/" }]);
+    expect(out.stats.selectorSteps).toBe(0);
+    expect(out.stats.stableSelectors).toBe(0);
+    expect(out.stats.fallbackSelectors).toBe(0);
+    expect(out.stats.frameAwareSelectors).toBe(0);
+  });
 });
 
 describe("playwrightCodeToSteps", () => {

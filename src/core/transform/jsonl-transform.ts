@@ -38,7 +38,7 @@ interface SelectorResolution {
   frameAware: boolean;
 }
 
-const selectorActionNames = new Set([
+const selectorActionNames = [
   "click",
   "fill",
   "press",
@@ -50,20 +50,11 @@ const selectorActionNames = new Set([
   "assertText",
   "assertValue",
   "assertChecked",
-]);
+] as const;
 
-type SelectorActionName =
-  | "click"
-  | "fill"
-  | "press"
-  | "check"
-  | "uncheck"
-  | "hover"
-  | "select"
-  | "assertVisible"
-  | "assertText"
-  | "assertValue"
-  | "assertChecked";
+const selectorActionNameSet = new Set<string>(selectorActionNames);
+
+type SelectorActionName = (typeof selectorActionNames)[number];
 
 export function jsonlToSteps(
   jsonlContent: string,
@@ -130,15 +121,14 @@ function actionToStep(
     return { step: { action: "navigate", url: action.url ?? "/" } };
   }
 
-  if (!selectorActionNames.has(actionName as SelectorActionName)) {
+  if (!isSelectorActionName(actionName)) {
     return null;
   }
 
   const selectorResolution = resolveSelector(action, policy);
   if (!selectorResolution) return null;
 
-  const step = buildSelectorStep(actionName as SelectorActionName, selectorResolution, action);
-  if (!step) return null;
+  const step = buildSelectorStep(actionName, selectorResolution, action);
   return { step, selectorResolution };
 }
 
@@ -146,7 +136,7 @@ function buildSelectorStep(
   actionName: SelectorActionName,
   selectorResolution: SelectorResolution,
   action: CodegenAction
-): Step | null {
+): Step {
   const target = selectorResolution.target;
 
   switch (actionName) {
@@ -173,8 +163,16 @@ function buildSelectorStep(
     case "assertChecked":
       return { action: "assertChecked", target, checked: true };
     default:
-      return null;
+      return assertNever(actionName);
   }
+}
+
+function isSelectorActionName(actionName: string): actionName is SelectorActionName {
+  return selectorActionNameSet.has(actionName);
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled selector action: ${String(value)}`);
 }
 
 function resolveSelector(
