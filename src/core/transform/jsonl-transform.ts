@@ -38,23 +38,53 @@ interface SelectorResolution {
   frameAware: boolean;
 }
 
-const selectorActionNames = [
-  "click",
-  "fill",
-  "press",
-  "check",
-  "uncheck",
-  "hover",
-  "select",
-  "assertVisible",
-  "assertText",
-  "assertValue",
-  "assertChecked",
-] as const;
+type SelectorStepBuilder = (
+  selectorResolution: SelectorResolution,
+  action: CodegenAction
+) => Step;
 
-const selectorActionNameSet = new Set<string>(selectorActionNames);
+const selectorStepBuilders = {
+  click: (selectorResolution) => ({ action: "click", target: selectorResolution.target }),
+  check: (selectorResolution) => ({ action: "check", target: selectorResolution.target }),
+  uncheck: (selectorResolution) => ({ action: "uncheck", target: selectorResolution.target }),
+  hover: (selectorResolution) => ({ action: "hover", target: selectorResolution.target }),
+  assertVisible: (selectorResolution) => ({
+    action: "assertVisible",
+    target: selectorResolution.target,
+  }),
+  fill: (selectorResolution, action) => ({
+    action: "fill",
+    target: selectorResolution.target,
+    text: action.text ?? action.value ?? "",
+  }),
+  press: (selectorResolution, action) => ({
+    action: "press",
+    target: selectorResolution.target,
+    key: action.key ?? "",
+  }),
+  select: (selectorResolution, action) => ({
+    action: "select",
+    target: selectorResolution.target,
+    value: action.value ?? action.options?.[0] ?? "",
+  }),
+  assertText: (selectorResolution, action) => ({
+    action: "assertText",
+    target: selectorResolution.target,
+    text: action.text ?? "",
+  }),
+  assertValue: (selectorResolution, action) => ({
+    action: "assertValue",
+    target: selectorResolution.target,
+    value: action.value ?? "",
+  }),
+  assertChecked: (selectorResolution) => ({
+    action: "assertChecked",
+    target: selectorResolution.target,
+    checked: true,
+  }),
+} satisfies Record<string, SelectorStepBuilder>;
 
-type SelectorActionName = (typeof selectorActionNames)[number];
+type SelectorActionName = keyof typeof selectorStepBuilders;
 
 export function jsonlToSteps(
   jsonlContent: string,
@@ -137,42 +167,12 @@ function buildSelectorStep(
   selectorResolution: SelectorResolution,
   action: CodegenAction
 ): Step {
-  const target = selectorResolution.target;
-
-  switch (actionName) {
-    case "click":
-      return { action: "click", target };
-    case "check":
-      return { action: "check", target };
-    case "uncheck":
-      return { action: "uncheck", target };
-    case "hover":
-      return { action: "hover", target };
-    case "assertVisible":
-      return { action: "assertVisible", target };
-    case "fill":
-      return { action: "fill", target, text: action.text ?? action.value ?? "" };
-    case "press":
-      return { action: "press", target, key: action.key ?? "" };
-    case "select":
-      return { action: "select", target, value: action.value ?? action.options?.[0] ?? "" };
-    case "assertText":
-      return { action: "assertText", target, text: action.text ?? "" };
-    case "assertValue":
-      return { action: "assertValue", target, value: action.value ?? "" };
-    case "assertChecked":
-      return { action: "assertChecked", target, checked: true };
-    default:
-      return assertNever(actionName);
-  }
+  const builder = selectorStepBuilders[actionName];
+  return builder(selectorResolution, action);
 }
 
 function isSelectorActionName(actionName: string): actionName is SelectorActionName {
-  return selectorActionNameSet.has(actionName);
-}
-
-function assertNever(value: never): never {
-  throw new Error(`Unhandled selector action: ${String(value)}`);
+  return Object.hasOwn(selectorStepBuilders, actionName);
 }
 
 function resolveSelector(

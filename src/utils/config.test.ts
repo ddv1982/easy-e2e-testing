@@ -118,6 +118,17 @@ recordDevice: "iPhone 13"
 recordTestIdAttribute: "data-qa"
 recordLoadStorage: ".auth/in.json"
 recordSaveStorage: ".auth/out.json"
+improveProvider: playwright-cli
+improveApplyMode: review
+improveAssertions: candidates
+llm:
+  enabled: true
+  provider: ollama
+  baseUrl: http://127.0.0.1:11434
+  model: gemma3:4b
+  timeoutMs: 12000
+  temperature: 0
+  maxOutputTokens: 600
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 
@@ -136,6 +147,18 @@ recordSaveStorage: ".auth/out.json"
     expect(config.recordTestIdAttribute).toBe("data-qa");
     expect(config.recordLoadStorage).toBe(".auth/in.json");
     expect(config.recordSaveStorage).toBe(".auth/out.json");
+    expect(config.improveProvider).toBe("playwright-cli");
+    expect(config.improveApplyMode).toBe("review");
+    expect(config.improveAssertions).toBe("candidates");
+    expect(config.llm).toEqual({
+      enabled: true,
+      provider: "ollama",
+      baseUrl: "http://127.0.0.1:11434",
+      model: "gemma3:4b",
+      timeoutMs: 12000,
+      temperature: 0,
+      maxOutputTokens: 600,
+    });
   });
 
   it("should reject invalid config types", async () => {
@@ -148,6 +171,11 @@ waitForNetworkIdle: "true"
 networkIdleTimeout: 0
 recordSelectorPolicy: fast
 recordBrowser: safari
+improveProvider: cli
+improveApplyMode: merge
+improveAssertions: all
+llm:
+  provider: unknown
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 

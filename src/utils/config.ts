@@ -4,6 +4,16 @@ import yaml from "js-yaml";
 import { z } from "zod";
 import { UserError } from "./errors.js";
 
+const llmConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  provider: z.enum(["ollama"]).optional(),
+  baseUrl: z.string().url().optional(),
+  model: z.string().min(1).optional(),
+  timeoutMs: z.number().int().positive().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  maxOutputTokens: z.number().int().positive().optional(),
+});
+
 const configSchema = z.object({
   testDir: z.string().min(1).optional(),
   baseUrl: z.string().url().optional(),
@@ -19,6 +29,10 @@ const configSchema = z.object({
   recordTestIdAttribute: z.string().min(1).optional(),
   recordLoadStorage: z.string().min(1).optional(),
   recordSaveStorage: z.string().min(1).optional(),
+  improveProvider: z.enum(["auto", "playwright", "playwright-cli"]).optional(),
+  improveApplyMode: z.enum(["review", "apply"]).optional(),
+  improveAssertions: z.enum(["none", "candidates"]).optional(),
+  llm: llmConfigSchema.optional(),
 });
 
 export type UITestConfig = z.infer<typeof configSchema>;
@@ -74,7 +88,7 @@ export async function loadConfig(): Promise<UITestConfig> {
 
       throw new UserError(
         `Invalid config in ${filename}: ${issues}`,
-        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer, waitForNetworkIdle?: boolean, networkIdleTimeout?: positive integer, recordSelectorPolicy?: 'reliable'|'raw', recordBrowser?: 'chromium'|'firefox'|'webkit', recordDevice?: string, recordTestIdAttribute?: string, recordLoadStorage?: string, recordSaveStorage?: string }."
+        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer, waitForNetworkIdle?: boolean, networkIdleTimeout?: positive integer, recordSelectorPolicy?: 'reliable'|'raw', recordBrowser?: 'chromium'|'firefox'|'webkit', recordDevice?: string, recordTestIdAttribute?: string, recordLoadStorage?: string, recordSaveStorage?: string, improveProvider?: 'auto'|'playwright'|'playwright-cli', improveApplyMode?: 'review'|'apply', improveAssertions?: 'none'|'candidates', llm?: { enabled?: boolean, provider?: 'ollama', baseUrl?: URL, model?: string, timeoutMs?: positive integer, temperature?: 0..2, maxOutputTokens?: positive integer } }."
       );
     }
 

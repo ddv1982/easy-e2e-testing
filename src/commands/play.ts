@@ -7,6 +7,8 @@ import { play, type TestResult } from "../core/player.js";
 import { loadConfig } from "../utils/config.js";
 import { ui } from "../utils/ui.js";
 import { handleError, UserError } from "../utils/errors.js";
+import { resolvePlayProfile } from "../app/options/play-profile.js";
+import { formatPlayProfileSummary } from "../app/options/profile-summary.js";
 
 const START_TIMEOUT_MS = 60_000;
 const START_POLL_MS = 500;
@@ -44,71 +46,28 @@ async function runPlay(
   }
 ) {
   const config = await loadConfig();
-  const headed = opts.headed ?? config.headed ?? false;
-  const shouldAutoStart = opts.start !== false;
-  const cliTimeout =
-    opts.timeout !== undefined
-      ? parsePositiveInt(
-          opts.timeout,
-          "timeout",
-          "CLI flag --timeout",
-          "Use a positive integer in milliseconds, for example: --timeout 10000"
-        )
-      : undefined;
-  const timeout = cliTimeout ?? config.timeout ?? 10_000;
-  const cliDelay =
-    opts.delay !== undefined
-      ? parseNonNegativeInt(opts.delay, "CLI flag --delay")
-      : undefined;
-  const delayMs = cliDelay ?? config.delay ?? 0;
-  const waitForNetworkIdle =
-    opts.waitNetworkIdle ?? config.waitForNetworkIdle ?? true;
-  const cliNetworkIdleTimeout =
-    opts.networkIdleTimeout !== undefined
-      ? parsePositiveInt(
-          opts.networkIdleTimeout,
-          "network idle timeout",
-          "CLI flag --network-idle-timeout",
-          "Use a positive integer in milliseconds, for example: --network-idle-timeout 2000"
-        )
-      : undefined;
-  const networkIdleTimeout = cliNetworkIdleTimeout ?? config.networkIdleTimeout ?? 2_000;
+  const profile = resolvePlayProfile(opts, config);
 
-  if (!Number.isFinite(timeout) || timeout <= 0 || !Number.isInteger(timeout)) {
-    throw new UserError(
-      `Invalid timeout value: ${timeout}`,
-      "Timeout must be a positive integer in milliseconds."
-    );
-  }
-
-  if (!Number.isFinite(delayMs) || delayMs < 0 || !Number.isInteger(delayMs)) {
-    throw new UserError(
-      `Invalid delay value: ${delayMs}`,
-      "Delay must be a non-negative integer in milliseconds."
-    );
-  }
-
-  if (
-    !Number.isFinite(networkIdleTimeout) ||
-    networkIdleTimeout <= 0 ||
-    !Number.isInteger(networkIdleTimeout)
-  ) {
-    throw new UserError(
-      `Invalid network idle timeout value: ${networkIdleTimeout}`,
-      "Network idle timeout must be a positive integer in milliseconds."
-    );
-  }
+  ui.info(
+    formatPlayProfileSummary({
+      headed: profile.headed,
+      timeout: profile.timeout,
+      delayMs: profile.delayMs,
+      waitForNetworkIdle: profile.waitForNetworkIdle,
+      networkIdleTimeout: profile.networkIdleTimeout,
+      autoStart: profile.shouldAutoStart,
+    })
+  );
 
   let files: string[];
 
   if (testArg) {
     files = [path.resolve(testArg)];
   } else {
-    const testDir = config.testDir ?? "e2e";
-    files = await globby(`${testDir}/**/*.{yaml,yml}`);
+    files = await globby(`${profile.testDir}/**/*.{yaml,yml}`);
     if (files.length === 0) {
       throw new UserError(
-        `No test files found in ${testDir}/`,
+        `No test files found in ${profile.testDir}/`,
         "Record a test first: npx ui-test record"
       );
     }
@@ -117,12 +76,9 @@ async function runPlay(
 
   let appProcess: ChildProcess | undefined;
   try {
-    const startCommand = config.startCommand?.trim();
-    const baseUrl = config.baseUrl;
-
-    if (shouldAutoStart && startCommand) {
-      ui.info(`Starting app: ${startCommand}`);
-      appProcess = spawn(startCommand, {
+    if (profile.shouldAutoStart && profile.startCommand) {
+      ui.info(`Starting app: ${profile.startCommand}`);
+      appProcess = spawn(profile.startCommand, {
         shell: true,
         stdio: "inherit",
       });
@@ -131,22 +87,18 @@ async function runPlay(
         ui.error(`Failed to start app process: ${err.message}`);
       });
 
-      if (baseUrl) {
-        await waitForReachableBaseUrl(baseUrl, appProcess, START_TIMEOUT_MS);
+      if (profile.baseUrl) {
+        await waitForReachableBaseUrl(profile.baseUrl, appProcess, START_TIMEOUT_MS);
       } else {
-        // If tests only use absolute URLs, there's nothing to probe in advance.
         await sleep(500);
       }
-    } else if (baseUrl) {
-      const reachable = await isBaseUrlReachable(baseUrl, 2_000);
+    } else if (profile.baseUrl) {
+      const reachable = await isBaseUrlReachable(profile.baseUrl, 2_000);
       if (!reachable) {
-        const hint = startCommand
-          ? `Cannot reach ${baseUrl}. Run \`${startCommand}\` first, or rerun without --no-start.`
-          : `Cannot reach ${baseUrl}. Start your app first, or configure startCommand in ui-test.config.yaml.`;
-        throw new UserError(
-          `Cannot reach app at ${baseUrl}`,
-          hint
-        );
+        const hint = profile.startCommand
+          ? `Cannot reach ${profile.baseUrl}. Run \`${profile.startCommand}\` first, or rerun without --no-start.`
+          : `Cannot reach ${profile.baseUrl}. Start your app first, or configure startCommand in ui-test.config.yaml.`;
+        throw new UserError(`Cannot reach app at ${profile.baseUrl}`, hint);
       }
     }
 
@@ -158,18 +110,17 @@ async function runPlay(
     for (const file of files) {
       ui.info(`Test: ${file}`);
       const result = await play(file, {
-        headed,
-        timeout,
-        baseUrl: config.baseUrl,
-        delayMs,
-        waitForNetworkIdle,
-        networkIdleTimeout,
+        headed: profile.headed,
+        timeout: profile.timeout,
+        baseUrl: profile.baseUrl,
+        delayMs: profile.delayMs,
+        waitForNetworkIdle: profile.waitForNetworkIdle,
+        networkIdleTimeout: profile.networkIdleTimeout,
       });
       results.push(result);
       console.log();
     }
 
-    // Summary
     const passed = results.filter((r) => r.passed).length;
     const failed = results.filter((r) => !r.passed).length;
     const totalMs = results.reduce((sum, r) => sum + r.durationMs, 0);
@@ -190,33 +141,6 @@ async function runPlay(
       await sleep(250);
     }
   }
-}
-
-function parsePositiveInt(
-  input: string,
-  label: string,
-  source: string,
-  hint: string
-): number {
-  const value = Number(input);
-  if (!Number.isFinite(value) || value <= 0 || !Number.isInteger(value)) {
-    throw new UserError(
-      `Invalid ${label} value from ${source}: ${input}`,
-      hint
-    );
-  }
-  return value;
-}
-
-function parseNonNegativeInt(input: string, source: string): number {
-  const value = Number(input);
-  if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
-    throw new UserError(
-      `Invalid delay value from ${source}: ${input}`,
-      "Use a non-negative integer in milliseconds, for example: --delay 2000"
-    );
-  }
-  return value;
 }
 
 async function waitForReachableBaseUrl(
@@ -255,7 +179,6 @@ async function isBaseUrlReachable(baseUrl: string, timeoutMs: number): Promise<b
       method: "HEAD",
       signal: AbortSignal.timeout(timeoutMs),
     });
-    // Any HTTP response means the server is reachable, even if route status is not 2xx.
     if (head) return true;
   } catch {
     // Fall back to GET for servers that reject HEAD.
@@ -272,4 +195,4 @@ async function isBaseUrlReachable(baseUrl: string, timeoutMs: number): Promise<b
   }
 }
 
-export { runPlay, parsePositiveInt, parseNonNegativeInt, isBaseUrlReachable };
+export { runPlay, isBaseUrlReachable };

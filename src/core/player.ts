@@ -4,15 +4,19 @@ import {
   chromium,
   errors as playwrightErrors,
   type Browser,
-  type FrameLocator,
-  type Locator,
   type Page,
 } from "playwright";
-import { testSchema, type Step, type Target } from "./yaml-schema.js";
+import { testSchema, type Step } from "./yaml-schema.js";
 import { yamlToTest } from "./transformer.js";
 import { ValidationError, UserError } from "../utils/errors.js";
 import { ui } from "../utils/ui.js";
-import { evaluateLocatorExpression } from "./locator-expression.js";
+import { executeRuntimeStep } from "./runtime/step-executor.js";
+import {
+  isPlaywrightLocator,
+  resolveLocator,
+  resolveLocatorContext,
+  resolveNavigateUrl,
+} from "./runtime/locator-runtime.js";
 
 const NETWORK_IDLE_WARNING_LIMIT = 3;
 
@@ -101,7 +105,11 @@ export async function play(
       const desc = stepDescription(step, i);
 
       try {
-        await executeStep(page, step, timeout, effectiveBaseUrl);
+        await executeRuntimeStep(page, step, {
+          timeout,
+          baseUrl: effectiveBaseUrl,
+          mode: "playback",
+        });
         const networkIdleTimedOut = await waitForPostStepNetworkIdle(
           page,
           waitForNetworkIdle,
@@ -174,101 +182,6 @@ async function launchBrowser(headed?: boolean): Promise<Browser> {
   }
 }
 
-async function executeStep(
-  page: Page,
-  step: Step,
-  timeout: number,
-  baseUrl?: string
-): Promise<void> {
-  switch (step.action) {
-    case "navigate": {
-      const url = resolveNavigateUrl(step.url, baseUrl, page.url());
-      await page.goto(url, { timeout });
-      break;
-    }
-
-    case "click":
-      await resolveLocator(page, step).click({ timeout });
-      break;
-
-    case "fill":
-      await resolveLocator(page, step).fill(step.text, { timeout });
-      break;
-
-    case "press":
-      await resolveLocator(page, step).press(step.key, { timeout });
-      break;
-
-    case "check":
-      await resolveLocator(page, step).check({ timeout });
-      break;
-
-    case "uncheck":
-      await resolveLocator(page, step).uncheck({ timeout });
-      break;
-
-    case "hover":
-      await resolveLocator(page, step).hover({ timeout });
-      break;
-
-    case "select":
-      await resolveLocator(page, step).selectOption(step.value, {
-        timeout,
-      });
-      break;
-
-    case "assertVisible":
-      await resolveLocator(page, step).waitFor({
-        state: "visible",
-        timeout,
-      });
-      break;
-
-    case "assertText": {
-      const locator = resolveLocator(page, step);
-      await locator.waitFor({ state: "visible", timeout });
-      const text = await locator.textContent({ timeout });
-      if (!text?.includes(step.text)) {
-        throw new Error(
-          "Expected text '" + step.text + "' but got '" + (text ?? "(empty)") + "'"
-        );
-      }
-      break;
-    }
-
-    case "assertValue": {
-      const locator = resolveLocator(page, step);
-      await locator.waitFor({ state: "visible", timeout });
-      const value = await locator.inputValue({ timeout });
-      if (value !== step.value) {
-        throw new Error(
-          "Expected value '" + step.value + "' but got '" + value + "'"
-        );
-      }
-      break;
-    }
-
-    case "assertChecked": {
-      const locator = resolveLocator(page, step);
-      const checked = step.checked ?? true;
-      if (checked) {
-        await locator.waitFor({ state: "visible", timeout });
-        const isChecked = await locator.isChecked({ timeout });
-        if (!isChecked) {
-          throw new Error("Expected element to be checked");
-        }
-      } else {
-        await locator.waitFor({ state: "visible", timeout });
-        const isChecked = await locator.isChecked({ timeout });
-        if (isChecked) {
-          throw new Error("Expected element to be unchecked");
-        }
-      }
-      break;
-    }
-  }
-}
-
 async function waitForPostStepNetworkIdle(
   page: Page,
   enabled: boolean,
@@ -291,87 +204,6 @@ function isPlaywrightTimeoutError(err: unknown): boolean {
   if (err instanceof playwrightErrors.TimeoutError) return true;
   if (err instanceof Error && err.name === "TimeoutError") return true;
   return false;
-}
-
-type TargetStep = Exclude<Step, { action: "navigate" }>;
-type LocatorContext = Page | FrameLocator;
-
-function resolveLocator(
-  page: Page,
-  targetOrStep: Target | TargetStep
-): Locator {
-  const target = "action" in targetOrStep ? targetOrStep.target : targetOrStep;
-  const context = resolveLocatorContext(page, target.framePath);
-
-  if (target.kind === "locatorExpression") {
-    const resolved = evaluateLocatorExpression(context, target.value);
-    if (!isPlaywrightLocator(resolved)) {
-      throw new UserError(
-        `Locator expression did not resolve to a locator: ${target.value}`,
-        "Ensure the expression returns a Playwright locator chain."
-      );
-    }
-    return resolved;
-  }
-
-  return context.locator(target.value);
-}
-
-function resolveLocatorContext(page: Page, framePath?: string[]): LocatorContext {
-  let context: LocatorContext = page;
-  if (!framePath || framePath.length === 0) return context;
-
-  for (const frameSelector of framePath) {
-    if (!frameSelector.trim()) continue;
-    context = context.frameLocator(frameSelector);
-  }
-
-  return context;
-}
-
-function isPlaywrightLocator(value: unknown): value is Locator {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<Locator>;
-  return (
-    typeof candidate.locator === "function" &&
-    typeof candidate.click === "function" &&
-    typeof candidate.waitFor === "function"
-  );
-}
-
-function resolveNavigateUrl(
-  stepUrl: string,
-  baseUrl: string | undefined,
-  currentPageUrl: string | undefined
-): string {
-  if (stepUrl.startsWith("http://") || stepUrl.startsWith("https://")) {
-    return stepUrl;
-  }
-
-  try {
-    if (baseUrl) {
-      return new URL(stepUrl, baseUrl).toString();
-    }
-
-    const hasCurrentPageUrl =
-      currentPageUrl &&
-      currentPageUrl !== "about:blank" &&
-      (currentPageUrl.startsWith("http://") || currentPageUrl.startsWith("https://"));
-
-    if (stepUrl.startsWith("/") && hasCurrentPageUrl) {
-      return new URL(stepUrl, currentPageUrl).toString();
-    }
-  } catch {
-    throw new UserError(
-      `Invalid navigation URL: ${stepUrl}`,
-      "Use an absolute URL, or set baseUrl in the test/config for relative paths."
-    );
-  }
-
-  throw new UserError(
-    `Cannot resolve relative navigation URL: ${stepUrl}`,
-    "Set baseUrl in the test/config, or navigate to an absolute URL first."
-  );
 }
 
 function stepDescription(step: Step, index: number): string {

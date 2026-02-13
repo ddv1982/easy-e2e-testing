@@ -1,0 +1,34 @@
+import type { RecordBrowser } from "../../core/recorder.js";
+import type { SelectorPolicy } from "./record-profile.js";
+
+export function formatRecordingProfileSummary(profile: {
+  browser: RecordBrowser;
+  selectorPolicy: SelectorPolicy;
+  device?: string;
+  testIdAttribute?: string;
+  loadStorage?: string;
+  saveStorage?: string;
+}): string {
+  return `Recording profile: browser=${profile.browser}, selectorPolicy=${profile.selectorPolicy}, device=${profile.device ?? "(none)"}, testIdAttr=${profile.testIdAttribute ?? "(default)"}, loadStorage=${profile.loadStorage ?? "(none)"}, saveStorage=${profile.saveStorage ?? "(none)"}`;
+}
+
+export function formatImproveProfileSummary(profile: {
+  provider: string;
+  apply: boolean;
+  assertions: string;
+  llmEnabled: boolean;
+  llmModel: string;
+}): string {
+  return `Improve profile: provider=${profile.provider}, apply=${profile.apply ? "yes" : "no"}, assertions=${profile.assertions}, llm=${profile.llmEnabled ? profile.llmModel : "disabled"}`;
+}
+
+export function formatPlayProfileSummary(profile: {
+  headed: boolean;
+  timeout: number;
+  delayMs: number;
+  waitForNetworkIdle: boolean;
+  networkIdleTimeout: number;
+  autoStart: boolean;
+}): string {
+  return `Play profile: headed=${profile.headed ? "yes" : "no"}, timeout=${profile.timeout}ms, delay=${profile.delayMs}ms, waitNetworkIdle=${profile.waitForNetworkIdle ? "yes" : "no"}, networkIdleTimeout=${profile.networkIdleTimeout}ms, autoStart=${profile.autoStart ? "yes" : "no"}`;
+}

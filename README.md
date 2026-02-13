@@ -1,310 +1,187 @@
 # ui-test
 
-No-code E2E testing framework - record and replay browser tests with YAML.
+`ui-test` is a YAML-first E2E test runner built on Playwright.
+You can record tests, replay them, and optionally improve selector quality with a review-first pipeline.
 
-Note: selector steps now use the V2 `target` object contract. Legacy `selector:` step fields are not supported.
+Note: `ui-test` uses the V2 `target` selector contract. Legacy `selector:` fields are not supported.
 
-## Installation
-
-```bash
-# from this repo (local)
-npm install --save-dev .
-
-# from GitHub
-npm install --save-dev github:ddv1982/easy-e2e-testing#main
-```
-
-`ui-test` is not currently published to npm with installable versions, so
-`npm install --save-dev ui-test` will fail until the package is published.
-
-## Quick Start
-
-### 1. Install and run setup
+## 5-Minute Quickstart
 
 ```bash
 npm install --save-dev .
 npx ui-test setup
-```
-
-`setup` creates config/sample files (if needed) and installs Chromium for Playwright.
-No Git Bash is required on Windows for this flow.
-
-Need command help?
-
-```bash
-npx ui-test help
-npx ui-test --help
-```
-
-Default generated values for the built-in Vue example app:
-
-- `baseUrl`: `http://127.0.0.1:5173`
-- `startCommand`: `npx ui-test example-app --host 127.0.0.1 --port 5173`
-
-### Init Modes (Interactive `npx ui-test init`)
-
-`init` now asks what you are testing and only configures `startCommand` when relevant:
-
-- `Built-in example app` (default): auto-generates `startCommand`.
-- `Already-running website`: no `startCommand` is written.
-- `Custom app with start command`: prompts for command and stores it.
-
-### 2. Run tests (one command)
-
-```bash
 npx ui-test play
 ```
 
-`play` auto-starts the app when `startCommand` is present in `ui-test.config.yaml`.
+What this does:
+1. Creates `ui-test.config.yaml` (if missing).
+2. Installs Chromium for Playwright.
+3. Runs example YAML tests from `e2e/`.
 
-### 3. Optional manual mode
+## Choose Your Path
 
-If you already started the app yourself:
+### Beginner: run tests quickly
+
+Use defaults and run:
 
 ```bash
-npx ui-test example-app --host 127.0.0.1 --port 5173
+npx ui-test setup
+npx ui-test play
+```
+
+If your app is already running:
+
+```bash
 npx ui-test play --no-start
 ```
 
-### 4. Record a test
+See: [Getting Started](docs/getting-started.md)
+
+### Intermediate: record and replay your own tests
 
 ```bash
 npx ui-test record
+npx ui-test list
+npx ui-test play
 ```
 
-### 5. List tests
+Recommended flow:
+1. Record a scenario.
+2. Open the YAML file and add assertions.
+3. Re-run with `npx ui-test play`.
+
+See: [Record Workflow](docs/workflows/record.md)
+
+### Advanced: improve selector quality
 
 ```bash
-npx ui-test list
+npx ui-test improve e2e/login.yaml
+npx ui-test improve e2e/login.yaml --apply
 ```
 
-## Command Matrix
+Optional local LLM ranking (Ollama):
 
-| Command | What it runs | Main audience |
-| --- | --- | --- |
-| `npx ui-test help` | Full CLI command help | End users and maintainers |
-| `npx ui-test setup` | First-run project setup (config + browser install) | End users onboarding quickly |
-| `npx ui-test play` | YAML browser tests from `testDir` | End users testing an app |
-| `npm test` | Vitest framework suite (unit + integration in `src/**/*.test.ts` and `src/**/*.integration.test.ts`) | Maintainers of `ui-test` |
-| `npm run test:smoke` | Consumer-style packaged smoke (`setup` -> `play`) | Maintainers validating onboarding |
-| `npm run help` | Friendly repo-local command guide | Maintainers working in this repository |
+```bash
+npx ui-test improve e2e/login.yaml --llm
+```
 
-For installed usage in your own app, use `npx ui-test help` or `npx ui-test --help`.
+See: [Improve Workflow](docs/workflows/improve.md)
 
-## Common Confusion
+## Core Commands
 
-If you run `npm test`, you will **not** see your YAML `headed` browser flow.  
-`npm test` runs framework tests; YAML browser playback is run via `npx ui-test play`.
+| Command | Purpose |
+| --- | --- |
+| `npx ui-test setup` | Initialize config and install browser dependencies |
+| `npx ui-test play [test]` | Run one YAML test or all tests |
+| `npx ui-test record` | Record browser interactions into YAML |
+| `npx ui-test improve <file>` | Analyze selector quality and produce report |
+| `npx ui-test list` | List discovered tests |
 
-`headed` and `delay` are read from `ui-test.config.yaml` (or CLI flags) when running:
+More flags:
+- `npx ui-test --help`
+- `npx ui-test record --help`
+- `npx ui-test play --help`
+- `npx ui-test improve --help`
 
-- `npx ui-test play`
-- `npx ui-test play --headed --delay 2000`
-
-`ui-test play` also waits for `networkidle` after each step by default to reduce flaky timing issues.
-If idle is not reached before timeout, it warns and continues.
-Repeated timeout warnings are capped per test file to keep logs readable.
-
-## Troubleshooting Setup
-
-- Linux browser dependency issue: if setup reports missing dependencies, run `npx playwright install-deps chromium`.
-- Proxy/firewall environments: browser download may fail if outbound access is blocked; configure npm/proxy settings and rerun `npx ui-test setup`.
-- Legacy config file detected: `easy-e2e.config.yaml` and `easy-e2e.config.yml` are no longer supported. Rename to `ui-test.config.yaml`.
-
-## Test Format
-
-Tests are written in YAML with a simple, readable format:
+## Test Format (V2)
 
 ```yaml
 name: Login Test
-description: Test user login flow
 baseUrl: https://example.com
-
 steps:
   - action: navigate
     url: /login
 
   - action: fill
     target:
-      value: '#username'
+      value: "#email"
       kind: css
       source: manual
-    text: testuser
-
-  - action: fill
-    target:
-      value: '#password'
-      kind: css
-      source: manual
-    text: password123
+    text: user@example.com
 
   - action: click
     target:
-      value: 'button[type=submit]'
-      kind: css
+      value: "getByRole('button', { name: 'Sign in' })"
+      kind: locatorExpression
       source: manual
-
-  - action: assertVisible
-    target:
-      value: '.dashboard'
-      kind: css
-      source: manual
-    description: User is logged in
 ```
 
-## Available Actions
-
-- `navigate` - Navigate to URL
-- `click` - Click element
-- `fill` - Fill input field
-- `press` - Press keyboard key
-- `check` - Check checkbox
-- `uncheck` - Uncheck checkbox
-- `hover` - Hover over element
-- `select` - Select dropdown option
-- `assertVisible` - Assert element is visible
-- `assertText` - Assert element contains text
-- `assertValue` - Assert input has value
-- `assertChecked` - Assert checkbox is checked
-
-## Selector Syntax
-
-Each selector-based step uses:
+Selector-based steps use:
 
 ```yaml
 target:
-  value: "getByRole('button', { name: 'Save' })"
-  kind: locatorExpression
-  source: manual
+  value: "..."
+  kind: locatorExpression | playwrightSelector | css | xpath | internal | unknown
+  source: manual | codegen-jsonl | codegen-fallback
 ```
 
-`target.kind` supports:
+See full schema examples in [Configuration & Schema](docs/configuration.md).
 
-- `locatorExpression`
-- `playwrightSelector`
-- `css`
-- `xpath`
-- `internal`
-- `unknown`
-
-Selector strategy ladder used by recorder:
-
-- Prefer normalized locator expressions from Playwright JSONL (`reliable` policy)
-- Preserve raw Playwright selectors with metadata fallback when normalization is not possible
-- Fall back to parsing `--target playwright-test` output when JSONL is unavailable
-
-`ui-test` validates locator expressions with a strict allowlist and rejects arbitrary JavaScript execution.
-
-## Configuration
+## Minimal Configuration
 
 Create `ui-test.config.yaml`:
 
 ```yaml
 testDir: e2e
 baseUrl: http://127.0.0.1:5173
-startCommand: npx ui-test example-app --host 127.0.0.1 --port 5173
+startCommand: npm run dev
 headed: false
 timeout: 10000
-delay: 2000 # optional; milliseconds between steps
-waitForNetworkIdle: true # optional; default true
-networkIdleTimeout: 2000 # optional; milliseconds, default 2000
-recordSelectorPolicy: reliable # optional; reliable|raw
-recordBrowser: chromium # optional; chromium|firefox|webkit
-recordDevice: iPhone 13 # optional
-recordTestIdAttribute: data-testid # optional
-recordLoadStorage: .auth/in.json # optional
-recordSaveStorage: .auth/out.json # optional
+recordSelectorPolicy: reliable
+recordBrowser: chromium
+improveProvider: auto
+improveApplyMode: review
+improveAssertions: candidates
+llm:
+  enabled: false
+  provider: ollama
+  baseUrl: http://127.0.0.1:11434
+  model: gemma3:4b
 ```
 
-`startCommand` is optional and only needed if you want `ui-test play` to auto-start your app.
-If omitted, start your app manually and run `npx ui-test play --no-start`.
+`startCommand` is optional. If omitted, start your app manually and run `npx ui-test play --no-start`.
 
-Runtime overrides:
+See all options in [Configuration](docs/configuration.md).
 
-- Disable post-step network-idle waits: `npx ui-test play --no-wait-network-idle`
-- Tune timeout: `npx ui-test play --network-idle-timeout 3500`
+## Recorder & Improve Reliability Model
 
-Record overrides:
+### Recorder
+- Primary capture: Playwright JSONL codegen.
+- Fallback capture: `--target playwright-test` + constrained AST parser.
+- Output includes selector quality summary (`stable`, `fallback`, `frame-aware`).
 
-- `npx ui-test record --selector-policy reliable`
-- `npx ui-test record --browser firefox`
-- `npx ui-test record --device "iPhone 13"`
-- `npx ui-test record --test-id-attribute data-qa`
-- `npx ui-test record --load-storage .auth/in.json --save-storage .auth/out.json`
+### Improve
+- Default mode is review-first: writes report only.
+- `--apply` writes recommended selector updates.
+- Runtime validation is required for apply mode.
+- Optional Ollama ranking is best-effort; deterministic scoring remains fallback.
 
-Recorder reliability behavior:
+## Quick Troubleshooting
 
-- Primary path: Playwright codegen JSONL capture
-- Fallback path: Playwright `--target playwright-test` + constrained AST parser when JSONL is unavailable, disabled (`UI_TEST_DISABLE_JSONL=1`), or JSONL codegen fails without recoverable steps
-- CLI prints whether fallback/degraded fidelity was used and selector quality counts
+- Browser missing:
+  - `npx playwright install chromium`
+- Linux dependencies missing:
+  - `npx playwright install-deps chromium`
+- App not reachable in play mode:
+  - verify `baseUrl`, or run `--no-start` with app already running
+- Legacy config file error:
+  - rename to `ui-test.config.yaml`
 
-## Development
+More: [Troubleshooting](docs/troubleshooting.md)
 
-### Running Tests
+## Documentation Map
 
-```bash
-# Framework tests (maintainer suite)
-npm test
-npm run test:framework
-
-# Consumer onboarding smoke (pack -> install -> setup -> play)
-npm run test:smoke
-
-# Run unit tests only
-npm run test:unit
-
-# Run integration tests only
-npm run test:integration
-
-# Watch mode
-npm run test:watch
-
-# Coverage report
-npm run test:coverage
-
-# Check npm package name availability before publishing
-npm run check:npm-name
-```
-
-### CI Runner Fallback
-
-If GitHub-hosted runners are unavailable (for example billing/spending-limit issues), configure one of these repository/organization variables:
-
-- `CI_RUNNER_LABELS_JSON` (preferred): JSON array of runner labels, for example `["self-hosted"]` or `["self-hosted","macOS","ARM64"]`
-- `CI_RUNNER_MODE=self-hosted` (fallback): uses strict labels `["self-hosted","macOS","ARM64"]`
-
-When neither variable is set, CI defaults to `ubuntu-latest`.
-
-### Recorder Stability Override
-
-The recorder uses Playwright JSONL capture first when available, with fallback to `playwright-test` parsing.
-
-To force stable fallback mode (skip JSONL entirely), set:
-
-- `UI_TEST_DISABLE_JSONL=1`
-
-### Test Coverage
-
-Coverage thresholds are enforced in [vitest.config.ts](vitest.config.ts):
-
-- **Lines:** 60%
-- **Functions:** 100%
-- **Branches:** 50%
-- **Statements:** 60%
-
-Run `npm run test:coverage` for current local metrics.  
-See [docs/test-coverage-report.md](docs/test-coverage-report.md) for the latest recorded snapshot.
+- [Getting Started](docs/getting-started.md)
+- [Record Workflow](docs/workflows/record.md)
+- [Improve Workflow](docs/workflows/improve.md)
+- [Configuration](docs/configuration.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Maintainers](docs/maintainers.md)
 
 ## Third-Party Licenses
 
-This project uses Microsoft Playwright for browser automation and recording, including Playwright CLI commands such as:
-
-- `npx playwright codegen`
-- `npx playwright install chromium`
-- `npx playwright install-deps chromium`
-
-Playwright is licensed under Apache License 2.0.  
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution details.
+`ui-test` uses Microsoft Playwright for automation/recording.
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## License
 

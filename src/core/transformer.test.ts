@@ -118,6 +118,38 @@ describe("jsonlToSteps", () => {
     expect(steps).toHaveLength(1);
     expect(steps[0]).toMatchObject({ action: "click" });
   });
+
+  it("builds defined steps for every supported selector action", () => {
+    const lines = [
+      '{"type":"click","selector":"#a"}',
+      '{"type":"fill","selector":"#a","text":"hello"}',
+      '{"type":"press","selector":"#a","key":"Enter"}',
+      '{"type":"check","selector":"#a"}',
+      '{"type":"uncheck","selector":"#a"}',
+      '{"type":"hover","selector":"#a"}',
+      '{"type":"select","selector":"#a","value":"v"}',
+      '{"type":"assertVisible","selector":"#a"}',
+      '{"type":"assertText","selector":"#a","text":"ok"}',
+      '{"type":"assertValue","selector":"#a","value":"ok"}',
+      '{"type":"assertChecked","selector":"#a"}',
+    ];
+
+    const steps = jsonlToSteps(lines.join("\n"));
+    expect(steps).toHaveLength(lines.length);
+    expect(steps.map((step) => step.action)).toEqual([
+      "click",
+      "fill",
+      "press",
+      "check",
+      "uncheck",
+      "hover",
+      "select",
+      "assertVisible",
+      "assertText",
+      "assertValue",
+      "assertChecked",
+    ]);
+  });
 });
 
 describe("jsonlToRecordingSteps", () => {

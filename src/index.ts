@@ -6,6 +6,7 @@ import { registerPlay } from "./commands/play.js";
 import { registerList } from "./commands/list.js";
 import { registerExampleApp } from "./commands/example-app.js";
 import { registerSetup } from "./commands/setup.js";
+import { registerImprove } from "./commands/improve.js";
 
 export function run() {
   const program = new Command();
@@ -20,6 +21,7 @@ export function run() {
   registerRecord(program);
   registerPlay(program);
   registerList(program);
+  registerImprove(program);
   registerExampleApp(program);
 
   program.parseAsync().catch(handleError);

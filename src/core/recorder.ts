@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -13,6 +12,7 @@ import {
 import type { Step } from "./yaml-schema.js";
 import { ui } from "../utils/ui.js";
 import { UserError } from "../utils/errors.js";
+import { runInteractiveCommand } from "../utils/process-runner.js";
 
 export type RecordBrowser = "chromium" | "firefox" | "webkit";
 type JsonlCapability = "supported" | "unsupported" | "unknown";
@@ -245,53 +245,44 @@ interface CodegenRunOptions {
 }
 
 function runCodegen(playwrightBin: string, options: CodegenRunOptions): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const argsCore = [
-      "codegen",
-      "--target",
-      options.target,
-      "--output",
-      options.outputFile,
-      "--browser",
-      options.browser,
-    ];
+  return runCodegenInternal(playwrightBin, options);
+}
 
-    if (options.device?.trim()) {
-      argsCore.push("--device", options.device.trim());
-    }
-    if (options.testIdAttribute?.trim()) {
-      argsCore.push("--test-id-attribute", options.testIdAttribute.trim());
-    }
-    if (options.loadStorage?.trim()) {
-      argsCore.push("--load-storage", options.loadStorage.trim());
-    }
-    if (options.saveStorage?.trim()) {
-      argsCore.push("--save-storage", options.saveStorage.trim());
-    }
+async function runCodegenInternal(playwrightBin: string, options: CodegenRunOptions): Promise<void> {
+  const argsCore = [
+    "codegen",
+    "--target",
+    options.target,
+    "--output",
+    options.outputFile,
+    "--browser",
+    options.browser,
+  ];
 
-    argsCore.push(options.url);
+  if (options.device?.trim()) {
+    argsCore.push("--device", options.device.trim());
+  }
+  if (options.testIdAttribute?.trim()) {
+    argsCore.push("--test-id-attribute", options.testIdAttribute.trim());
+  }
+  if (options.loadStorage?.trim()) {
+    argsCore.push("--load-storage", options.loadStorage.trim());
+  }
+  if (options.saveStorage?.trim()) {
+    argsCore.push("--save-storage", options.saveStorage.trim());
+  }
 
-    const args = playwrightBin === "npx" ? ["playwright", ...argsCore] : argsCore;
-
-    const child = spawn(playwrightBin, args, {
-      stdio: ["inherit", "inherit", "inherit"],
-    });
-
-    child.on("error", (err) => reject(err));
-    child.on("close", (code, signal) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-
-      if (signal) {
-        reject(new Error(`Playwright codegen exited via signal ${signal}`));
-        return;
-      }
-
-      reject(new Error(`Playwright codegen exited with code ${code ?? "unknown"}`));
-    });
+  argsCore.push(options.url);
+  const args = playwrightBin === "npx" ? ["playwright", ...argsCore] : argsCore;
+  const result = await runInteractiveCommand(playwrightBin, args, {
+    stdio: ["inherit", "inherit", "inherit"],
   });
+
+  if (result.exitCode === 0) return;
+  if (result.signal) {
+    throw new Error(`Playwright codegen exited via signal ${result.signal}`);
+  }
+  throw new Error(`Playwright codegen exited with code ${result.exitCode ?? "unknown"}`);
 }
 
 function resolvePlaywrightCliPath(pathOrFileUrl: string): string {
