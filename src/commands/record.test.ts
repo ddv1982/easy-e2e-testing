@@ -4,14 +4,14 @@ import { UserError } from "../utils/errors.js";
 
 describe("normalizeRecordUrl", () => {
   it("keeps valid absolute URLs", () => {
-    expect(normalizeRecordUrl("https://apps.crv4all.nl/veemanager")).toBe(
-      "https://apps.crv4all.nl/veemanager"
+    expect(normalizeRecordUrl("https://example.com/app")).toBe(
+      "https://example.com/app"
     );
   });
 
   it("adds https protocol when missing for public domains", () => {
-    expect(normalizeRecordUrl("apps.crv4all.nl/veemanager")).toBe(
-      "https://apps.crv4all.nl/veemanager"
+    expect(normalizeRecordUrl("example.com/app")).toBe(
+      "https://example.com/app"
     );
   });
 
