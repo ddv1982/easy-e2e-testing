@@ -68,6 +68,30 @@ describe("jsonlToSteps", () => {
     expect(steps[1].action).toBe("click");
     expect(steps[2].action).toBe("fill");
   });
+
+  it("should parse Playwright name-based click action", () => {
+    const jsonl = '{"name":"click","selector":"button"}';
+    const steps = jsonlToSteps(jsonl);
+    expect(steps).toEqual([{ action: "click", selector: "button" }]);
+  });
+
+  it("should parse Playwright openPage action into navigate", () => {
+    const jsonl = '{"name":"openPage","url":"https://example.com/login"}';
+    const steps = jsonlToSteps(jsonl);
+    expect(steps).toEqual([{ action: "navigate", url: "https://example.com/login" }]);
+  });
+
+  it("should skip blank openPage entries", () => {
+    const jsonl = '{"name":"openPage","url":"about:blank"}';
+    const steps = jsonlToSteps(jsonl);
+    expect(steps).toEqual([]);
+  });
+
+  it("should parse select option array from Playwright name-based action", () => {
+    const jsonl = '{"name":"select","selector":"#country","options":["nl"]}';
+    const steps = jsonlToSteps(jsonl);
+    expect(steps).toEqual([{ action: "select", selector: "#country", value: "nl" }]);
+  });
 });
 
 describe("jsonlToSteps - edge cases", () => {

@@ -7,13 +7,14 @@ import type { Step, TestFile } from "./yaml-schema.js";
  * with fields like: type, selector, url, text, key, value, etc.
  */
 interface CodegenAction {
-  type: string;
+  type?: string;
+  name?: string;
   url?: string;
   selector?: string;
   text?: string;
   key?: string;
   value?: string;
-  name?: string;
+  options?: string[];
   signals?: Array<{ name: string; url?: string }>;
   [key: string]: unknown;
 }
@@ -43,8 +44,15 @@ export function jsonlToSteps(jsonlContent: string): Step[] {
 
 function actionToStep(action: CodegenAction): Step | null {
   const selector = action.selector ?? "";
+  const actionName = action.type ?? action.name ?? "";
 
-  switch (action.type) {
+  switch (actionName) {
+    case "openPage":
+      if (!action.url || action.url === "about:blank" || action.url === "chrome://newtab/") {
+        return null;
+      }
+      return { action: "navigate", url: action.url };
+
     case "navigate":
       return { action: "navigate", url: action.url ?? "/" };
 
@@ -54,7 +62,7 @@ function actionToStep(action: CodegenAction): Step | null {
 
     case "fill":
       if (!selector) return null;
-      return { action: "fill", selector, text: action.text ?? "" };
+      return { action: "fill", selector, text: action.text ?? action.value ?? "" };
 
     case "press":
       if (!selector) return null;
@@ -74,7 +82,7 @@ function actionToStep(action: CodegenAction): Step | null {
 
     case "select":
       if (!selector) return null;
-      return { action: "select", selector, value: action.value ?? "" };
+      return { action: "select", selector, value: action.value ?? action.options?.[0] ?? "" };
 
     case "assertVisible":
       if (!selector) return null;
@@ -91,6 +99,9 @@ function actionToStep(action: CodegenAction): Step | null {
     case "assertChecked":
       if (!selector) return null;
       return { action: "assertChecked", selector, checked: true };
+
+    case "closePage":
+      return null;
 
     default:
       return null; // skip unsupported actions
