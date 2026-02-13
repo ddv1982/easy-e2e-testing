@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import { fileURLToPath } from "node:url";
 import { jsonlToSteps, stepsToYaml } from "./transformer.js";
 import { ui } from "../utils/ui.js";
 import { UserError } from "../utils/errors.js";
@@ -89,9 +90,7 @@ async function findPlaywrightCli(): Promise<string> {
   try {
     const pwPath = await import.meta.resolve?.("playwright/cli");
     if (pwPath) {
-      const resolved = pwPath.startsWith("file://")
-        ? new URL(pwPath).pathname
-        : pwPath;
+      const resolved = resolvePlaywrightCliPath(pwPath);
       await fs.access(resolved);
       return resolved;
     }
@@ -101,6 +100,12 @@ async function findPlaywrightCli(): Promise<string> {
 
   // Fallback: use npx playwright
   return "npx";
+}
+
+function resolvePlaywrightCliPath(pathOrFileUrl: string): string {
+  return pathOrFileUrl.startsWith("file://")
+    ? fileURLToPath(pathOrFileUrl)
+    : pathOrFileUrl;
 }
 
 function runCodegen(
@@ -142,7 +147,7 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export { runCodegen };
+export { runCodegen, resolvePlaywrightCliPath };
 
 function buildRecordingFailureHint(message: string): string {
   const lower = message.toLowerCase();

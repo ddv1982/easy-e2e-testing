@@ -3,6 +3,7 @@ import type { ChildProcess } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { UserError } from "../utils/errors.js";
 
@@ -11,7 +12,7 @@ vi.mock("node:child_process", () => ({
 }));
 
 import { spawn } from "node:child_process";
-import { record, runCodegen } from "./recorder.js";
+import { record, resolvePlaywrightCliPath, runCodegen } from "./recorder.js";
 
 function createMockChildProcess() {
   return new EventEmitter() as ChildProcess;
@@ -50,6 +51,17 @@ describe("runCodegen", () => {
     child.emit("close", null, "SIGTERM");
 
     await expect(run).rejects.toThrow("Playwright codegen exited via signal SIGTERM");
+  });
+});
+
+describe("resolvePlaywrightCliPath", () => {
+  it("converts file URLs with fileURLToPath semantics", () => {
+    const fileUrl = pathToFileURL(path.join(os.tmpdir(), "playwright-cli.js")).href;
+    expect(resolvePlaywrightCliPath(fileUrl)).toBe(fileURLToPath(fileUrl));
+  });
+
+  it("returns non-file paths unchanged", () => {
+    expect(resolvePlaywrightCliPath("npx")).toBe("npx");
   });
 });
 
