@@ -110,6 +110,8 @@ baseUrl: https://staging.example.com
 headed: false
 timeout: 15000
 delay: 2000
+waitForNetworkIdle: false
+networkIdleTimeout: 3500
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 
@@ -120,6 +122,8 @@ delay: 2000
     expect(config.headed).toBe(false);
     expect(config.timeout).toBe(15000);
     expect(config.delay).toBe(2000);
+    expect(config.waitForNetworkIdle).toBe(false);
+    expect(config.networkIdleTimeout).toBe(3500);
   });
 
   it("should reject invalid config types", async () => {
@@ -128,6 +132,8 @@ timeout: "5000"
 headed: yes
 delay: -1
 startCommand: 123
+waitForNetworkIdle: "true"
+networkIdleTimeout: 0
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 

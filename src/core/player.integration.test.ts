@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer, type Server } from "node:http";
 import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import yaml from "js-yaml";
 import { play } from "./player.js";
+import { ui } from "../utils/ui.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HTML_FIXTURE_DIR = join(__dirname, "../../tests/fixtures/html");
@@ -258,5 +259,86 @@ describe("player integration - step execution", () => {
     expect(result.passed).toBe(false);
     const failedStep = result.steps.find((step) => !step.passed);
     expect(failedStep?.error).toMatch(/Computed property access is not allowed/);
+  }, 30000);
+
+  it("warns and continues when post-step network idle times out", async () => {
+    const warnSpy = vi.spyOn(ui, "warn").mockImplementation(() => {});
+    try {
+      const testFile = await writeInlineFixture("network-idle-timeout.yaml", {
+        name: "Network Idle Timeout Continue",
+        baseUrl,
+        steps: [
+          { action: "navigate", url: "/network-polling.html" },
+          { action: "assertVisible", selector: "#status" },
+        ],
+      });
+
+      const result = await play(testFile, {
+        headed: false,
+        timeout: 5000,
+        networkIdleTimeout: 700,
+      });
+
+      expect(result.passed).toBe(true);
+      expect(warnSpy).toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  }, 30000);
+
+  it("skips post-step network idle when disabled", async () => {
+    const warnSpy = vi.spyOn(ui, "warn").mockImplementation(() => {});
+    try {
+      const testFile = await writeInlineFixture("network-idle-disabled.yaml", {
+        name: "Network Idle Disabled",
+        baseUrl,
+        steps: [
+          { action: "navigate", url: "/network-polling.html" },
+          { action: "assertVisible", selector: "#status" },
+        ],
+      });
+
+      const result = await play(testFile, {
+        headed: false,
+        timeout: 5000,
+        waitForNetworkIdle: false,
+        networkIdleTimeout: 200,
+      });
+
+      expect(result.passed).toBe(true);
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  }, 30000);
+
+  it("suppresses repeated network idle timeout warnings after a small limit", async () => {
+    const warnSpy = vi.spyOn(ui, "warn").mockImplementation(() => {});
+    try {
+      const testFile = await writeInlineFixture("network-idle-warning-limit.yaml", {
+        name: "Network Idle Warning Limit",
+        baseUrl,
+        steps: [
+          { action: "navigate", url: "/network-polling.html" },
+          { action: "assertVisible", selector: "#status" },
+          { action: "assertVisible", selector: "#status" },
+          { action: "assertVisible", selector: "#status" },
+          { action: "assertVisible", selector: "#status" },
+          { action: "assertVisible", selector: "#status" },
+        ],
+      });
+
+      const result = await play(testFile, {
+        headed: false,
+        timeout: 5000,
+        networkIdleTimeout: 200,
+      });
+
+      expect(result.passed).toBe(true);
+      expect(warnSpy).toHaveBeenCalledTimes(4);
+      expect(warnSpy.mock.calls[3]?.[0]).toMatch(/suppressed/);
+    } finally {
+      warnSpy.mockRestore();
+    }
   }, 30000);
 });

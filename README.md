@@ -99,6 +99,10 @@ If you run `npm test`, you will **not** see your YAML `headed` browser flow.
 - `npx ui-test play`
 - `npx ui-test play --headed --delay 2000`
 
+`ui-test play` also waits for `networkidle` after each step by default to reduce flaky timing issues.
+If idle is not reached before timeout, it warns and continues.
+Repeated timeout warnings are capped per test file to keep logs readable.
+
 ## Troubleshooting Setup
 
 - Linux browser dependency issue: if setup reports missing dependencies, run `npx playwright install-deps chromium`.
@@ -174,10 +178,17 @@ startCommand: npx ui-test example-app --host 127.0.0.1 --port 5173
 headed: false
 timeout: 10000
 delay: 2000 # optional; milliseconds between steps
+waitForNetworkIdle: true # optional; default true
+networkIdleTimeout: 2000 # optional; milliseconds, default 2000
 ```
 
 `startCommand` is optional and only needed if you want `ui-test play` to auto-start your app.
 If omitted, start your app manually and run `npx ui-test play --no-start`.
+
+Runtime overrides:
+
+- Disable post-step network-idle waits: `npx ui-test play --no-wait-network-idle`
+- Tune timeout: `npx ui-test play --network-idle-timeout 3500`
 
 ## Development
 

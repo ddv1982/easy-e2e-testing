@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, errors as playwrightErrors, type Browser, type Page } from "playwright";
 import { testSchema, type Step } from "./yaml-schema.js";
 import { yamlToTest } from "./transformer.js";
 import { ValidationError, UserError } from "../utils/errors.js";
@@ -10,11 +10,15 @@ import {
   looksLikeLocatorExpression,
 } from "./locator-expression.js";
 
+const NETWORK_IDLE_WARNING_LIMIT = 3;
+
 export interface PlayOptions {
   headed?: boolean;
   timeout?: number;
   baseUrl?: string;
   delayMs?: number;
+  waitForNetworkIdle?: boolean;
+  networkIdleTimeout?: number;
 }
 
 export interface StepResult {
@@ -39,11 +43,24 @@ export async function play(
 ): Promise<TestResult> {
   const timeout = options.timeout ?? 10_000;
   const delayMs = options.delayMs ?? 0;
+  const waitForNetworkIdle = options.waitForNetworkIdle ?? true;
+  const networkIdleTimeout = options.networkIdleTimeout ?? 2_000;
 
   if (!Number.isFinite(delayMs) || delayMs < 0 || !Number.isInteger(delayMs)) {
     throw new UserError(
       `Invalid delay value: ${delayMs}`,
       "Delay must be a non-negative integer in milliseconds."
+    );
+  }
+
+  if (
+    !Number.isFinite(networkIdleTimeout) ||
+    networkIdleTimeout <= 0 ||
+    !Number.isInteger(networkIdleTimeout)
+  ) {
+    throw new UserError(
+      `Invalid network idle timeout value: ${networkIdleTimeout}`,
+      "Network idle timeout must be a positive integer in milliseconds."
     );
   }
 
@@ -65,6 +82,7 @@ export async function play(
   const effectiveBaseUrl = test.baseUrl ?? options.baseUrl;
   const stepResults: StepResult[] = [];
   const testStart = Date.now();
+  let networkIdleTimeoutWarnings = 0;
 
   let browser: Browser | undefined;
   let page: Page | undefined;
@@ -80,6 +98,23 @@ export async function play(
 
       try {
         await executeStep(page, step, timeout, effectiveBaseUrl);
+        const networkIdleTimedOut = await waitForPostStepNetworkIdle(
+          page,
+          waitForNetworkIdle,
+          networkIdleTimeout
+        );
+        if (networkIdleTimedOut) {
+          networkIdleTimeoutWarnings += 1;
+          if (networkIdleTimeoutWarnings <= NETWORK_IDLE_WARNING_LIMIT) {
+            ui.warn(
+              `Step ${i + 1} (${step.action}): network idle not reached within ${networkIdleTimeout}ms; continuing.`
+            );
+          } else if (networkIdleTimeoutWarnings === NETWORK_IDLE_WARNING_LIMIT + 1) {
+            ui.warn(
+              "Additional network idle timeout warnings will be suppressed for this test file."
+            );
+          }
+        }
         const result: StepResult = {
           step,
           index: i,
@@ -230,6 +265,30 @@ async function executeStep(
   }
 }
 
+async function waitForPostStepNetworkIdle(
+  page: Page,
+  enabled: boolean,
+  timeoutMs: number
+): Promise<boolean> {
+  if (!enabled) return false;
+
+  try {
+    await page.waitForLoadState("networkidle", { timeout: timeoutMs });
+    return false;
+  } catch (err) {
+    if (isPlaywrightTimeoutError(err)) {
+      return true;
+    }
+    throw err;
+  }
+}
+
+function isPlaywrightTimeoutError(err: unknown): boolean {
+  if (err instanceof playwrightErrors.TimeoutError) return true;
+  if (err instanceof Error && err.name === "TimeoutError") return true;
+  return false;
+}
+
 function resolveLocator(page: Page, selector: string): any {
   if (looksLikeLocatorExpression(selector)) {
     const resolved = evaluateLocatorExpression(page, selector);
@@ -296,4 +355,10 @@ function stepDescription(step: Step, index: number): string {
 }
 
 // Exports for testing
-export { resolveLocator, resolveNavigateUrl, stepDescription };
+export {
+  resolveLocator,
+  resolveNavigateUrl,
+  stepDescription,
+  waitForPostStepNetworkIdle,
+  isPlaywrightTimeoutError,
+};

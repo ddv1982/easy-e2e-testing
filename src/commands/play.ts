@@ -19,6 +19,9 @@ export function registerPlay(program: Command) {
     .option("--headed", "Run browser in headed mode (visible)")
     .option("--timeout <ms>", "Step timeout in milliseconds")
     .option("--delay <ms>", "Delay between steps in milliseconds")
+    .option("--wait-network-idle", "Wait for network idle after each step")
+    .option("--no-wait-network-idle", "Skip waiting for network idle after each step")
+    .option("--network-idle-timeout <ms>", "Timeout for post-step network idle wait in milliseconds")
     .option("--no-start", "Do not auto-start app even when startCommand is configured")
     .action(async (testArg, opts) => {
       try {
@@ -31,14 +34,26 @@ export function registerPlay(program: Command) {
 
 async function runPlay(
   testArg: string | undefined,
-  opts: { headed?: boolean; timeout?: string; delay?: string; start?: boolean }
+  opts: {
+    headed?: boolean;
+    timeout?: string;
+    delay?: string;
+    waitNetworkIdle?: boolean;
+    networkIdleTimeout?: string;
+    start?: boolean;
+  }
 ) {
   const config = await loadConfig();
   const headed = opts.headed ?? config.headed ?? false;
   const shouldAutoStart = opts.start !== false;
   const cliTimeout =
     opts.timeout !== undefined
-      ? parseTimeout(opts.timeout, "CLI flag --timeout")
+      ? parsePositiveInt(
+          opts.timeout,
+          "timeout",
+          "CLI flag --timeout",
+          "Use a positive integer in milliseconds, for example: --timeout 10000"
+        )
       : undefined;
   const timeout = cliTimeout ?? config.timeout ?? 10_000;
   const cliDelay =
@@ -46,6 +61,18 @@ async function runPlay(
       ? parseNonNegativeInt(opts.delay, "CLI flag --delay")
       : undefined;
   const delayMs = cliDelay ?? config.delay ?? 0;
+  const waitForNetworkIdle =
+    opts.waitNetworkIdle ?? config.waitForNetworkIdle ?? true;
+  const cliNetworkIdleTimeout =
+    opts.networkIdleTimeout !== undefined
+      ? parsePositiveInt(
+          opts.networkIdleTimeout,
+          "network idle timeout",
+          "CLI flag --network-idle-timeout",
+          "Use a positive integer in milliseconds, for example: --network-idle-timeout 2000"
+        )
+      : undefined;
+  const networkIdleTimeout = cliNetworkIdleTimeout ?? config.networkIdleTimeout ?? 2_000;
 
   if (!Number.isFinite(timeout) || timeout <= 0 || !Number.isInteger(timeout)) {
     throw new UserError(
@@ -58,6 +85,17 @@ async function runPlay(
     throw new UserError(
       `Invalid delay value: ${delayMs}`,
       "Delay must be a non-negative integer in milliseconds."
+    );
+  }
+
+  if (
+    !Number.isFinite(networkIdleTimeout) ||
+    networkIdleTimeout <= 0 ||
+    !Number.isInteger(networkIdleTimeout)
+  ) {
+    throw new UserError(
+      `Invalid network idle timeout value: ${networkIdleTimeout}`,
+      "Network idle timeout must be a positive integer in milliseconds."
     );
   }
 
@@ -124,6 +162,8 @@ async function runPlay(
         timeout,
         baseUrl: config.baseUrl,
         delayMs,
+        waitForNetworkIdle,
+        networkIdleTimeout,
       });
       results.push(result);
       console.log();
@@ -152,12 +192,17 @@ async function runPlay(
   }
 }
 
-function parseTimeout(input: string, source: string): number {
+function parsePositiveInt(
+  input: string,
+  label: string,
+  source: string,
+  hint: string
+): number {
   const value = Number(input);
   if (!Number.isFinite(value) || value <= 0 || !Number.isInteger(value)) {
     throw new UserError(
-      `Invalid timeout value from ${source}: ${input}`,
-      "Use a positive integer in milliseconds, for example: --timeout 10000"
+      `Invalid ${label} value from ${source}: ${input}`,
+      hint
     );
   }
   return value;
@@ -227,4 +272,4 @@ async function isBaseUrlReachable(baseUrl: string, timeoutMs: number): Promise<b
   }
 }
 
-export { runPlay, parseTimeout, parseNonNegativeInt, isBaseUrlReachable };
+export { runPlay, parsePositiveInt, parseNonNegativeInt, isBaseUrlReachable };

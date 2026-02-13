@@ -11,6 +11,8 @@ const configSchema = z.object({
   headed: z.boolean().optional(),
   timeout: z.number().int().positive().optional(),
   delay: z.number().int().nonnegative().optional(),
+  waitForNetworkIdle: z.boolean().optional(),
+  networkIdleTimeout: z.number().int().positive().optional(),
 });
 
 export type UITestConfig = z.infer<typeof configSchema>;
@@ -66,7 +68,7 @@ export async function loadConfig(): Promise<UITestConfig> {
 
       throw new UserError(
         `Invalid config in ${filename}: ${issues}`,
-        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer }."
+        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer, waitForNetworkIdle?: boolean, networkIdleTimeout?: positive integer }."
       );
     }
 
