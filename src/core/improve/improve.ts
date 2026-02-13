@@ -52,6 +52,7 @@ export interface ImproveResult {
 
 const DEFAULT_RUNTIME_TIMEOUT_MS = 3_000;
 const DEFAULT_SCORING_TIMEOUT_MS = 1_200;
+const SNAPSHOT_CLI_REPLAY_TIMEOUT_MS = 15_000;
 const ASSERTION_APPLY_MIN_CONFIDENCE = 0.75;
 
 export async function improveTestFile(options: ImproveOptions): Promise<ImproveResult> {
@@ -185,7 +186,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       const snapshotReplay = await collectPlaywrightCliStepSnapshots({
         steps: outputSteps,
         baseUrl: test.baseUrl,
-        timeoutMs: DEFAULT_RUNTIME_TIMEOUT_MS,
+        timeoutMs: SNAPSHOT_CLI_REPLAY_TIMEOUT_MS,
       });
       diagnostics.push(...snapshotReplay.diagnostics);
 

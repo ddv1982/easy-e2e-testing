@@ -599,6 +599,11 @@ describe("improve apply runtime replay", () => {
       },
     });
 
+    expect(collectPlaywrightCliStepSnapshotsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeoutMs: 15_000,
+      })
+    );
     expect(result.report.summary.assertionCandidates).toBe(1);
     expect(result.report.assertionCandidates[0]?.candidateSource).toBe("snapshot_cli");
   });
