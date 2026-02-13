@@ -192,6 +192,9 @@ When a run fails, CLI output includes:
 - Default mode is review-first: writes report only.
 - `--apply` writes recommended selector updates.
 - `--apply-assertions` writes high-confidence, runtime-validated assertion candidates.
+- Auto-apply is conservative: it inserts deterministic form-state checks only (`fill/select -> assertValue`, `check/uncheck -> assertChecked`).
+- Click/press assertions are intentionally not auto-generated to avoid false-positive postconditions.
+- Assertion validation uses post-step network-idle timing like `play` (enabled by default, `2000ms` timeout).
 - Runtime validation is required for apply mode.
 - Optional Ollama ranking is best-effort; deterministic scoring/apply remain available with `--no-llm`.
 

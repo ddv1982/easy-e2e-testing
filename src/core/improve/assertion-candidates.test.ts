@@ -41,4 +41,41 @@ describe("buildAssertionCandidates", () => {
     expect(out[0]?.candidate.action).toBe("assertValue");
     expect(out[1]?.candidate.action).toBe("assertChecked");
   });
+
+  it("does not auto-generate click or press visibility assertions", () => {
+    const findings: StepFinding[] = [
+      {
+        index: 0,
+        action: "click",
+        changed: false,
+        oldTarget: { value: "#login", kind: "css", source: "manual" },
+        recommendedTarget: { value: "#login", kind: "css", source: "manual" },
+        oldScore: 1,
+        recommendedScore: 1,
+        confidenceDelta: 0,
+        reasonCodes: [],
+      },
+      {
+        index: 1,
+        action: "press",
+        changed: false,
+        oldTarget: { value: "#login", kind: "css", source: "manual" },
+        recommendedTarget: { value: "#login", kind: "css", source: "manual" },
+        oldScore: 1,
+        recommendedScore: 1,
+        confidenceDelta: 0,
+        reasonCodes: [],
+      },
+    ];
+
+    const out = buildAssertionCandidates(
+      [
+        { action: "click", target: { value: "#login", kind: "css", source: "manual" } },
+        { action: "press", target: { value: "#login", kind: "css", source: "manual" }, key: "Enter" },
+      ],
+      findings
+    );
+
+    expect(out).toHaveLength(0);
+  });
 });

@@ -13,7 +13,11 @@ const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
 vi.mock("playwright", () => ({
   chromium: {
     launch: vi.fn(async () => ({
-      newPage: vi.fn(async () => ({ url: () => "about:blank" })),
+      newPage: vi.fn(async () => ({
+        url: () => "about:blank",
+        goto: vi.fn(async () => {}),
+        waitForLoadState: vi.fn(async () => {}),
+      })),
       close: vi.fn(async () => {}),
     })),
   },
@@ -174,24 +178,26 @@ describe("improve apply runtime replay", () => {
         "steps:",
         "  - action: navigate",
         "    url: https://example.com",
-        "  - action: click",
+        "  - action: fill",
         "    target:",
-        '      value: "#submit"',
+        '      value: "#name"',
         "      kind: css",
         "      source: manual",
+        "    text: Alice",
       ].join("\n"),
       "utf-8"
     );
     buildAssertionCandidatesMock.mockReturnValue([
       {
         index: 1,
-        afterAction: "click",
+        afterAction: "fill",
         candidate: {
-          action: "assertVisible",
-          target: { value: "#status", kind: "css", source: "manual" },
+          action: "assertValue",
+          target: { value: "#name", kind: "css", source: "manual" },
+          value: "Alice",
         },
         confidence: 0.9,
-        rationale: "high confidence click postcondition",
+        rationale: "stable input value",
       },
     ]);
 
@@ -217,7 +223,7 @@ describe("improve apply runtime replay", () => {
     expect(result.report.assertionCandidates[0]?.applyStatus).toBe("applied");
 
     const saved = await fs.readFile(yamlPath, "utf-8");
-    expect(saved).toContain("action: assertVisible");
+    expect(saved).toContain("action: assertValue");
   });
 
   it("applies selector and assertion updates in one run when both flags are enabled", async () => {
@@ -245,8 +251,9 @@ describe("improve apply runtime replay", () => {
         index: 1,
         afterAction: "click",
         candidate: {
-          action: "assertVisible",
-          target: { value: "#status", kind: "css", source: "manual" },
+          action: "assertValue",
+          target: { value: "#name", kind: "css", source: "manual" },
+          value: "Alice",
         },
         confidence: 0.9,
         rationale: "stable state check",
@@ -275,7 +282,7 @@ describe("improve apply runtime replay", () => {
 
     const saved = await fs.readFile(yamlPath, "utf-8");
     expect(saved).toContain("getByRole('button', { name: 'Save' })");
-    expect(saved).toContain("action: assertVisible");
+    expect(saved).toContain("action: assertValue");
   });
 
   it("skips low-confidence assertions when apply is requested", async () => {
@@ -470,5 +477,53 @@ describe("improve apply runtime replay", () => {
     const saved = await fs.readFile(yamlPath, "utf-8");
     const matchCount = saved.match(/action: assertVisible/g)?.length ?? 0;
     expect(matchCount).toBe(1);
+  });
+
+  it("does not insert click-derived assertions when using default candidate generation", async () => {
+    const { buildAssertionCandidates } = await vi.importActual<typeof import("./assertion-candidates.js")>(
+      "./assertion-candidates.js"
+    );
+    buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
+
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#submit"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      apply: false,
+      applyAssertions: true,
+      provider: "playwright",
+      assertions: "candidates",
+      llmEnabled: false,
+      llmConfig: {
+        baseUrl: "http://127.0.0.1:11434",
+        model: "gemma3:4b",
+        timeoutMs: 1000,
+        temperature: 0,
+        maxOutputTokens: 100,
+      },
+    });
+
+    expect(result.report.summary.assertionCandidates).toBe(0);
+    expect(result.report.summary.appliedAssertions).toBe(0);
+    const saved = await fs.readFile(yamlPath, "utf-8");
+    expect(saved).not.toContain("assertVisible");
   });
 });

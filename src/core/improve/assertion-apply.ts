@@ -1,5 +1,10 @@
 import type { Page } from "playwright";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
+import {
+  DEFAULT_NETWORK_IDLE_TIMEOUT_MS,
+  DEFAULT_WAIT_FOR_NETWORK_IDLE,
+  waitForPostStepNetworkIdle,
+} from "../runtime/network-idle.js";
 import type { Step, Target } from "../yaml-schema.js";
 import type {
   AssertionApplyStatus,
@@ -20,6 +25,8 @@ export interface AssertionApplyOutcome {
 export interface AssertionApplyValidationOptions {
   timeout: number;
   baseUrl?: string;
+  waitForNetworkIdle?: boolean;
+  networkIdleTimeout?: number;
 }
 
 export interface AssertionInsertion {
@@ -64,6 +71,8 @@ export async function validateCandidatesAgainstRuntime(
 ): Promise<AssertionApplyOutcome[]> {
   const outcomes: AssertionApplyOutcome[] = [];
   const candidatesByStepIndex = new Map<number, AssertionCandidateRef[]>();
+  const waitForNetworkIdle = options.waitForNetworkIdle ?? DEFAULT_WAIT_FOR_NETWORK_IDLE;
+  const networkIdleTimeout = options.networkIdleTimeout ?? DEFAULT_NETWORK_IDLE_TIMEOUT_MS;
 
   for (const candidateRef of candidates) {
     if (isDuplicateAdjacentAssertion(steps, candidateRef.candidate.index, candidateRef.candidate.candidate)) {
@@ -99,6 +108,21 @@ export async function validateCandidatesAgainstRuntime(
         baseUrl: options.baseUrl,
         mode: "analysis",
       });
+      const networkIdleTimedOut = await waitForPostStepNetworkIdle(
+        page,
+        waitForNetworkIdle,
+        networkIdleTimeout
+      );
+      if (networkIdleTimedOut) {
+        for (const candidateRef of candidatesByStepIndex.get(index) ?? []) {
+          outcomes.push({
+            candidateIndex: candidateRef.candidateIndex,
+            applyStatus: "skipped_runtime_failure",
+            applyMessage: `Post-step network idle not reached within ${networkIdleTimeout}ms; assertion skipped.`,
+          });
+        }
+        continue;
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown runtime replay failure.";
       for (const [stepIndex, stepCandidates] of candidatesByStepIndex) {

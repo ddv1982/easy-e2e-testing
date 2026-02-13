@@ -4,7 +4,6 @@ import { setTimeout as sleep } from "node:timers/promises";
 import {
   type BrowserContext,
   chromium,
-  errors as playwrightErrors,
   type Browser,
   type Page,
 } from "playwright";
@@ -19,6 +18,12 @@ import {
   resolveLocatorContext,
   resolveNavigateUrl,
 } from "./runtime/locator-runtime.js";
+import {
+  DEFAULT_NETWORK_IDLE_TIMEOUT_MS,
+  DEFAULT_WAIT_FOR_NETWORK_IDLE,
+  isPlaywrightTimeoutError,
+  waitForPostStepNetworkIdle,
+} from "./runtime/network-idle.js";
 import {
   buildPlayFailureArtifactPaths,
   buildPlayFailureReport,
@@ -71,8 +76,9 @@ export async function play(
   const absoluteFilePath = path.resolve(filePath);
   const timeout = options.timeout ?? 10_000;
   const delayMs = options.delayMs ?? 0;
-  const waitForNetworkIdle = options.waitForNetworkIdle ?? true;
-  const networkIdleTimeout = options.networkIdleTimeout ?? 2_000;
+  const waitForNetworkIdle = options.waitForNetworkIdle ?? DEFAULT_WAIT_FOR_NETWORK_IDLE;
+  const networkIdleTimeout =
+    options.networkIdleTimeout ?? DEFAULT_NETWORK_IDLE_TIMEOUT_MS;
   const saveFailureArtifacts = options.saveFailureArtifacts ?? true;
   const artifactsDir = options.artifactsDir ?? ".ui-test-artifacts";
   const runId = options.runId ?? createPlayRunId();
@@ -327,30 +333,6 @@ async function launchBrowser(headed?: boolean): Promise<Browser> {
     }
     throw err;
   }
-}
-
-async function waitForPostStepNetworkIdle(
-  page: Page,
-  enabled: boolean,
-  timeoutMs: number
-): Promise<boolean> {
-  if (!enabled) return false;
-
-  try {
-    await page.waitForLoadState("networkidle", { timeout: timeoutMs });
-    return false;
-  } catch (err) {
-    if (isPlaywrightTimeoutError(err)) {
-      return true;
-    }
-    throw err;
-  }
-}
-
-function isPlaywrightTimeoutError(err: unknown): boolean {
-  if (err instanceof playwrightErrors.TimeoutError) return true;
-  if (err instanceof Error && err.name === "TimeoutError") return true;
-  return false;
 }
 
 function stepDescription(step: Step, index: number): string {

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Page } from "playwright";
 import type { Step } from "../yaml-schema.js";
 import {
@@ -11,12 +11,27 @@ import {
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
   executeRuntimeStepMock: vi.fn(async () => {}),
 }));
+const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
+  waitForPostStepNetworkIdleMock: vi.fn(async () => false),
+}));
 
 vi.mock("../runtime/step-executor.js", () => ({
   executeRuntimeStep: executeRuntimeStepMock,
 }));
 
+vi.mock("../runtime/network-idle.js", () => ({
+  DEFAULT_WAIT_FOR_NETWORK_IDLE: true,
+  DEFAULT_NETWORK_IDLE_TIMEOUT_MS: 2_000,
+  waitForPostStepNetworkIdle: waitForPostStepNetworkIdleMock,
+}));
+
 describe("assertion apply helpers", () => {
+  beforeEach(() => {
+    executeRuntimeStepMock.mockClear();
+    waitForPostStepNetworkIdleMock.mockClear();
+    waitForPostStepNetworkIdleMock.mockResolvedValue(false);
+  });
+
   it("selects high-confidence candidates and skips low-confidence entries", () => {
     const out = selectCandidatesForApply(
       [
@@ -151,7 +166,6 @@ describe("assertion apply helpers", () => {
   });
 
   it("validates runtime assertions and reports runtime failures", async () => {
-    executeRuntimeStepMock.mockClear();
     executeRuntimeStepMock
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce(undefined)
@@ -193,5 +207,37 @@ describe("assertion apply helpers", () => {
     expect(outcomes).toHaveLength(2);
     expect(outcomes[0]?.applyStatus).toBe("applied");
     expect(outcomes[1]?.applyStatus).toBe("skipped_runtime_failure");
+    expect(waitForPostStepNetworkIdleMock).toHaveBeenCalledWith(expect.anything(), true, 2_000);
+  });
+
+  it("skips validation for a step when post-step network idle times out", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+    waitForPostStepNetworkIdleMock.mockResolvedValueOnce(true);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#ok", kind: "css", source: "manual" },
+            },
+            confidence: 0.9,
+            rationale: "status stays visible",
+          },
+        },
+      ],
+      { timeout: 1000 }
+    );
+
+    expect(outcomes).toHaveLength(1);
+    expect(outcomes[0]?.applyStatus).toBe("skipped_runtime_failure");
+    expect(outcomes[0]?.applyMessage).toContain("Post-step network idle not reached");
+    expect(executeRuntimeStepMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -25,6 +25,12 @@ npx ui-test improve e2e/login.yaml --apply-assertions
 ```
 
 This inserts high-confidence assertion candidates into YAML after runtime validation.
+Auto-apply uses a conservative deterministic mapping:
+- `fill/select -> assertValue`
+- `check/uncheck -> assertChecked`
+- click/press assertions are intentionally not auto-generated
+
+Validation uses post-step network-idle timing similar to `play` defaults (enabled, `2000ms` timeout).
 Runtime validation failures are skipped and reported as warnings.
 
 ## LLM-Optional Mode (Ollama)
@@ -62,6 +68,7 @@ npx ui-test improve e2e/login.yaml --assertions none
 Current scope:
 - Assertions are reported as candidates.
 - Assertions are auto-inserted only when `--apply-assertions` is enabled.
+- Auto-insert focuses on stable form-state assertions and excludes click/press-derived visibility checks.
 - Playwright codegen can generate assertions interactively, but `improve` assertion apply is deterministic and does not require LLM.
 
 ## Report Contents

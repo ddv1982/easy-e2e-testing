@@ -1,8 +1,6 @@
 import type { AssertionCandidate, StepFinding } from "./report-schema.js";
 import type { Step } from "../yaml-schema.js";
 
-const CLICK_ASSERT_MIN_CONFIDENCE = 0.85;
-
 export function buildAssertionCandidates(
   steps: Step[],
   findings: StepFinding[]
@@ -57,19 +55,6 @@ export function buildAssertionCandidates(
         rationale: "Check state transitions map directly to assertChecked.",
       });
       continue;
-    }
-
-    if ((step.action === "click" || step.action === "press") && confidence >= CLICK_ASSERT_MIN_CONFIDENCE) {
-      out.push({
-        index,
-        afterAction: step.action,
-        candidate: {
-          action: "assertVisible",
-          target,
-        },
-        confidence,
-        rationale: "High-confidence interactions can be followed by visibility assertions.",
-      });
     }
   }
 

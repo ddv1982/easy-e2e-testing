@@ -79,6 +79,9 @@ If assertions were listed as candidates but not written to YAML:
 2. Keep `--assertions candidates` (not `--assertions none`).
 3. Check report `assertionCandidates[].applyStatus` for skip reasons.
 4. Re-run in a stable test environment so runtime validation can pass.
+5. Note: click/press assertions are intentionally not auto-generated in conservative mode; auto-apply targets stable form-state checks (`assertValue`/`assertChecked`).
+
+Validation timing mirrors `play` post-step waiting (network idle, `2000ms` default). If that wait times out, candidates are skipped with `skipped_runtime_failure`.
 
 LLM is optional for assertion insertion. Deterministic assertion apply works with `--no-llm`.
 
