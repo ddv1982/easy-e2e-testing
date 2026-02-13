@@ -8,3 +8,5 @@ easy-e2e.config.yaml
 easy-e2e.config.yml
 ui-test.config.yaml
 e2e/
+
+.claude/
