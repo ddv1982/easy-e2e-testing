@@ -2,6 +2,8 @@
 
 No-code E2E testing framework - record and replay browser tests with YAML.
 
+Note: selector steps now use the V2 `target` object contract. Legacy `selector:` step fields are not supported.
+
 ## Installation
 
 ```bash
@@ -123,18 +125,30 @@ steps:
     url: /login
 
   - action: fill
-    selector: '#username'
+    target:
+      value: '#username'
+      kind: css
+      source: manual
     text: testuser
 
   - action: fill
-    selector: '#password'
+    target:
+      value: '#password'
+      kind: css
+      source: manual
     text: password123
 
   - action: click
-    selector: 'button[type=submit]'
+    target:
+      value: 'button[type=submit]'
+      kind: css
+      source: manual
 
   - action: assertVisible
-    selector: '.dashboard'
+    target:
+      value: '.dashboard'
+      kind: css
+      source: manual
     description: User is logged in
 ```
 
@@ -155,17 +169,31 @@ steps:
 
 ## Selector Syntax
 
-Each `selector` field supports:
+Each selector-based step uses:
 
-- Plain CSS selectors (for example `#submit`, `.card button`)
-- XPath selectors (for example `//button[@type='submit']`)
-- Playwright text selectors (`text=Save`)
-- Safe Playwright locator expressions with chaining, such as:
-  - `getByRole('button', { name: 'Save' })`
-  - `getByRole('button', { name: /save/i }).filter({ hasText: 'Save' }).nth(0)`
-  - `frameLocator('#checkout-frame').getByText('Confirm').first()`
+```yaml
+target:
+  value: "getByRole('button', { name: 'Save' })"
+  kind: locatorExpression
+  source: manual
+```
 
-`ui-test` validates locator expressions with a safe allowlist and rejects arbitrary JavaScript execution.
+`target.kind` supports:
+
+- `locatorExpression`
+- `playwrightSelector`
+- `css`
+- `xpath`
+- `internal`
+- `unknown`
+
+Selector strategy ladder used by recorder:
+
+- Prefer normalized locator expressions from Playwright JSONL (`reliable` policy)
+- Preserve raw Playwright selectors with metadata fallback when normalization is not possible
+- Fall back to parsing `--target playwright-test` output when JSONL is unavailable
+
+`ui-test` validates locator expressions with a strict allowlist and rejects arbitrary JavaScript execution.
 
 ## Configuration
 
@@ -180,6 +208,12 @@ timeout: 10000
 delay: 2000 # optional; milliseconds between steps
 waitForNetworkIdle: true # optional; default true
 networkIdleTimeout: 2000 # optional; milliseconds, default 2000
+recordSelectorPolicy: reliable # optional; reliable|raw
+recordBrowser: chromium # optional; chromium|firefox|webkit
+recordDevice: iPhone 13 # optional
+recordTestIdAttribute: data-testid # optional
+recordLoadStorage: .auth/in.json # optional
+recordSaveStorage: .auth/out.json # optional
 ```
 
 `startCommand` is optional and only needed if you want `ui-test play` to auto-start your app.
@@ -189,6 +223,20 @@ Runtime overrides:
 
 - Disable post-step network-idle waits: `npx ui-test play --no-wait-network-idle`
 - Tune timeout: `npx ui-test play --network-idle-timeout 3500`
+
+Record overrides:
+
+- `npx ui-test record --selector-policy reliable`
+- `npx ui-test record --browser firefox`
+- `npx ui-test record --device "iPhone 13"`
+- `npx ui-test record --test-id-attribute data-qa`
+- `npx ui-test record --load-storage .auth/in.json --save-storage .auth/out.json`
+
+Recorder reliability behavior:
+
+- Primary path: Playwright codegen JSONL capture
+- Fallback path: Playwright `--target playwright-test` + constrained AST parser
+- CLI prints whether fallback/degraded fidelity was used and selector quality counts
 
 ## Development
 

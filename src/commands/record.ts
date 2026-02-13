@@ -1,9 +1,11 @@
 import type { Command } from "commander";
 import { input } from "@inquirer/prompts";
-import { record as runRecording } from "../core/recorder.js";
+import { record as runRecording, type RecordBrowser } from "../core/recorder.js";
 import { loadConfig } from "../utils/config.js";
 import { ui } from "../utils/ui.js";
 import { handleError, UserError } from "../utils/errors.js";
+
+type SelectorPolicy = "reliable" | "raw";
 
 export function registerRecord(program: Command) {
   program
@@ -12,6 +14,12 @@ export function registerRecord(program: Command) {
     .option("-n, --name <name>", "Test name")
     .option("-u, --url <url>", "Starting URL")
     .option("-d, --description <desc>", "Test description")
+    .option("--selector-policy <policy>", "Selector policy: reliable or raw")
+    .option("--browser <browser>", "Browser: chromium, firefox, or webkit")
+    .option("--device <name>", "Playwright device name")
+    .option("--test-id-attribute <attr>", "Custom test-id attribute")
+    .option("--load-storage <path>", "Path to storage state to preload")
+    .option("--save-storage <path>", "Path to write resulting storage state")
     .action(async (opts) => {
       try {
         await runRecord(opts);
@@ -25,6 +33,12 @@ async function runRecord(opts: {
   name?: string;
   url?: string;
   description?: string;
+  selectorPolicy?: string;
+  browser?: string;
+  device?: string;
+  testIdAttribute?: string;
+  loadStorage?: string;
+  saveStorage?: string;
 }) {
   const config = await loadConfig();
 
@@ -63,16 +77,87 @@ async function runRecord(opts: {
       message: "Description (optional):",
     }));
 
-  const outputPath = await runRecording({
+  const selectorPolicy = parseSelectorPolicy(opts.selectorPolicy) ?? config.recordSelectorPolicy ?? "reliable";
+  const browser = parseRecordBrowser(opts.browser) ?? config.recordBrowser ?? "chromium";
+  const device = cleanOptional(opts.device ?? config.recordDevice);
+  const testIdAttribute = cleanOptional(opts.testIdAttribute ?? config.recordTestIdAttribute);
+  const loadStorage = cleanOptional(opts.loadStorage ?? config.recordLoadStorage);
+  const saveStorage = cleanOptional(opts.saveStorage ?? config.recordSaveStorage);
+
+  ui.info(
+    formatRecordingProfileSummary({
+      browser,
+      selectorPolicy,
+      device,
+      testIdAttribute,
+      loadStorage,
+      saveStorage,
+    })
+  );
+
+  const result = await runRecording({
     name,
     url,
     description: description || undefined,
     outputDir: config.testDir ?? "e2e",
+    selectorPolicy,
+    browser,
+    device,
+    testIdAttribute,
+    loadStorage,
+    saveStorage,
   });
 
   console.log();
-  ui.success(`Test saved to ${outputPath}`);
-  ui.info("Run it with: npx ui-test play " + outputPath);
+  ui.success(`Test saved to ${result.outputPath}`);
+  ui.info(
+    `Recording mode: ${result.recordingMode}${result.degraded ? " (degraded fidelity)" : ""}`
+  );
+  ui.info(
+    `Selector quality: stable=${result.stats.stableSelectors}, fallback=${result.stats.fallbackSelectors}, frame-aware=${result.stats.frameAwareSelectors}`
+  );
+  ui.info("Run it with: npx ui-test play " + result.outputPath);
+}
+
+function cleanOptional(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function parseSelectorPolicy(value: string | undefined): SelectorPolicy | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "reliable" || normalized === "raw") {
+    return normalized;
+  }
+  throw new UserError(
+    `Invalid selector policy: ${value}`,
+    "Use --selector-policy reliable or --selector-policy raw"
+  );
+}
+
+function parseRecordBrowser(value: string | undefined): RecordBrowser | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "chromium" || normalized === "firefox" || normalized === "webkit") {
+    return normalized;
+  }
+  throw new UserError(
+    `Invalid browser: ${value}`,
+    "Use --browser chromium, --browser firefox, or --browser webkit"
+  );
+}
+
+function formatRecordingProfileSummary(profile: {
+  browser: RecordBrowser;
+  selectorPolicy: SelectorPolicy;
+  device?: string;
+  testIdAttribute?: string;
+  loadStorage?: string;
+  saveStorage?: string;
+}): string {
+  return `Recording profile: browser=${profile.browser}, selectorPolicy=${profile.selectorPolicy}, device=${profile.device ?? "(none)"}, testIdAttr=${profile.testIdAttribute ?? "(default)"}, loadStorage=${profile.loadStorage ?? "(none)"}, saveStorage=${profile.saveStorage ?? "(none)"}`;
 }
 
 const PROTOCOL_PREFIX = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//;
@@ -178,4 +263,9 @@ function isPrivateIpv4(host: string): boolean {
   );
 }
 
-export { normalizeRecordUrl };
+export {
+  normalizeRecordUrl,
+  parseSelectorPolicy,
+  parseRecordBrowser,
+  formatRecordingProfileSummary,
+};

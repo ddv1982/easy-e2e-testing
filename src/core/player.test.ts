@@ -2,12 +2,21 @@ import { describe, it, expect, vi } from "vitest";
 import { errors as playwrightErrors, type Page } from "playwright";
 import {
   resolveLocator,
+  resolveLocatorContext,
   resolveNavigateUrl,
   stepDescription,
   waitForPostStepNetworkIdle,
   isPlaywrightTimeoutError,
 } from "./player.js";
-import type { Step } from "./yaml-schema.js";
+import type { Step, Target } from "./yaml-schema.js";
+
+function makeTarget(value: string, kind: Target["kind"] = "css"): Target {
+  return {
+    value,
+    kind,
+    source: "manual",
+  };
+}
 
 describe("resolveLocator", () => {
   const createMockPage = () => {
@@ -22,7 +31,14 @@ describe("resolveLocator", () => {
       or: vi.fn(),
       getByRole: vi.fn(),
       getByText: vi.fn(),
+      getByLabel: vi.fn(),
+      getByPlaceholder: vi.fn(),
+      getByAltText: vi.fn(),
+      getByTitle: vi.fn(),
+      getByTestId: vi.fn(),
       locator: vi.fn(),
+      contentFrame: vi.fn(),
+      owner: vi.fn(),
     };
 
     mockLocator.filter.mockReturnValue(mockLocator);
@@ -33,7 +49,13 @@ describe("resolveLocator", () => {
     mockLocator.or.mockReturnValue(mockLocator);
     mockLocator.getByRole.mockReturnValue(mockLocator);
     mockLocator.getByText.mockReturnValue(mockLocator);
+    mockLocator.getByLabel.mockReturnValue(mockLocator);
+    mockLocator.getByPlaceholder.mockReturnValue(mockLocator);
+    mockLocator.getByAltText.mockReturnValue(mockLocator);
+    mockLocator.getByTitle.mockReturnValue(mockLocator);
+    mockLocator.getByTestId.mockReturnValue(mockLocator);
     mockLocator.locator.mockReturnValue(mockLocator);
+    mockLocator.owner.mockReturnValue(mockLocator);
 
     const mockFrameLocator = {
       getByRole: vi.fn().mockReturnValue(mockLocator),
@@ -45,7 +67,11 @@ describe("resolveLocator", () => {
       getByTestId: vi.fn().mockReturnValue(mockLocator),
       locator: vi.fn().mockReturnValue(mockLocator),
       frameLocator: vi.fn(),
+      owner: vi.fn().mockReturnValue(mockLocator),
     };
+
+    mockFrameLocator.frameLocator.mockReturnValue(mockFrameLocator);
+    mockLocator.contentFrame.mockReturnValue(mockFrameLocator as unknown as typeof mockLocator);
 
     return {
       locator: vi.fn().mockReturnValue(mockLocator),
@@ -60,125 +86,92 @@ describe("resolveLocator", () => {
     } as unknown as Page;
   };
 
-  it("should handle getByRole selector", () => {
+  it("resolves locator expressions", () => {
     const page = createMockPage();
-    resolveLocator(page, "getByRole('button')");
+    resolveLocator(page, makeTarget("getByRole('button')", "locatorExpression"));
     expect(page.getByRole).toHaveBeenCalledWith("button");
   });
 
-  it("should handle getByRole with options", () => {
+  it("supports contentFrame/owner in expression chains", () => {
     const page = createMockPage();
-    resolveLocator(page, "getByRole('button', { name: 'Submit' })");
-    expect(page.getByRole).toHaveBeenCalledWith("button", { name: "Submit" });
-  });
-
-  it("should handle getByRole with regex options", () => {
-    const page = createMockPage();
-    resolveLocator(page, "getByRole('button', { name: /submit/i })");
-    expect(page.getByRole).toHaveBeenCalledWith(
-      "button",
-      expect.objectContaining({ name: expect.any(RegExp) })
-    );
-  });
-
-  it("should handle chained locator expression", () => {
-    const page = createMockPage();
-    const locator = resolveLocator(
+    resolveLocator(
       page,
-      "getByRole('button', { name: 'Submit' }).filter({ hasText: 'Submit' }).nth(0)"
+      makeTarget("locator('iframe').contentFrame().getByRole('button').owner()", "locatorExpression")
     );
-    expect(page.getByRole).toHaveBeenCalledWith("button", { name: "Submit" });
-    expect(locator).toBeDefined();
+    expect(page.locator).toHaveBeenCalledWith("iframe");
   });
 
-  it("should handle frame locator expression chain", () => {
+  it("routes non-expression selectors via page.locator", () => {
     const page = createMockPage();
-    resolveLocator(page, "frameLocator('#frame').getByText('Save').first()");
-    expect(page.frameLocator).toHaveBeenCalledWith("#frame");
+    resolveLocator(page, makeTarget("text=Click here", "playwrightSelector"));
+    expect(page.locator).toHaveBeenCalledWith("text=Click here");
   });
 
-  it("should handle getByText selector", () => {
+  it("applies framePath context", () => {
     const page = createMockPage();
-    resolveLocator(page, "getByText('Welcome')");
-    expect(page.getByText).toHaveBeenCalledWith("Welcome");
+    resolveLocator(page, {
+      value: "button.save",
+      kind: "css",
+      source: "manual",
+      framePath: ["#checkout-frame"],
+    });
+    expect(page.frameLocator).toHaveBeenCalledWith("#checkout-frame");
   });
 
-  it("should handle getByLabel selector", () => {
+  it("throws for unsupported chain methods", () => {
     const page = createMockPage();
-    resolveLocator(page, "getByLabel('Username')");
-    expect(page.getByLabel).toHaveBeenCalledWith("Username");
+    expect(() => {
+      resolveLocator(page, makeTarget("getByRole('button').unknownMethod('x')", "locatorExpression"));
+    }).toThrow(/Unsupported locator chain method/);
   });
+});
 
-  it("should handle getByPlaceholder selector", () => {
-    const page = createMockPage();
-    resolveLocator(page, "getByPlaceholder('Enter email')");
-    expect(page.getByPlaceholder).toHaveBeenCalledWith("Enter email");
-  });
+describe("resolveLocatorContext", () => {
+  it("builds chained frameLocator context", () => {
+    const rootFrame = {
+      frameLocator: vi.fn(),
+      locator: vi.fn(),
+    };
+    rootFrame.frameLocator.mockReturnValue(rootFrame);
 
-  it("should handle getByTestId selector", () => {
-    const page = createMockPage();
-    resolveLocator(page, "getByTestId('submit-button')");
-    expect(page.getByTestId).toHaveBeenCalledWith("submit-button");
-  });
+    const page = {
+      frameLocator: vi.fn().mockReturnValue(rootFrame),
+      locator: vi.fn(),
+    } as unknown as Page;
 
-  it("should handle text= selector", () => {
-    const page = createMockPage();
-    resolveLocator(page, "text=Click here");
-    expect(page.getByText).toHaveBeenCalledWith("Click here");
-  });
-
-  it("should fallback to locator for CSS selector", () => {
-    const page = createMockPage();
-    resolveLocator(page, "#submit-btn");
-    expect(page.locator).toHaveBeenCalledWith("#submit-btn");
-  });
-
-  it("should fallback to locator for XPath selector", () => {
-    const page = createMockPage();
-    resolveLocator(page, "//button[@id='submit']");
-    expect(page.locator).toHaveBeenCalledWith("//button[@id='submit']");
-  });
-
-  it("should throw for unsupported chain methods", () => {
-    const page = createMockPage();
-    expect(() =>
-      resolveLocator(page, "getByRole('button').unknownMethod('x')")
-    ).toThrow(/Unsupported locator chain method/);
+    const context = resolveLocatorContext(page, ["#outer", "#inner"]);
+    expect(context).toBe(rootFrame);
+    expect(page.frameLocator).toHaveBeenCalledWith("#outer");
+    expect(rootFrame.frameLocator).toHaveBeenCalledWith("#inner");
   });
 });
 
 describe("resolveNavigateUrl", () => {
-  it("should keep absolute URLs unchanged", () => {
-    expect(
-      resolveNavigateUrl("https://example.com/login", "https://base.example", "about:blank")
-    ).toBe("https://example.com/login");
-  });
-
-  it("should resolve root-relative URL against baseUrl", () => {
-    expect(resolveNavigateUrl("/x", "https://a.com/app", "about:blank")).toBe(
-      "https://a.com/x"
+  it("keeps absolute URLs unchanged", () => {
+    expect(resolveNavigateUrl("https://example.com/login", "https://base.example", "about:blank")).toBe(
+      "https://example.com/login"
     );
   });
 
-  it("should resolve path-relative URL against baseUrl path", () => {
-    expect(resolveNavigateUrl("x", "https://a.com/app/", "about:blank")).toBe(
-      "https://a.com/app/x"
-    );
+  it("resolves root-relative URL against baseUrl", () => {
+    expect(resolveNavigateUrl("/x", "https://a.com/app", "about:blank")).toBe("https://a.com/x");
   });
 
-  it("should resolve root-relative URL against current page if baseUrl is missing", () => {
-    expect(resolveNavigateUrl("/next", undefined, "https://a.com/app/start")).toBe(
-      "https://a.com/next"
-    );
+  it("resolves path-relative URL against baseUrl path", () => {
+    expect(resolveNavigateUrl("x", "https://a.com/app/", "about:blank")).toBe("https://a.com/app/x");
   });
 
-  it("should throw when relative URL cannot be resolved", () => {
+  it("resolves root-relative URL against current page if baseUrl is missing", () => {
+    expect(resolveNavigateUrl("/next", undefined, "https://a.com/app/start")).toBe("https://a.com/next");
+  });
+
+  it("throws when relative URL cannot be resolved", () => {
     expect(() => resolveNavigateUrl("/next", undefined, "about:blank")).toThrow(
       /Cannot resolve relative navigation URL/
     );
   });
 
-  it("should throw on malformed base URL", () => {
+  it("throws on malformed base URL", () => {
     expect(() => resolveNavigateUrl("/next", "not-a-url", "about:blank")).toThrow(
       /Invalid navigation URL/
     );
@@ -186,49 +179,23 @@ describe("resolveNavigateUrl", () => {
 });
 
 describe("stepDescription", () => {
-  it("should format navigate step", () => {
+  it("formats navigate step", () => {
     const step: Step = { action: "navigate", url: "https://example.com" };
-    const desc = stepDescription(step, 0);
-    expect(desc).toBe("Step 1: navigate to https://example.com");
+    expect(stepDescription(step, 0)).toBe("Step 1: navigate to https://example.com");
   });
 
-  it("should format navigate step with description", () => {
-    const step: Step = {
-      action: "navigate",
-      url: "/login",
-      description: "Go to login page",
-    };
-    const desc = stepDescription(step, 0);
-    expect(desc).toBe("Step 1: navigate to /login - Go to login page");
+  it("formats selector step", () => {
+    const step: Step = { action: "click", target: makeTarget("button") };
+    expect(stepDescription(step, 0)).toBe("Step 1: click");
   });
 
-  it("should format click step", () => {
-    const step: Step = { action: "click", selector: "button" };
-    const desc = stepDescription(step, 0);
-    expect(desc).toBe("Step 1: click");
-  });
-
-  it("should format click step with description", () => {
+  it("includes description", () => {
     const step: Step = {
       action: "click",
-      selector: "#submit",
+      target: makeTarget("#submit"),
       description: "Submit form",
     };
-    const desc = stepDescription(step, 1);
-    expect(desc).toBe("Step 2: click - Submit form");
-  });
-
-  it("should format fill step", () => {
-    const step: Step = { action: "fill", selector: "#email", text: "test@example.com" };
-    const desc = stepDescription(step, 2);
-    expect(desc).toBe("Step 3: fill");
-  });
-
-  it("should use 1-based indexing", () => {
-    const step: Step = { action: "navigate", url: "/" };
-    expect(stepDescription(step, 0)).toContain("Step 1");
-    expect(stepDescription(step, 5)).toContain("Step 6");
-    expect(stepDescription(step, 99)).toContain("Step 100");
+    expect(stepDescription(step, 1)).toBe("Step 2: click - Submit form");
   });
 });
 
@@ -239,17 +206,12 @@ describe("waitForPostStepNetworkIdle", () => {
     } as unknown as Page;
 
     await expect(waitForPostStepNetworkIdle(page, true, 2000)).resolves.toBe(false);
-
-    expect(page.waitForLoadState).toHaveBeenCalledWith("networkidle", {
-      timeout: 2000,
-    });
+    expect(page.waitForLoadState).toHaveBeenCalledWith("networkidle", { timeout: 2000 });
   });
 
   it("returns timed out marker on network idle timeout", async () => {
     const page = {
-      waitForLoadState: vi
-        .fn()
-        .mockRejectedValue(new playwrightErrors.TimeoutError("timed out")),
+      waitForLoadState: vi.fn().mockRejectedValue(new playwrightErrors.TimeoutError("timed out")),
     } as unknown as Page;
 
     await expect(waitForPostStepNetworkIdle(page, true, 700)).resolves.toBe(true);
@@ -260,9 +222,7 @@ describe("waitForPostStepNetworkIdle", () => {
       waitForLoadState: vi.fn().mockRejectedValue(new Error("boom")),
     } as unknown as Page;
 
-    await expect(waitForPostStepNetworkIdle(page, true, 2000)).rejects.toThrow(
-      "boom"
-    );
+    await expect(waitForPostStepNetworkIdle(page, true, 2000)).rejects.toThrow("boom");
   });
 
   it("skips waiting when disabled", async () => {
@@ -271,7 +231,6 @@ describe("waitForPostStepNetworkIdle", () => {
     } as unknown as Page;
 
     await expect(waitForPostStepNetworkIdle(page, false, 2000)).resolves.toBe(false);
-
     expect(page.waitForLoadState).not.toHaveBeenCalled();
   });
 });

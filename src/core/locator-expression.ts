@@ -9,7 +9,6 @@ import type {
   ObjectExpression,
   Property,
 } from "estree";
-import type { Page } from "playwright";
 import { UserError } from "../utils/errors.js";
 
 const ROOT_METHODS = new Set([
@@ -40,6 +39,8 @@ const CHAIN_METHODS = new Set([
   "and",
   "or",
   "frameLocator",
+  "contentFrame",
+  "owner",
 ]);
 
 const EXPRESSION_HINT =
@@ -186,11 +187,7 @@ function ensureObjectPropertyKey(prop: Property, selector: string): string {
   );
 }
 
-function evaluateLiteralExpression(
-  node: Expression,
-  page: Page,
-  selector: string
-): unknown {
+function evaluateLiteralExpression(node: Expression, root: LocatorLike, selector: string): unknown {
   if (isLiteral(node)) return literalValue(node);
 
   if (isArrayExpression(node)) {
@@ -205,7 +202,7 @@ function evaluateLiteralExpression(
         throw new UserError("Spread syntax is not allowed in locator expressions.", EXPRESSION_HINT);
       }
 
-      values.push(evaluateLiteralExpression(asExpression(element, selector), page, selector));
+      values.push(evaluateLiteralExpression(asExpression(element, selector), root, selector));
     }
 
     return values;
@@ -233,9 +230,9 @@ function evaluateLiteralExpression(
       const valueNode = rawProp.value;
 
       if (valueNode.type === "CallExpression") {
-        result[key] = evaluateCallExpression(valueNode, page, selector, true);
+        result[key] = evaluateCallExpression(valueNode, root, selector, true);
       } else {
-        result[key] = evaluateLiteralExpression(asExpression(valueNode, selector), page, selector);
+        result[key] = evaluateLiteralExpression(asExpression(valueNode, selector), root, selector);
       }
     }
 
@@ -243,7 +240,7 @@ function evaluateLiteralExpression(
   }
 
   if (isCallExpression(node)) {
-    return evaluateCallExpression(node, page, selector, true);
+    return evaluateCallExpression(node, root, selector, true);
   }
 
   throw new UserError(
@@ -272,7 +269,7 @@ function callTargetMethod(
 
 function evaluateCallExpression(
   call: CallExpression,
-  page: Page,
+  root: LocatorLike,
   selector: string,
   fromNestedArg: boolean
 ): unknown {
@@ -280,7 +277,7 @@ function evaluateCallExpression(
     if (arg.type === "SpreadElement") {
       throw new UserError("Spread arguments are not allowed in locator expressions.", EXPRESSION_HINT);
     }
-    return evaluateLiteralExpression(asExpression(arg, selector), page, selector);
+    return evaluateLiteralExpression(asExpression(arg, selector), root, selector);
   });
 
   const callee = call.callee;
@@ -300,7 +297,7 @@ function evaluateCallExpression(
       );
     }
 
-    return callTargetMethod(page as unknown as LocatorLike, callee.name, args, selector);
+    return callTargetMethod(root, callee.name, args, selector);
   }
 
   if (callee.type === "MemberExpression") {
@@ -308,6 +305,13 @@ function evaluateCallExpression(
     if (!CHAIN_METHODS.has(method)) {
       throw new UserError(
         `Unsupported locator chain method '${method}' in expression: ${selector}`,
+        EXPRESSION_HINT
+      );
+    }
+
+    if ((method === "contentFrame" || method === "owner") && args.length > 0) {
+      throw new UserError(
+        `Method '${method}' does not accept arguments in locator expression: ${selector}`,
         EXPRESSION_HINT
       );
     }
@@ -320,7 +324,7 @@ function evaluateCallExpression(
       );
     }
 
-    const target = evaluateCallExpression(objectNode, page, selector, false);
+    const target = evaluateCallExpression(objectNode, root, selector, false);
     if (!isRecord(target)) {
       throw new UserError("Invalid locator chain target.", EXPRESSION_HINT);
     }
@@ -340,7 +344,7 @@ export function looksLikeLocatorExpression(selector: string): boolean {
   );
 }
 
-export function evaluateLocatorExpression(page: Page, selector: string): unknown {
+export function evaluateLocatorExpression(root: LocatorLike, selector: string): unknown {
   const parsed = parseSelectorExpression(selector.trim());
-  return evaluateCallExpression(parsed, page, selector, false);
+  return evaluateCallExpression(parsed, root, selector, false);
 }

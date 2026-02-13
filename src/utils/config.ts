@@ -13,6 +13,12 @@ const configSchema = z.object({
   delay: z.number().int().nonnegative().optional(),
   waitForNetworkIdle: z.boolean().optional(),
   networkIdleTimeout: z.number().int().positive().optional(),
+  recordSelectorPolicy: z.enum(["reliable", "raw"]).optional(),
+  recordBrowser: z.enum(["chromium", "firefox", "webkit"]).optional(),
+  recordDevice: z.string().min(1).optional(),
+  recordTestIdAttribute: z.string().min(1).optional(),
+  recordLoadStorage: z.string().min(1).optional(),
+  recordSaveStorage: z.string().min(1).optional(),
 });
 
 export type UITestConfig = z.infer<typeof configSchema>;
@@ -68,7 +74,7 @@ export async function loadConfig(): Promise<UITestConfig> {
 
       throw new UserError(
         `Invalid config in ${filename}: ${issues}`,
-        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer, waitForNetworkIdle?: boolean, networkIdleTimeout?: positive integer }."
+        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer, waitForNetworkIdle?: boolean, networkIdleTimeout?: positive integer, recordSelectorPolicy?: 'reliable'|'raw', recordBrowser?: 'chromium'|'firefox'|'webkit', recordDevice?: string, recordTestIdAttribute?: string, recordLoadStorage?: string, recordSaveStorage?: string }."
       );
     }
 

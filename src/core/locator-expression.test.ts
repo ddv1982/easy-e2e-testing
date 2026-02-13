@@ -22,6 +22,7 @@ function createMockPage(): Page {
     getByTestId: vi.fn(),
     locator: vi.fn(),
     frameLocator: vi.fn(),
+    contentFrame: vi.fn(),
   };
 
   mockLocator.filter.mockReturnValue(mockLocator);
@@ -49,7 +50,9 @@ function createMockPage(): Page {
     getByTestId: vi.fn().mockReturnValue(mockLocator),
     locator: vi.fn().mockReturnValue(mockLocator),
     frameLocator: vi.fn(),
+    owner: vi.fn().mockReturnValue(mockLocator),
   };
+  mockLocator.contentFrame.mockReturnValue(mockFrameLocator as unknown as typeof mockLocator);
 
   return {
     locator: vi.fn().mockReturnValue(mockLocator),
@@ -98,6 +101,18 @@ describe("evaluateLocatorExpression", () => {
   it("should evaluate frameLocator chain", () => {
     const page = createMockPage();
     evaluateLocatorExpression(page, "frameLocator('#f').getByText('Save').first()");
+    expect(page.frameLocator).toHaveBeenCalledWith("#f");
+  });
+
+  it("should evaluate locator contentFrame chain", () => {
+    const page = createMockPage();
+    evaluateLocatorExpression(page, "locator('iframe').contentFrame().getByText('Save').first()");
+    expect(page.locator).toHaveBeenCalledWith("iframe");
+  });
+
+  it("should evaluate frameLocator owner chain", () => {
+    const page = createMockPage();
+    evaluateLocatorExpression(page, "frameLocator('#f').owner().locator('button').first()");
     expect(page.frameLocator).toHaveBeenCalledWith("#f");
   });
 

@@ -5,5 +5,8 @@ steps:
   - action: navigate
     url: /simple-form.html
   - action: assertVisible
-    selector: h1
+    target:
+      value: h1
+      kind: css
+      source: manual
     description: Check heading is visible

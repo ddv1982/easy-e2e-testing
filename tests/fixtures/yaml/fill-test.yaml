@@ -4,5 +4,8 @@ steps:
   - action: navigate
     url: /simple-form.html
   - action: fill
-    selector: 'input[name="username"]'
+    target:
+      value: 'input[name="username"]'
+      kind: css
+      source: manual
     text: testuser

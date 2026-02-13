@@ -202,7 +202,11 @@ describe("player integration - step execution", () => {
         { action: "navigate", url: "/simple-form.html" },
         {
           action: "click",
-          selector: "getByRole('button', { name: /login/i }).first()",
+          target: {
+            value: "getByRole('button', { name: /login/i }).first()",
+            kind: "locatorExpression",
+            source: "manual",
+          },
         },
       ],
     });
@@ -216,7 +220,10 @@ describe("player integration - step execution", () => {
       name: "Fallback Base URL Test",
       steps: [
         { action: "navigate", url: "/simple-form.html" },
-        { action: "assertVisible", selector: "h1" },
+        {
+          action: "assertVisible",
+          target: { value: "h1", kind: "css", source: "manual" },
+        },
       ],
     });
 
@@ -230,7 +237,10 @@ describe("player integration - step execution", () => {
       baseUrl,
       steps: [
         { action: "navigate", url: "/simple-form.html" },
-        { action: "assertVisible", selector: "h1" },
+        {
+          action: "assertVisible",
+          target: { value: "h1", kind: "css", source: "manual" },
+        },
       ],
     });
 
@@ -250,7 +260,11 @@ describe("player integration - step execution", () => {
         { action: "navigate", url: "/simple-form.html" },
         {
           action: "click",
-          selector: "getByRole('button')['click']()",
+          target: {
+            value: "getByRole('button')['click']()",
+            kind: "locatorExpression",
+            source: "manual",
+          },
         },
       ],
     });
@@ -269,7 +283,10 @@ describe("player integration - step execution", () => {
         baseUrl,
         steps: [
           { action: "navigate", url: "/network-polling.html" },
-          { action: "assertVisible", selector: "#status" },
+          {
+            action: "assertVisible",
+            target: { value: "#status", kind: "css", source: "manual" },
+          },
         ],
       });
 
@@ -294,7 +311,10 @@ describe("player integration - step execution", () => {
         baseUrl,
         steps: [
           { action: "navigate", url: "/network-polling.html" },
-          { action: "assertVisible", selector: "#status" },
+          {
+            action: "assertVisible",
+            target: { value: "#status", kind: "css", source: "manual" },
+          },
         ],
       });
 
@@ -320,11 +340,11 @@ describe("player integration - step execution", () => {
         baseUrl,
         steps: [
           { action: "navigate", url: "/network-polling.html" },
-          { action: "assertVisible", selector: "#status" },
-          { action: "assertVisible", selector: "#status" },
-          { action: "assertVisible", selector: "#status" },
-          { action: "assertVisible", selector: "#status" },
-          { action: "assertVisible", selector: "#status" },
+          { action: "assertVisible", target: { value: "#status", kind: "css", source: "manual" } },
+          { action: "assertVisible", target: { value: "#status", kind: "css", source: "manual" } },
+          { action: "assertVisible", target: { value: "#status", kind: "css", source: "manual" } },
+          { action: "assertVisible", target: { value: "#status", kind: "css", source: "manual" } },
+          { action: "assertVisible", target: { value: "#status", kind: "css", source: "manual" } },
         ],
       });
 

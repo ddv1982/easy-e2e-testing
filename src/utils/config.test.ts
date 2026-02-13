@@ -112,6 +112,12 @@ timeout: 15000
 delay: 2000
 waitForNetworkIdle: false
 networkIdleTimeout: 3500
+recordSelectorPolicy: reliable
+recordBrowser: firefox
+recordDevice: "iPhone 13"
+recordTestIdAttribute: "data-qa"
+recordLoadStorage: ".auth/in.json"
+recordSaveStorage: ".auth/out.json"
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 
@@ -124,6 +130,12 @@ networkIdleTimeout: 3500
     expect(config.delay).toBe(2000);
     expect(config.waitForNetworkIdle).toBe(false);
     expect(config.networkIdleTimeout).toBe(3500);
+    expect(config.recordSelectorPolicy).toBe("reliable");
+    expect(config.recordBrowser).toBe("firefox");
+    expect(config.recordDevice).toBe("iPhone 13");
+    expect(config.recordTestIdAttribute).toBe("data-qa");
+    expect(config.recordLoadStorage).toBe(".auth/in.json");
+    expect(config.recordSaveStorage).toBe(".auth/out.json");
   });
 
   it("should reject invalid config types", async () => {
@@ -134,6 +146,8 @@ delay: -1
 startCommand: 123
 waitForNetworkIdle: "true"
 networkIdleTimeout: 0
+recordSelectorPolicy: fast
+recordBrowser: safari
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 

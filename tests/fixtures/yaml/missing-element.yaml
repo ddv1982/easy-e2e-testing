@@ -4,4 +4,7 @@ steps:
   - action: navigate
     url: /simple-form.html
   - action: click
-    selector: "#does-not-exist"
+    target:
+      value: "#does-not-exist"
+      kind: css
+      source: manual

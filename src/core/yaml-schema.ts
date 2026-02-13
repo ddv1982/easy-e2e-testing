@@ -1,51 +1,68 @@
 import { z } from "zod";
 
+export const targetSchema = z.object({
+  value: z.string().min(1),
+  kind: z.enum([
+    "locatorExpression",
+    "playwrightSelector",
+    "css",
+    "xpath",
+    "internal",
+    "unknown",
+  ]),
+  source: z.enum(["manual", "codegen-jsonl", "codegen-fallback"]),
+  framePath: z.array(z.string()).optional(),
+  raw: z.string().optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  warning: z.string().optional(),
+});
+
 const navigateStep = z.object({
   action: z.literal("navigate"),
   url: z.string(),
   description: z.string().optional(),
 });
 
-const selectorStep = z.object({
-  selector: z.string(),
+const targetStep = z.object({
+  target: targetSchema,
   description: z.string().optional(),
 });
 
-const clickStep = selectorStep.extend({ action: z.literal("click") });
-const hoverStep = selectorStep.extend({ action: z.literal("hover") });
-const checkStep = selectorStep.extend({ action: z.literal("check") });
-const uncheckStep = selectorStep.extend({ action: z.literal("uncheck") });
+const clickStep = targetStep.extend({ action: z.literal("click") });
+const hoverStep = targetStep.extend({ action: z.literal("hover") });
+const checkStep = targetStep.extend({ action: z.literal("check") });
+const uncheckStep = targetStep.extend({ action: z.literal("uncheck") });
 
-const fillStep = selectorStep.extend({
+const fillStep = targetStep.extend({
   action: z.literal("fill"),
   text: z.string(),
 });
 
-const pressStep = selectorStep.extend({
+const pressStep = targetStep.extend({
   action: z.literal("press"),
   key: z.string(),
 });
 
-const selectStep = selectorStep.extend({
+const selectStep = targetStep.extend({
   action: z.literal("select"),
   value: z.string(),
 });
 
-const assertVisibleStep = selectorStep.extend({
+const assertVisibleStep = targetStep.extend({
   action: z.literal("assertVisible"),
 });
 
-const assertTextStep = selectorStep.extend({
+const assertTextStep = targetStep.extend({
   action: z.literal("assertText"),
   text: z.string(),
 });
 
-const assertValueStep = selectorStep.extend({
+const assertValueStep = targetStep.extend({
   action: z.literal("assertValue"),
   value: z.string(),
 });
 
-const assertCheckedStep = selectorStep.extend({
+const assertCheckedStep = targetStep.extend({
   action: z.literal("assertChecked"),
   checked: z.boolean().optional().default(true),
 });
@@ -74,3 +91,4 @@ export const testSchema = z.object({
 
 export type TestFile = z.infer<typeof testSchema>;
 export type Step = z.infer<typeof stepSchema>;
+export type Target = z.infer<typeof targetSchema>;

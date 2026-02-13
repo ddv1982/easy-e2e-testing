@@ -4,4 +4,7 @@ steps:
   - action: navigate
     url: /buttons.html
   - action: click
-    selector: "#btn1"
+    target:
+      value: "#btn1"
+      kind: css
+      source: manual

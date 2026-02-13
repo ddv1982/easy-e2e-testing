@@ -1,14 +1,11 @@
 import fs from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
 import { chromium, errors as playwrightErrors, type Browser, type Page } from "playwright";
-import { testSchema, type Step } from "./yaml-schema.js";
+import { testSchema, type Step, type Target } from "./yaml-schema.js";
 import { yamlToTest } from "./transformer.js";
 import { ValidationError, UserError } from "../utils/errors.js";
 import { ui } from "../utils/ui.js";
-import {
-  evaluateLocatorExpression,
-  looksLikeLocatorExpression,
-} from "./locator-expression.js";
+import { evaluateLocatorExpression } from "./locator-expression.js";
 
 const NETWORK_IDLE_WARNING_LIMIT = 3;
 
@@ -184,44 +181,44 @@ async function executeStep(
     }
 
     case "click":
-      await resolveLocator(page, step.selector).click({ timeout });
+      await resolveLocator(page, step).click({ timeout });
       break;
 
     case "fill":
-      await resolveLocator(page, step.selector).fill(step.text, { timeout });
+      await resolveLocator(page, step).fill(step.text, { timeout });
       break;
 
     case "press":
-      await resolveLocator(page, step.selector).press(step.key, { timeout });
+      await resolveLocator(page, step).press(step.key, { timeout });
       break;
 
     case "check":
-      await resolveLocator(page, step.selector).check({ timeout });
+      await resolveLocator(page, step).check({ timeout });
       break;
 
     case "uncheck":
-      await resolveLocator(page, step.selector).uncheck({ timeout });
+      await resolveLocator(page, step).uncheck({ timeout });
       break;
 
     case "hover":
-      await resolveLocator(page, step.selector).hover({ timeout });
+      await resolveLocator(page, step).hover({ timeout });
       break;
 
     case "select":
-      await resolveLocator(page, step.selector).selectOption(step.value, {
+      await resolveLocator(page, step).selectOption(step.value, {
         timeout,
       });
       break;
 
     case "assertVisible":
-      await resolveLocator(page, step.selector).waitFor({
+      await resolveLocator(page, step).waitFor({
         state: "visible",
         timeout,
       });
       break;
 
     case "assertText": {
-      const locator = resolveLocator(page, step.selector);
+      const locator = resolveLocator(page, step);
       await locator.waitFor({ state: "visible", timeout });
       const text = await locator.textContent({ timeout });
       if (!text?.includes(step.text)) {
@@ -233,7 +230,7 @@ async function executeStep(
     }
 
     case "assertValue": {
-      const locator = resolveLocator(page, step.selector);
+      const locator = resolveLocator(page, step);
       await locator.waitFor({ state: "visible", timeout });
       const value = await locator.inputValue({ timeout });
       if (value !== step.value) {
@@ -245,7 +242,7 @@ async function executeStep(
     }
 
     case "assertChecked": {
-      const locator = resolveLocator(page, step.selector);
+      const locator = resolveLocator(page, step);
       const checked = step.checked ?? true;
       if (checked) {
         await locator.waitFor({ state: "visible", timeout });
@@ -289,25 +286,39 @@ function isPlaywrightTimeoutError(err: unknown): boolean {
   return false;
 }
 
-function resolveLocator(page: Page, selector: string): any {
-  if (looksLikeLocatorExpression(selector)) {
-    const resolved = evaluateLocatorExpression(page, selector);
+type TargetStep = Exclude<Step, { action: "navigate" }>;
+
+function resolveLocator(
+  page: Page,
+  targetOrStep: Target | TargetStep
+): any {
+  const target = "action" in targetOrStep ? targetOrStep.target : targetOrStep;
+  const context = resolveLocatorContext(page, target.framePath);
+
+  if (target.kind === "locatorExpression") {
+    const resolved = evaluateLocatorExpression(context as any, target.value);
     if (!resolved || typeof resolved !== "object") {
       throw new UserError(
-        `Locator expression did not resolve to a locator: ${selector}`,
+        `Locator expression did not resolve to a locator: ${target.value}`,
         "Ensure the expression returns a Playwright locator chain."
       );
     }
     return resolved;
   }
 
-  // Handle text= selector
-  if (selector.startsWith("text=")) {
-    return page.getByText(selector.slice(5));
+  return context.locator(target.value);
+}
+
+function resolveLocatorContext(page: Page, framePath?: string[]): any {
+  let context: any = page;
+  if (!framePath || framePath.length === 0) return context;
+
+  for (const frameSelector of framePath) {
+    if (!frameSelector.trim()) continue;
+    context = context.frameLocator(frameSelector);
   }
 
-  // Default: CSS or XPath selector
-  return page.locator(selector);
+  return context;
 }
 
 function resolveNavigateUrl(
@@ -357,6 +368,7 @@ function stepDescription(step: Step, index: number): string {
 // Exports for testing
 export {
   resolveLocator,
+  resolveLocatorContext,
   resolveNavigateUrl,
   stepDescription,
   waitForPostStepNetworkIdle,

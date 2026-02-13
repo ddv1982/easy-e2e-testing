@@ -8,4 +8,7 @@ steps:
 
   - action: assertVisible
     description: Page heading is visible
-    selector: "h1"
+    target:
+      value: "h1"
+      kind: css
+      source: manual

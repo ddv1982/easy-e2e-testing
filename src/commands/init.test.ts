@@ -90,7 +90,7 @@ describe("init URL helpers", () => {
 });
 
 describe("migrateStockSample", () => {
-  it("migrates stock sample to #app selector and removes baseUrl", async () => {
+  it("migrates stock sample to V2 target and removes baseUrl", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-init-test-"));
     const samplePath = path.join(dir, "example.yaml");
 
@@ -112,7 +112,9 @@ steps:
 
     const updated = await fs.readFile(samplePath, "utf-8");
     expect(updated).not.toContain("baseUrl:");
-    expect(updated).toContain('selector: "#app"');
+    expect(updated).toContain("target:");
+    expect(updated).toContain('value: "#app"');
+    expect(updated).toContain("kind: css");
   });
 });
 
@@ -160,7 +162,8 @@ describe("runInit --yes", () => {
 
       const samplePath = path.join(dir, "e2e", "example.yaml");
       const sampleText = await fs.readFile(samplePath, "utf-8");
-      expect(sampleText).toContain('selector: "#app"');
+      expect(sampleText).toContain("target:");
+      expect(sampleText).toContain('value: "#app"');
     } finally {
       process.chdir(prevCwd);
       await fs.rm(dir, { recursive: true, force: true });
@@ -185,7 +188,8 @@ describe("runInit --yes", () => {
       const samplePath = path.join(dir, "e2e", "example.yaml");
       const sampleText = await fs.readFile(samplePath, "utf-8");
       expect(sampleText).toContain("name: Example Test");
-      expect(sampleText).toContain('selector: "#app"');
+      expect(sampleText).toContain("target:");
+      expect(sampleText).toContain('value: "#app"');
       expect(sampleText).not.toContain("/custom");
     } finally {
       process.chdir(prevCwd);

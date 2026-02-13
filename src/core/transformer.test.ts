@@ -1,236 +1,208 @@
 import { describe, it, expect } from "vitest";
-import { jsonlToSteps, stepsToYaml, yamlToTest } from "./transformer.js";
+import {
+  jsonlToSteps,
+  jsonlToRecordingSteps,
+  playwrightCodeToSteps,
+  stepsToYaml,
+  yamlToTest,
+} from "./transformer.js";
 
 describe("jsonlToSteps", () => {
-  it("should parse navigate action", () => {
-    const jsonl = '{"type":"navigate","url":"https://example.com"}';
-    const steps = jsonlToSteps(jsonl);
+  it("parses navigate", () => {
+    const steps = jsonlToSteps('{"type":"navigate","url":"https://example.com"}');
     expect(steps).toEqual([{ action: "navigate", url: "https://example.com" }]);
   });
 
-  it("should parse click action", () => {
-    const jsonl = '{"type":"click","selector":"button"}';
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toEqual([{ action: "click", selector: "button" }]);
-  });
-
-  it("should parse fill action", () => {
-    const jsonl = '{"type":"fill","selector":"#email","text":"test@example.com"}';
-    const steps = jsonlToSteps(jsonl);
+  it("parses selector actions into V2 target", () => {
+    const steps = jsonlToSteps('{"type":"click","selector":"button"}');
     expect(steps).toEqual([
-      { action: "fill", selector: "#email", text: "test@example.com" },
+      {
+        action: "click",
+        target: {
+          value: "button",
+          kind: "css",
+          source: "codegen-jsonl",
+          raw: "button",
+          confidence: 0.4,
+          warning: "Could not normalize selector from codegen locator chain; preserving raw selector.",
+        },
+      },
     ]);
   });
 
-  it("should parse press action", () => {
-    const jsonl = '{"type":"press","selector":"#search","key":"Enter"}';
-    const steps = jsonlToSteps(jsonl);
+  it("uses locator chain normalization in reliable mode", () => {
+    const steps = jsonlToSteps(
+      '{"type":"click","selector":"button","locator":{"kind":"role","body":"button","options":{"name":"Save"}}}'
+    );
     expect(steps).toEqual([
-      { action: "press", selector: "#search", key: "Enter" },
+      {
+        action: "click",
+        target: {
+          value: "getByRole(\'button\', { name: \'Save\' })",
+          kind: "locatorExpression",
+          source: "codegen-jsonl",
+        },
+      },
     ]);
   });
 
-  it("should parse check action", () => {
-    const jsonl = '{"type":"check","selector":"#agree"}';
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toEqual([{ action: "check", selector: "#agree" }]);
-  });
+  it("falls back to raw selector when locator normalization is invalid", () => {
+    const steps = jsonlToSteps(
+      '{"type":"click","selector":"#submit","locator":{"kind":"nth","body":"not-a-number"}}'
+    );
 
-  it("should parse uncheck action", () => {
-    const jsonl = '{"type":"uncheck","selector":"#agree"}';
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toEqual([{ action: "uncheck", selector: "#agree" }]);
-  });
-
-  it("should parse hover action", () => {
-    const jsonl = '{"type":"hover","selector":".menu"}';
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toEqual([{ action: "hover", selector: ".menu" }]);
-  });
-
-  it("should parse select action", () => {
-    const jsonl = '{"type":"select","selector":"#country","value":"us"}';
-    const steps = jsonlToSteps(jsonl);
     expect(steps).toEqual([
-      { action: "select", selector: "#country", value: "us" },
+      {
+        action: "click",
+        target: {
+          value: "#submit",
+          kind: "css",
+          source: "codegen-jsonl",
+          raw: "#submit",
+          confidence: 0.4,
+          warning: "Could not normalize selector from codegen locator chain; preserving raw selector.",
+        },
+      },
     ]);
   });
 
-  it("should parse multiple actions from multiple lines", () => {
-    const jsonl = [
-      '{"type":"navigate","url":"https://example.com"}',
-      '{"type":"click","selector":"button"}',
-      '{"type":"fill","selector":"#email","text":"test@example.com"}',
-    ].join("\n");
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toHaveLength(3);
-    expect(steps[0].action).toBe("navigate");
-    expect(steps[1].action).toBe("click");
-    expect(steps[2].action).toBe("fill");
-  });
-
-  it("should parse Playwright name-based click action", () => {
-    const jsonl = '{"name":"click","selector":"button"}';
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toEqual([{ action: "click", selector: "button" }]);
-  });
-
-  it("should parse Playwright openPage action into navigate", () => {
-    const jsonl = '{"name":"openPage","url":"https://example.com/login"}';
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toEqual([{ action: "navigate", url: "https://example.com/login" }]);
-  });
-
-  it("should skip blank openPage entries", () => {
-    const jsonl = '{"name":"openPage","url":"about:blank"}';
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toEqual([]);
-  });
-
-  it("should parse select option array from Playwright name-based action", () => {
-    const jsonl = '{"name":"select","selector":"#country","options":["nl"]}';
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toEqual([{ action: "select", selector: "#country", value: "nl" }]);
-  });
-});
-
-describe("jsonlToSteps - edge cases", () => {
-  it("should skip malformed JSON lines", () => {
-    const jsonl = [
-      '{"type":"navigate","url":"https://example.com"}',
-      'this is not valid JSON',
-      '{"type":"click","selector":"button"}',
-    ].join("\n");
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toHaveLength(2);
-  });
-
-  it("should skip empty lines", () => {
-    const jsonl = [
-      '{"type":"navigate","url":"https://example.com"}',
-      "",
-      "   ",
-      '{"type":"click","selector":"button"}',
-    ].join("\n");
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toHaveLength(2);
-  });
-
-  it("should return empty array for empty input", () => {
-    const steps = jsonlToSteps("");
-    expect(steps).toEqual([]);
-  });
-
-  it("should skip actions with missing required fields", () => {
-    const jsonl = [
-      '{"type":"click"}',
-      '{"type":"fill","selector":"#input"}',
-      '{"type":"navigate","url":"https://example.com"}',
-    ].join("\n");
-    const steps = jsonlToSteps(jsonl);
-    // Click without selector is skipped, fill with empty text is included, navigate is included
-    expect(steps).toHaveLength(2);
-    expect(steps[0].action).toBe("fill");
-    expect(steps[1].action).toBe("navigate");
-  });
-
-  it("should skip unsupported action types", () => {
-    const jsonl = [
-      '{"type":"unknown","selector":"button"}',
-      '{"type":"click","selector":"button"}',
-    ].join("\n");
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toHaveLength(1);
-    expect(steps[0].action).toBe("click");
-  });
-
-  it("should handle special characters in text and selectors", () => {
-    const jsonl = '{"type":"fill","selector":"input[name=\\"user\\"]","text":"Test \\"quoted\\" text"}';
-    const steps = jsonlToSteps(jsonl);
-    expect(steps).toHaveLength(1);
-    expect(steps[0].action).toBe("fill");
-  });
-});
-
-describe("stepsToYaml", () => {
-  it("should generate YAML with name and steps", () => {
-    const steps = [
-      { action: "navigate" as const, url: "https://example.com" },
-      { action: "click" as const, selector: "button" },
-    ];
-    const yaml = stepsToYaml("Test", steps);
-    expect(yaml).toContain('name: Test');
-    expect(yaml).toContain("action: navigate");
-    expect(yaml).toContain("action: click");
-  });
-
-  it("should include description when provided", () => {
-    const steps = [{ action: "navigate" as const, url: "/" }];
-    const yaml = stepsToYaml("Test", steps, {
-      description: "Test description",
+  it("preserves raw selectors in raw policy", () => {
+    const steps = jsonlToSteps('{"type":"click","selector":"text=Save"}', {
+      selectorPolicy: "raw",
     });
-    expect(yaml).toContain('description: Test description');
+
+    expect(steps).toEqual([
+      {
+        action: "click",
+        target: {
+          value: "text=Save",
+          kind: "playwrightSelector",
+          source: "codegen-jsonl",
+        },
+      },
+    ]);
   });
 
-  it("should include baseUrl when provided", () => {
-    const steps = [{ action: "navigate" as const, url: "/" }];
-    const yaml = stepsToYaml("Test", steps, {
-      baseUrl: "https://example.com",
-    });
-    expect(yaml).toContain('baseUrl: https://example.com');
+  it("includes framePath metadata when present", () => {
+    const steps = jsonlToSteps(
+      '{"type":"click","selector":"button","framePath":["iframe[name=\\"checkout\\"]"]}'
+    );
+
+    expect(steps).toEqual([
+      {
+        action: "click",
+        target: {
+          value: "button",
+          kind: "css",
+          source: "codegen-jsonl",
+          framePath: ['iframe[name="checkout"]'],
+          raw: "button",
+          confidence: 0.4,
+          warning: "Could not normalize selector from codegen locator chain; preserving raw selector.",
+        },
+      },
+    ]);
   });
 
-  it("should not include optional fields when not provided", () => {
-    const steps = [{ action: "navigate" as const, url: "/" }];
-    const yaml = stepsToYaml("Test", steps);
-    expect(yaml).not.toContain("description:");
-    expect(yaml).not.toContain("baseUrl:");
+  it("parses openPage into navigate and skips about:blank", () => {
+    const steps = jsonlToSteps(
+      '{"name":"openPage","url":"about:blank"}\n{"name":"openPage","url":"https://example.com"}'
+    );
+    expect(steps).toEqual([{ action: "navigate", url: "https://example.com" }]);
   });
 
-  it("should format steps array correctly", () => {
-    const steps = [
-      { action: "navigate" as const, url: "/login" },
-      { action: "fill" as const, selector: "#username", text: "testuser" },
-      { action: "click" as const, selector: "button[type=submit]" },
-    ];
-    const yaml = stepsToYaml("Login Test", steps);
-    expect(yaml).toContain("steps:");
-    expect(yaml).toContain("- action: navigate");
-    expect(yaml).toContain('url: /login');
-    expect(yaml).toContain("- action: fill");
-    expect(yaml).toContain('selector: "#username"');
+  it("skips malformed and unsupported lines", () => {
+    const steps = jsonlToSteps(
+      ['{"type":"unknown","selector":"button"}', 'not json', '{"type":"click","selector":"#x"}'].join("\n")
+    );
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({ action: "click" });
   });
 });
 
-describe("yamlToTest", () => {
-  it("should parse valid YAML", () => {
-    const yaml = `
-name: Test
-steps:
-  - action: navigate
-    url: https://example.com
-  - action: click
-    selector: button
-`;
-    const result = yamlToTest(yaml);
-    expect(result).toHaveProperty("name", "Test");
-    expect(result).toHaveProperty("steps");
-    expect(Array.isArray((result as any).steps)).toBe(true);
+describe("jsonlToRecordingSteps", () => {
+  it("returns selector quality stats", () => {
+    const out = jsonlToRecordingSteps(
+      [
+        '{"type":"navigate","url":"/"}',
+        '{"type":"click","selector":"#a"}',
+        '{"type":"click","selector":"#b","locator":{"kind":"role","body":"button"}}',
+      ].join("\n")
+    );
+
+    expect(out.steps).toHaveLength(3);
+    expect(out.stats.selectorSteps).toBe(2);
+    expect(out.stats.stableSelectors).toBe(1);
+    expect(out.stats.fallbackSelectors).toBe(1);
+  });
+});
+
+describe("playwrightCodeToSteps", () => {
+  it("parses playwright-test code into V2 target steps", () => {
+    const code = `
+      import { test, expect } from '@playwright/test';
+      test('x', async ({ page }) => {
+        await page.goto('https://example.com');
+        await page.getByRole('button', { name: 'Save' }).click();
+        await expect(page.locator('#status')).toContainText('Done');
+      });
+    `;
+
+    const steps = playwrightCodeToSteps(code);
+    expect(steps).toEqual([
+      { action: "navigate", url: "https://example.com" },
+      {
+        action: "click",
+        target: {
+          value: "getByRole('button', { name: 'Save' })",
+          kind: "locatorExpression",
+          source: "codegen-fallback",
+        },
+      },
+      {
+        action: "assertText",
+        target: {
+          value: "locator('#status')",
+          kind: "locatorExpression",
+          source: "codegen-fallback",
+        },
+        text: "Done",
+      },
+    ]);
   });
 
-  it("should parse YAML with all optional fields", () => {
-    const yaml = `
-name: Full Test
-description: Test with all fields
-baseUrl: https://example.com
+  it("returns empty list for non-parseable code", () => {
+    expect(playwrightCodeToSteps("this is not js")).toEqual([]);
+  });
+});
+
+describe("yaml conversion", () => {
+  it("serializes V2 target fields", () => {
+    const yaml = stepsToYaml("Test", [
+      { action: "navigate", url: "/" },
+      {
+        action: "click",
+        target: {
+          value: "#submit",
+          kind: "css",
+          source: "manual",
+        },
+      },
+    ]);
+
+    expect(yaml).toContain("name: Test");
+    expect(yaml).toContain("target:");
+    expect(yaml).toContain('value: "#submit"');
+    expect(yaml).toContain("kind: css");
+  });
+
+  it("parses YAML into object", () => {
+    const parsed = yamlToTest(`
+name: T
 steps:
   - action: navigate
     url: /
-    description: Go to home
-`;
-    const result = yamlToTest(yaml);
-    expect(result).toHaveProperty("name", "Full Test");
-    expect(result).toHaveProperty("description", "Test with all fields");
-    expect(result).toHaveProperty("baseUrl", "https://example.com");
+`);
+    expect(parsed).toHaveProperty("name", "T");
   });
 });

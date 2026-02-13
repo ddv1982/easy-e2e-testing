@@ -3,66 +3,166 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
-import { jsonlToSteps, stepsToYaml } from "./transformer.js";
+import {
+  jsonlToRecordingSteps,
+  playwrightCodeToSteps,
+  stepsToYaml,
+  type RecordSelectorPolicy,
+  type RecordingTransformStats,
+} from "./transformer.js";
+import type { Step } from "./yaml-schema.js";
 import { ui } from "../utils/ui.js";
 import { UserError } from "../utils/errors.js";
+
+export type RecordBrowser = "chromium" | "firefox" | "webkit";
 
 export interface RecordOptions {
   name: string;
   url: string;
   description?: string;
   outputDir: string;
+  selectorPolicy?: RecordSelectorPolicy;
+  browser?: RecordBrowser;
+  device?: string;
+  testIdAttribute?: string;
+  loadStorage?: string;
+  saveStorage?: string;
 }
 
-export async function record(options: RecordOptions): Promise<string> {
-  const tmpFile = path.join(
-    os.tmpdir(),
-    `ui-test-recording-${Date.now()}.jsonl`
-  );
+export interface RecordResult {
+  outputPath: string;
+  stats: RecordingTransformStats;
+  recordingMode: "jsonl" | "fallback";
+  degraded: boolean;
+}
 
-  // Ensure playwright CLI is available
+export async function record(options: RecordOptions): Promise<RecordResult> {
   const playwrightBin = await findPlaywrightCli();
+  const selectorPolicy = options.selectorPolicy ?? "reliable";
+  const browser = options.browser ?? "chromium";
 
+  ui.warn("Recorder uses Playwright's hidden JSONL target first; this may break across Playwright versions.");
   ui.info("Opening browser for recording...");
   ui.dim("Interact with the page. Close the browser when done.");
 
-  let codegenError: Error | undefined;
+  const jsonlTmpFile = path.join(os.tmpdir(), `ui-test-recording-${Date.now()}.jsonl`);
+
+  let codegenJsonlError: Error | undefined;
+  let jsonlContent = "";
+
   try {
-    await runCodegen(playwrightBin, options.url, tmpFile);
+    await runCodegen(playwrightBin, {
+      url: options.url,
+      outputFile: jsonlTmpFile,
+      target: "jsonl",
+      browser,
+      device: options.device,
+      testIdAttribute: options.testIdAttribute,
+      loadStorage: options.loadStorage,
+      saveStorage: options.saveStorage,
+    });
   } catch (err) {
-    codegenError = err instanceof Error ? err : new Error(String(err));
+    codegenJsonlError = err instanceof Error ? err : new Error(String(err));
   }
 
-  let jsonlContent: string;
   try {
-    jsonlContent = await fs.readFile(tmpFile, "utf-8");
+    jsonlContent = await fs.readFile(jsonlTmpFile, "utf-8");
   } catch {
-    if (codegenError) {
-      throw new UserError(
-        `Recording failed: ${codegenError.message}`,
-        buildRecordingFailureHint(codegenError.message)
-      );
+    jsonlContent = "";
+  } finally {
+    await fs.unlink(jsonlTmpFile).catch(() => {});
+  }
+
+  const transformed = jsonlToRecordingSteps(jsonlContent, { selectorPolicy });
+  if (transformed.steps.length > 0) {
+    if (codegenJsonlError) {
+      ui.warn(`Recorder exited unexpectedly (${codegenJsonlError.message}), but captured JSONL steps were recovered.`);
     }
 
-    throw new UserError("No recording output found.", "Make sure you interact with the page before closing the browser.");
-  } finally {
-    await fs.unlink(tmpFile).catch(() => {});
+    const outputPath = await saveRecordingYaml(options, transformed.steps);
+    return {
+      outputPath,
+      stats: transformed.stats,
+      recordingMode: "jsonl",
+      degraded: transformed.stats.fallbackSelectors > 0,
+    };
   }
 
-  const steps = jsonlToSteps(jsonlContent);
-
-  if (steps.length === 0) {
+  if (!codegenJsonlError) {
     throw new UserError(
       "No interactions were recorded.",
       "Try again and make sure to click, type, or interact with elements on the page."
     );
   }
 
-  if (codegenError) {
-    ui.warn(`Recorder exited unexpectedly (${codegenError.message}), but captured steps were recovered.`);
+  ui.warn("JSONL recording yielded no usable steps. Falling back to playwright-test codegen parsing.");
+  ui.warn(`JSONL failure reason: ${codegenJsonlError.message}`);
+
+  const fallback = await recordWithPlaywrightTestFallback(playwrightBin, options, browser);
+  const outputPath = await saveRecordingYaml(options, fallback.steps);
+
+  return {
+    outputPath,
+    stats: fallback.stats,
+    recordingMode: "fallback",
+    degraded: true,
+  };
+}
+
+async function recordWithPlaywrightTestFallback(
+  playwrightBin: string,
+  options: RecordOptions,
+  browser: RecordBrowser
+): Promise<{ steps: Step[]; stats: RecordingTransformStats }> {
+  const tmpFile = path.join(os.tmpdir(), `ui-test-recording-fallback-${Date.now()}.spec.ts`);
+
+  let fallbackError: Error | undefined;
+  try {
+    await runCodegen(playwrightBin, {
+      url: options.url,
+      outputFile: tmpFile,
+      target: "playwright-test",
+      browser,
+      device: options.device,
+      testIdAttribute: options.testIdAttribute,
+      loadStorage: options.loadStorage,
+      saveStorage: options.saveStorage,
+    });
+  } catch (err) {
+    fallbackError = err instanceof Error ? err : new Error(String(err));
   }
 
-  // Extract baseUrl from the starting URL
+  let code = "";
+  try {
+    code = await fs.readFile(tmpFile, "utf-8");
+  } catch {
+    code = "";
+  } finally {
+    await fs.unlink(tmpFile).catch(() => {});
+  }
+
+  const steps = playwrightCodeToSteps(code);
+  if (steps.length === 0) {
+    const fallbackMessage = fallbackError ? `Fallback codegen failed: ${fallbackError.message}` : "Fallback parser found no supported interactions.";
+    throw new UserError(
+      "No interactions were recorded.",
+      `${fallbackMessage} Try again and make sure to click, type, or interact with elements on the page.`
+    );
+  }
+
+  const selectorSteps = steps.filter((step) => step.action !== "navigate").length;
+  return {
+    steps,
+    stats: {
+      selectorSteps,
+      stableSelectors: 0,
+      fallbackSelectors: selectorSteps,
+      frameAwareSelectors: 0,
+    },
+  };
+}
+
+async function saveRecordingYaml(options: RecordOptions, steps: Step[]): Promise<string> {
   let baseUrl: string | undefined;
   try {
     const parsed = new URL(options.url);
@@ -77,16 +177,14 @@ export async function record(options: RecordOptions): Promise<string> {
   });
 
   const slug = slugify(options.name) || `test-${Date.now()}`;
-  const filename = slug + ".yaml";
+  const filename = `${slug}.yaml`;
   const outputPath = path.join(options.outputDir, filename);
   await fs.mkdir(options.outputDir, { recursive: true });
   await fs.writeFile(outputPath, yamlContent, "utf-8");
-
   return outputPath;
 }
 
 async function findPlaywrightCli(): Promise<string> {
-  // Use the playwright package's CLI directly
   try {
     const pwPath = await import.meta.resolve?.("playwright/cli");
     if (pwPath) {
@@ -98,26 +196,48 @@ async function findPlaywrightCli(): Promise<string> {
     // fallback
   }
 
-  // Fallback: use npx playwright
   return "npx";
 }
 
-function resolvePlaywrightCliPath(pathOrFileUrl: string): string {
-  return pathOrFileUrl.startsWith("file://")
-    ? fileURLToPath(pathOrFileUrl)
-    : pathOrFileUrl;
+interface CodegenRunOptions {
+  url: string;
+  outputFile: string;
+  target: "jsonl" | "playwright-test";
+  browser: RecordBrowser;
+  device?: string;
+  testIdAttribute?: string;
+  loadStorage?: string;
+  saveStorage?: string;
 }
 
-function runCodegen(
-  playwrightBin: string,
-  url: string,
-  outputFile: string
-): Promise<void> {
+function runCodegen(playwrightBin: string, options: CodegenRunOptions): Promise<void> {
   return new Promise((resolve, reject) => {
-    const args =
-      playwrightBin === "npx"
-        ? ["playwright", "codegen", "--target", "jsonl", "--output", outputFile, url]
-        : ["codegen", "--target", "jsonl", "--output", outputFile, url];
+    const argsCore = [
+      "codegen",
+      "--target",
+      options.target,
+      "--output",
+      options.outputFile,
+      "--browser",
+      options.browser,
+    ];
+
+    if (options.device?.trim()) {
+      argsCore.push("--device", options.device.trim());
+    }
+    if (options.testIdAttribute?.trim()) {
+      argsCore.push("--test-id-attribute", options.testIdAttribute.trim());
+    }
+    if (options.loadStorage?.trim()) {
+      argsCore.push("--load-storage", options.loadStorage.trim());
+    }
+    if (options.saveStorage?.trim()) {
+      argsCore.push("--save-storage", options.saveStorage.trim());
+    }
+
+    argsCore.push(options.url);
+
+    const args = playwrightBin === "npx" ? ["playwright", ...argsCore] : argsCore;
 
     const child = spawn(playwrightBin, args, {
       stdio: ["inherit", "inherit", "inherit"],
@@ -140,6 +260,12 @@ function runCodegen(
   });
 }
 
+function resolvePlaywrightCliPath(pathOrFileUrl: string): string {
+  return pathOrFileUrl.startsWith("file://")
+    ? fileURLToPath(pathOrFileUrl)
+    : pathOrFileUrl;
+}
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -148,11 +274,3 @@ function slugify(text: string): string {
 }
 
 export { runCodegen, resolvePlaywrightCliPath };
-
-function buildRecordingFailureHint(message: string): string {
-  const lower = message.toLowerCase();
-  if (lower.includes("signal")) {
-    return "Recording was interrupted. Try again, perform at least one interaction, and close only the browser window when done.";
-  }
-  return "Make sure Playwright browsers are installed. Run: npx playwright install chromium";
-}

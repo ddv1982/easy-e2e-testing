@@ -154,7 +154,11 @@ async function runInit(
       {
         action: "assertVisible",
         description: "App root is visible",
-        selector: "#app",
+        target: {
+          value: "#app",
+          kind: "css",
+          source: "manual",
+        },
       },
     ],
   };
@@ -280,7 +284,25 @@ async function migrateStockSample(samplePath: string): Promise<boolean> {
       ) {
         const mutableStep = assertVisibleStep as Record<string, unknown>;
         if (mutableStep.action === "assertVisible" && mutableStep.selector === "body") {
-          mutableStep.selector = "#app";
+          delete mutableStep.selector;
+          mutableStep.target = {
+            value: "#app",
+            kind: "css",
+            source: "manual",
+          };
+          mutableStep.description = "App root is visible";
+          changed = true;
+        } else if (
+          mutableStep.action === "assertVisible" &&
+          !mutableStep.target &&
+          mutableStep.selector === "#app"
+        ) {
+          delete mutableStep.selector;
+          mutableStep.target = {
+            value: "#app",
+            kind: "css",
+            source: "manual",
+          };
           mutableStep.description = "App root is visible";
           changed = true;
         }
