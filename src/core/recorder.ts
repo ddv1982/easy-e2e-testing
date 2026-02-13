@@ -25,23 +25,25 @@ export async function record(options: RecordOptions): Promise<string> {
   ui.info("Opening browser for recording...");
   ui.dim("Interact with the page. Close the browser when done.");
 
+  let codegenError: Error | undefined;
   try {
     await runCodegen(playwrightBin, options.url, tmpFile);
   } catch (err) {
-    throw new UserError(
-      `Recording failed: ${err instanceof Error ? err.message : String(err)}`,
-      "Make sure Playwright browsers are installed. Run: npx playwright install chromium"
-    );
+    codegenError = err instanceof Error ? err : new Error(String(err));
   }
 
   let jsonlContent: string;
   try {
     jsonlContent = await fs.readFile(tmpFile, "utf-8");
   } catch {
-    throw new UserError(
-      "No recording output found.",
-      "Make sure you interact with the page before closing the browser."
-    );
+    if (codegenError) {
+      throw new UserError(
+        `Recording failed: ${codegenError.message}`,
+        buildRecordingFailureHint(codegenError.message)
+      );
+    }
+
+    throw new UserError("No recording output found.", "Make sure you interact with the page before closing the browser.");
   } finally {
     await fs.unlink(tmpFile).catch(() => {});
   }
@@ -53,6 +55,10 @@ export async function record(options: RecordOptions): Promise<string> {
       "No interactions were recorded.",
       "Try again and make sure to click, type, or interact with elements on the page."
     );
+  }
+
+  if (codegenError) {
+    ui.warn(`Recorder exited unexpectedly (${codegenError.message}), but captured steps were recovered.`);
   }
 
   // Extract baseUrl from the starting URL
@@ -113,12 +119,18 @@ function runCodegen(
     });
 
     child.on("error", (err) => reject(err));
-    child.on("close", (code) => {
-      if (code === 0 || code === null) {
+    child.on("close", (code, signal) => {
+      if (code === 0) {
         resolve();
-      } else {
-        reject(new Error(`Playwright codegen exited with code ${code}`));
+        return;
       }
+
+      if (signal) {
+        reject(new Error(`Playwright codegen exited via signal ${signal}`));
+        return;
+      }
+
+      reject(new Error(`Playwright codegen exited with code ${code ?? "unknown"}`));
     });
   });
 }
@@ -128,4 +140,14 @@ function slugify(text: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+export { runCodegen };
+
+function buildRecordingFailureHint(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("signal")) {
+    return "Recording was interrupted. Try again, perform at least one interaction, and close only the browser window when done.";
+  }
+  return "Make sure Playwright browsers are installed. Run: npx playwright install chromium";
 }
