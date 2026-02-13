@@ -27,6 +27,7 @@ export function buildAssertionCandidates(
         candidate: { action: "assertValue", target, value: step.text },
         confidence: Math.max(0.7, confidence),
         rationale: "Filled input values are stable candidates for value assertions.",
+        candidateSource: "deterministic",
       });
       continue;
     }
@@ -38,6 +39,7 @@ export function buildAssertionCandidates(
         candidate: { action: "assertValue", target, value: step.value },
         confidence: Math.max(0.7, confidence),
         rationale: "Selected options can be validated with an assertValue step.",
+        candidateSource: "deterministic",
       });
       continue;
     }
@@ -53,6 +55,7 @@ export function buildAssertionCandidates(
         },
         confidence: Math.max(0.75, confidence),
         rationale: "Check state transitions map directly to assertChecked.",
+        candidateSource: "deterministic",
       });
       continue;
     }

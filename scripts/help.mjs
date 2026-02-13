@@ -19,6 +19,7 @@ const lines = [
   "  npx ui-test improve <file>            Analyze selector quality (report-only)",
   "  npx ui-test improve <file> --apply    Apply approved selector improvements",
   "  npx ui-test improve <file> --apply-assertions  Apply high-confidence assertions",
+  "  npx ui-test improve <file> --assertion-source snapshot-cli  Enable replay + snapshot assertion candidates",
   "  npx ui-test improve <file> --llm      Enable local Ollama ranking",
   "",
   "Maintainer",

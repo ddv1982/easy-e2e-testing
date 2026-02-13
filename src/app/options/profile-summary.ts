@@ -17,10 +17,11 @@ export function formatImproveProfileSummary(profile: {
   apply: boolean;
   applyAssertions: boolean;
   assertions: string;
+  assertionSource: string;
   llmEnabled: boolean;
   llmModel: string;
 }): string {
-  return `Improve profile: provider=${profile.provider}, apply=${profile.apply ? "yes" : "no"}, applyAssertions=${profile.applyAssertions ? "yes" : "no"}, assertions=${profile.assertions}, llm=${profile.llmEnabled ? profile.llmModel : "disabled"}`;
+  return `Improve profile: provider=${profile.provider}, apply=${profile.apply ? "yes" : "no"}, applyAssertions=${profile.applyAssertions ? "yes" : "no"}, assertions=${profile.assertions}, assertionSource=${profile.assertionSource}, llm=${profile.llmEnabled ? profile.llmModel : "disabled"}`;
 }
 
 export function formatPlayProfileSummary(profile: {

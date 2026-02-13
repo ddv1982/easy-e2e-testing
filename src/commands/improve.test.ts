@@ -17,6 +17,8 @@ describe("improve command options", () => {
       "playwright-cli",
       "--assertions",
       "none",
+      "--assertion-source",
+      "snapshot-cli",
       "--report",
       "report.json",
       "e2e/sample.yaml",
@@ -28,6 +30,7 @@ describe("improve command options", () => {
     expect(opts.llm).toBe(true);
     expect(opts.provider).toBe("playwright-cli");
     expect(opts.assertions).toBe("none");
+    expect(opts.assertionSource).toBe("snapshot-cli");
     expect(opts.report).toBe("report.json");
   });
 

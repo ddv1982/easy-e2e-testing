@@ -85,6 +85,13 @@ Validation timing mirrors `play` post-step waiting (network idle, `2000ms` defau
 
 LLM is optional for assertion insertion. Deterministic assertion apply works with `--no-llm`.
 
+## Snapshot-CLI Assertion Source Fallback
+
+If you run `--assertion-source snapshot-cli` and get no snapshot-driven candidates:
+1. Verify `playwright-cli` or `npx -y @playwright/cli@latest` is available.
+2. Check report diagnostics for `assertion_source_snapshot_cli_unavailable` or `assertion_source_snapshot_cli_step_replay_failed`.
+3. Improve falls back to deterministic assertion candidates by design (`assertion_source_snapshot_cli_fallback`).
+
 ## Local LLM Issues
 
 If `--llm` fails:

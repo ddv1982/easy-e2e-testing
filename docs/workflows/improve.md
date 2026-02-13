@@ -33,6 +33,19 @@ Auto-apply uses a conservative deterministic mapping:
 Validation uses post-step network-idle timing similar to `play` defaults (enabled, `2000ms` timeout).
 Runtime validation failures are skipped and reported as warnings.
 
+## Assertion Source (Opt-In Snapshot Mode)
+
+```bash
+npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli
+```
+
+This mode replays steps headlessly and captures Playwright-CLI snapshots after each step.
+Assertion candidates are generated from snapshot deltas (`assertVisible`/`assertText`) and then runtime-validated before insertion.
+
+Fallback behavior:
+- If snapshot-cli is unavailable or replay fails, improve falls back to deterministic candidates.
+- Diagnostics include fallback reason codes in the JSON report.
+
 ## LLM-Optional Mode (Ollama)
 
 ```bash
@@ -68,6 +81,7 @@ npx ui-test improve e2e/login.yaml --assertions none
 Current scope:
 - Assertions are reported as candidates.
 - Assertions are auto-inserted only when `--apply-assertions` is enabled.
+- Default assertion source is `deterministic`; opt in to replay/snapshot generation with `--assertion-source snapshot-cli`.
 - Auto-insert focuses on stable form-state assertions and excludes click/press-derived visibility checks.
 - Playwright codegen can generate assertions interactively, but `improve` assertion apply is deterministic and does not require LLM.
 

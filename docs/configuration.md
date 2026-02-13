@@ -24,6 +24,7 @@ recordSaveStorage: .auth/out.json
 improveProvider: auto
 improveApplyMode: review
 improveApplyAssertions: false
+improveAssertionSource: deterministic
 improveAssertions: candidates
 llm:
   enabled: false
@@ -69,6 +70,7 @@ llm:
 - `improveProvider`: `auto`, `playwright`, `playwright-cli`.
 - `improveApplyMode`: `review` or `apply`.
 - `improveApplyAssertions`: apply high-confidence assertion candidates when improve runs.
+- `improveAssertionSource`: `deterministic` (default) or `snapshot-cli` (opt-in replay + Playwright-CLI snapshot mode).
 - `improveAssertions`: `none` or `candidates`.
 
 ### LLM Settings (Optional)
@@ -93,6 +95,7 @@ npx ui-test play --artifacts-dir ./tmp/ui-test-artifacts --no-save-failure-artif
 npx ui-test record --browser firefox --selector-policy raw
 npx ui-test improve e2e/login.yaml --no-llm --apply
 npx ui-test improve e2e/login.yaml --apply-assertions
+npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli
 ```
 
 ## V2 YAML Step Contract

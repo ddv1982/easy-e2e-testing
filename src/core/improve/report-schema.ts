@@ -29,12 +29,18 @@ export const assertionApplyStatusSchema = z.enum([
   "not_requested",
 ]);
 
+export const assertionCandidateSourceSchema = z.enum([
+  "deterministic",
+  "snapshot_cli",
+]);
+
 export const assertionCandidateSchema = z.object({
   index: z.number().int().nonnegative(),
   afterAction: z.string().min(1),
   candidate: stepSchema,
   confidence: z.number().min(0).max(1),
   rationale: z.string().min(1),
+  candidateSource: assertionCandidateSourceSchema.optional(),
   applyStatus: assertionApplyStatusSchema.optional(),
   applyMessage: z.string().min(1).optional(),
 });
@@ -64,6 +70,7 @@ export type ImproveProviderUsed = z.infer<typeof improveProviderSchema>;
 export type ImproveDiagnostic = z.infer<typeof improveDiagnosticSchema>;
 export type StepFinding = z.infer<typeof stepFindingSchema>;
 export type AssertionApplyStatus = z.infer<typeof assertionApplyStatusSchema>;
+export type AssertionCandidateSource = z.infer<typeof assertionCandidateSourceSchema>;
 export type AssertionCandidate = z.infer<typeof assertionCandidateSchema>;
 export type ImproveSummary = z.infer<typeof improveSummarySchema>;
 export type ImproveReport = z.infer<typeof improveReportSchema>;

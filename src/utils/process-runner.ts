@@ -8,6 +8,7 @@ interface InteractiveCommandResult {
 interface RunCapturedOptions {
   timeoutMs: number;
   killGraceMs?: number;
+  spawnOptions?: SpawnOptions;
 }
 
 interface CapturedCommandResult {
@@ -45,6 +46,7 @@ export function runCapturedCommand(
 ): Promise<CapturedCommandResult> {
   return new Promise((resolve) => {
     const child = spawn(command, args, {
+      ...options.spawnOptions,
       stdio: ["ignore", "pipe", "pipe"],
     });
 

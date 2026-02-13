@@ -76,6 +76,7 @@ See: [Record Workflow](docs/workflows/record.md)
 npx ui-test improve e2e/login.yaml
 npx ui-test improve e2e/login.yaml --apply
 npx ui-test improve e2e/login.yaml --apply-assertions
+npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli
 ```
 
 Optional local LLM ranking (Ollama):
@@ -153,6 +154,7 @@ recordBrowser: chromium
 improveProvider: auto
 improveApplyMode: review
 improveApplyAssertions: false
+improveAssertionSource: deterministic
 improveAssertions: candidates
 llm:
   enabled: false
@@ -193,6 +195,8 @@ When a run fails, CLI output includes:
 - `--apply` writes recommended selector updates.
 - `--apply-assertions` writes high-confidence, runtime-validated assertion candidates.
 - Auto-apply is conservative: it inserts deterministic form-state checks only (`fill/select -> assertValue`, `check/uncheck -> assertChecked`).
+- `--assertion-source snapshot-cli` enables opt-in headless replay + Playwright-CLI snapshot-delta candidates (`assertVisible`/`assertText`).
+- If snapshot-cli source is unavailable or fails, improve falls back to deterministic candidates and reports diagnostics.
 - Click/press assertions are intentionally not auto-generated to avoid false-positive postconditions.
 - Assertion validation uses post-step network-idle timing like `play` (enabled by default, `2000ms` timeout).
 - Runtime validation is required for apply mode.

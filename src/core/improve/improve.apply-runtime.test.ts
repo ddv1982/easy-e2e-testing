@@ -9,6 +9,13 @@ const { executeRuntimeStepMock } = vi.hoisted(() => ({
 const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
   buildAssertionCandidatesMock: vi.fn(() => []),
 }));
+const { collectPlaywrightCliStepSnapshotsMock } = vi.hoisted(() => ({
+  collectPlaywrightCliStepSnapshotsMock: vi.fn(async () => ({
+    available: false,
+    stepSnapshots: [],
+    diagnostics: [],
+  })),
+}));
 
 vi.mock("playwright", () => ({
   chromium: {
@@ -99,6 +106,10 @@ vi.mock("./providers/provider-selector.js", () => ({
   })),
 }));
 
+vi.mock("./providers/playwright-cli-replay.js", () => ({
+  collectPlaywrightCliStepSnapshots: collectPlaywrightCliStepSnapshotsMock,
+}));
+
 import { improveTestFile } from "./improve.js";
 
 describe("improve apply runtime replay", () => {
@@ -109,6 +120,12 @@ describe("improve apply runtime replay", () => {
     executeRuntimeStepMock.mockImplementation(async () => {});
     buildAssertionCandidatesMock.mockClear();
     buildAssertionCandidatesMock.mockReturnValue([]);
+    collectPlaywrightCliStepSnapshotsMock.mockClear();
+    collectPlaywrightCliStepSnapshotsMock.mockResolvedValue({
+      available: false,
+      stepSnapshots: [],
+      diagnostics: [],
+    });
   });
 
   afterEach(async () => {
@@ -525,5 +542,137 @@ describe("improve apply runtime replay", () => {
     expect(result.report.summary.appliedAssertions).toBe(0);
     const saved = await fs.readFile(yamlPath, "utf-8");
     expect(saved).not.toContain("assertVisible");
+  });
+
+  it("adds snapshot-cli assertion candidates when assertion source is snapshot-cli", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-snapshot-cli-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#submit"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    collectPlaywrightCliStepSnapshotsMock.mockResolvedValueOnce({
+      available: true,
+      stepSnapshots: [
+        {
+          index: 1,
+          step: {
+            action: "click",
+            target: { value: "#submit", kind: "css", source: "manual" },
+          },
+          preSnapshot: `- generic [ref=e1]:\n  - button "Submit" [ref=e2]\n`,
+          postSnapshot:
+            `- generic [ref=e1]:\n  - button "Submit" [ref=e2]\n  - heading "Welcome" [level=1] [ref=e3]\n`,
+        },
+      ],
+      diagnostics: [],
+    });
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      apply: false,
+      applyAssertions: false,
+      provider: "playwright",
+      assertions: "candidates",
+      assertionSource: "snapshot-cli",
+      llmEnabled: false,
+      llmConfig: {
+        baseUrl: "http://127.0.0.1:11434",
+        model: "gemma3:4b",
+        timeoutMs: 1000,
+        temperature: 0,
+        maxOutputTokens: 100,
+      },
+    });
+
+    expect(result.report.summary.assertionCandidates).toBe(1);
+    expect(result.report.assertionCandidates[0]?.candidateSource).toBe("snapshot_cli");
+  });
+
+  it("falls back to deterministic candidates when snapshot-cli source is unavailable", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-snapshot-cli-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: fill",
+        "    target:",
+        '      value: "#name"',
+        "      kind: css",
+        "      source: manual",
+        "    text: Alice",
+      ].join("\n"),
+      "utf-8"
+    );
+    buildAssertionCandidatesMock.mockReturnValueOnce([
+      {
+        index: 1,
+        afterAction: "fill",
+        candidate: {
+          action: "assertValue",
+          target: { value: "#name", kind: "css", source: "manual" },
+          value: "Alice",
+        },
+        confidence: 0.9,
+        rationale: "stable input value",
+        candidateSource: "deterministic",
+      },
+    ]);
+    collectPlaywrightCliStepSnapshotsMock.mockResolvedValueOnce({
+      available: false,
+      stepSnapshots: [],
+      diagnostics: [
+        {
+          code: "assertion_source_snapshot_cli_unavailable",
+          level: "warn",
+          message: "unavailable",
+        },
+      ],
+    });
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      apply: false,
+      applyAssertions: false,
+      provider: "playwright",
+      assertions: "candidates",
+      assertionSource: "snapshot-cli",
+      llmEnabled: false,
+      llmConfig: {
+        baseUrl: "http://127.0.0.1:11434",
+        model: "gemma3:4b",
+        timeoutMs: 1000,
+        temperature: 0,
+        maxOutputTokens: 100,
+      },
+    });
+
+    expect(result.report.summary.assertionCandidates).toBe(1);
+    expect(result.report.assertionCandidates[0]?.candidateSource).toBe("deterministic");
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "assertion_source_snapshot_cli_fallback"
+      )
+    ).toBe(true);
   });
 });

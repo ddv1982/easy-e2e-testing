@@ -27,12 +27,14 @@ describe("profile summary formatting", () => {
       apply: false,
       applyAssertions: true,
       assertions: "candidates",
+      assertionSource: "snapshot-cli",
       llmEnabled: false,
       llmModel: "gemma3:4b",
     });
 
     expect(out).toContain("provider=auto");
     expect(out).toContain("applyAssertions=yes");
+    expect(out).toContain("assertionSource=snapshot-cli");
     expect(out).toContain("llm=disabled");
   });
 

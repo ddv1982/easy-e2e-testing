@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Improve Snapshot Fixture</title>
+</head>
+<body>
+  <h1>Snapshot Fixture</h1>
+  <button id="show-status" type="button">Save</button>
+  <div id="status" role="status" aria-live="polite"></div>
+
+  <script>
+    const button = document.getElementById("show-status");
+    const status = document.getElementById("status");
+    button?.addEventListener("click", () => {
+      if (status) {
+        status.textContent = "Saved successfully";
+      }
+    });
+  </script>
+</body>
+</html>

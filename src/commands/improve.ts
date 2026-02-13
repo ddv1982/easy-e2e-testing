@@ -22,6 +22,10 @@ export function registerImprove(program: Command) {
     .option("--no-llm", "Disable local LLM ranking for this run")
     .option("--provider <provider>", "Context provider: auto, playwright, playwright-cli")
     .option("--assertions <mode>", "Assertion mode: none or candidates")
+    .option(
+      "--assertion-source <source>",
+      "Assertion source: deterministic or snapshot-cli"
+    )
     .option("--report <path>", "Write JSON report to a custom path")
     .action(async (testFile, opts) => {
       try {
@@ -40,6 +44,7 @@ async function runImprove(
     llm?: boolean;
     provider?: string;
     assertions?: string;
+    assertionSource?: string;
     report?: string;
   }
 ): Promise<void> {
@@ -52,6 +57,7 @@ async function runImprove(
       apply: profile.apply,
       applyAssertions: profile.applyAssertions,
       assertions: profile.assertions,
+      assertionSource: profile.assertionSource,
       llmEnabled: profile.llmEnabled,
       llmModel: profile.llmConfig.model,
     })
@@ -63,6 +69,7 @@ async function runImprove(
     applyAssertions: profile.applyAssertions,
     provider: profile.provider,
     assertions: profile.assertions,
+    assertionSource: profile.assertionSource,
     llmEnabled: profile.llmEnabled,
     reportPath: profile.reportPath,
     llmConfig: profile.llmConfig,

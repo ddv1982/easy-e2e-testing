@@ -24,9 +24,10 @@ export function run() {
       "  npx ui-test improve e2e/login.yaml",
       "  npx ui-test improve e2e/login.yaml --llm",
       "  npx ui-test improve e2e/login.yaml --apply --apply-assertions",
+      "  npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli",
       "",
       "Tip:",
-      "  Run `npx ui-test improve --help` to see all improve flags (including LLM options).",
+      "  Run `npx ui-test improve --help` to see all improve flags (including assertion source + LLM options).",
     ].join("\n")
   );
 

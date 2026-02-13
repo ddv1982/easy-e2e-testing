@@ -28,6 +28,7 @@ describe("improveReportSchema", () => {
           },
           confidence: 0.9,
           rationale: "High confidence state check",
+          candidateSource: "deterministic",
           applyStatus: "applied",
         },
         {
@@ -39,6 +40,7 @@ describe("improveReportSchema", () => {
           },
           confidence: 0.5,
           rationale: "Low confidence state check",
+          candidateSource: "snapshot_cli",
           applyStatus: "skipped_low_confidence",
           applyMessage: "Below threshold",
         },
@@ -47,7 +49,9 @@ describe("improveReportSchema", () => {
     });
 
     expect(parsed.summary.appliedAssertions).toBe(1);
+    expect(parsed.assertionCandidates[0]?.candidateSource).toBe("deterministic");
     expect(parsed.assertionCandidates[0]?.applyStatus).toBe("applied");
+    expect(parsed.assertionCandidates[1]?.candidateSource).toBe("snapshot_cli");
     expect(parsed.assertionCandidates[1]?.applyStatus).toBe("skipped_low_confidence");
   });
 });

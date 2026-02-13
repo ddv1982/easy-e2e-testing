@@ -5,6 +5,7 @@ import { stepsToYaml, yamlToTest } from "../transformer.js";
 import { testSchema, type Step, type Target } from "../yaml-schema.js";
 import { UserError, ValidationError } from "../../utils/errors.js";
 import { buildAssertionCandidates } from "./assertion-candidates.js";
+import { buildSnapshotCliAssertionCandidates } from "./assertion-candidates-snapshot-cli.js";
 import {
   insertAppliedAssertions,
   selectCandidatesForApply,
@@ -14,6 +15,7 @@ import { generateTargetCandidates } from "./candidate-generator.js";
 import { scoreTargetCandidates, shouldAdoptCandidate } from "./candidate-scorer.js";
 import type { OllamaConfig } from "./llm/ollama-client.js";
 import { rankSelectorCandidates } from "./llm/selector-ranker.js";
+import { collectPlaywrightCliStepSnapshots } from "./providers/playwright-cli-replay.js";
 import { selectImproveProvider } from "./providers/provider-selector.js";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
 import {
@@ -28,6 +30,7 @@ import {
 
 export type ImproveProvider = "auto" | "playwright" | "playwright-cli";
 export type ImproveAssertionsMode = "none" | "candidates";
+export type ImproveAssertionSource = "deterministic" | "snapshot-cli";
 
 export interface ImproveOptions {
   testFile: string;
@@ -35,6 +38,7 @@ export interface ImproveOptions {
   applyAssertions: boolean;
   provider: ImproveProvider;
   assertions: ImproveAssertionsMode;
+  assertionSource?: ImproveAssertionSource;
   llmEnabled: boolean;
   reportPath?: string;
   llmConfig: OllamaConfig;
@@ -51,6 +55,7 @@ const DEFAULT_SCORING_TIMEOUT_MS = 1_200;
 const ASSERTION_APPLY_MIN_CONFIDENCE = 0.75;
 
 export async function improveTestFile(options: ImproveOptions): Promise<ImproveResult> {
+  const assertionSource = options.assertionSource ?? "deterministic";
   const absoluteTestPath = path.resolve(options.testFile);
   const rawContent = await fs.readFile(absoluteTestPath, "utf-8");
   const parsedYaml = yamlToTest(rawContent);
@@ -173,8 +178,51 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       }
     }
 
-    const rawAssertionCandidates =
+    let rawAssertionCandidates =
       options.assertions === "candidates" ? buildAssertionCandidates(outputSteps, findings) : [];
+
+    if (options.assertions === "candidates" && assertionSource === "snapshot-cli") {
+      const snapshotReplay = await collectPlaywrightCliStepSnapshots({
+        steps: outputSteps,
+        baseUrl: test.baseUrl,
+        timeoutMs: DEFAULT_RUNTIME_TIMEOUT_MS,
+      });
+      diagnostics.push(...snapshotReplay.diagnostics);
+
+      if (!snapshotReplay.available || snapshotReplay.stepSnapshots.length === 0) {
+        diagnostics.push({
+          code: "assertion_source_snapshot_cli_fallback",
+          level: "warn",
+          message:
+            "snapshot-cli assertion source did not produce usable step snapshots; falling back to deterministic candidates.",
+        });
+      } else {
+        try {
+          const snapshotCandidates = buildSnapshotCliAssertionCandidates(
+            snapshotReplay.stepSnapshots
+          );
+          rawAssertionCandidates = dedupeAssertionCandidates([
+            ...rawAssertionCandidates,
+            ...snapshotCandidates,
+          ]);
+        } catch (err) {
+          diagnostics.push({
+            code: "assertion_source_snapshot_cli_parse_failed",
+            level: "warn",
+            message:
+              err instanceof Error
+                ? `Failed to parse snapshot-cli assertion candidates: ${err.message}`
+                : "Failed to parse snapshot-cli assertion candidates.",
+          });
+          diagnostics.push({
+            code: "assertion_source_snapshot_cli_fallback",
+            level: "warn",
+            message:
+              "snapshot-cli assertion source failed to parse; falling back to deterministic candidates.",
+          });
+        }
+      }
+    }
     let assertionCandidates: AssertionCandidate[] = rawAssertionCandidates.map((candidate) => ({
       ...candidate,
       applyStatus: "not_requested" as const,
@@ -336,4 +384,48 @@ function effectiveProvider(providerUsed: ImproveProviderUsed, page: Page | undef
 
 function roundScore(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+function dedupeAssertionCandidates(
+  candidates: AssertionCandidate[]
+): AssertionCandidate[] {
+  const seen = new Set<string>();
+  const out: AssertionCandidate[] = [];
+
+  for (const candidate of candidates) {
+    const key = assertionCandidateKey(candidate);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(candidate);
+  }
+
+  return out;
+}
+
+function assertionCandidateKey(candidate: AssertionCandidate): string {
+  const candidateStep = candidate.candidate;
+  const targetKey =
+    candidateStep.action === "navigate"
+      ? `navigate:${candidateStep.url}`
+      : normalizeTargetKey(candidateStep.target);
+
+  return [
+    candidate.index,
+    candidateStep.action,
+    targetKey,
+    "text" in candidateStep ? candidateStep.text : "",
+    "value" in candidateStep ? candidateStep.value : "",
+    candidateStep.action === "assertChecked"
+      ? String(candidateStep.checked ?? true)
+      : "",
+  ].join("|");
+}
+
+function normalizeTargetKey(target: Target): string {
+  const framePath = target.framePath ?? [];
+  return [
+    target.kind,
+    target.value.trim().toLowerCase(),
+    framePath.join(">"),
+  ].join("|");
 }
