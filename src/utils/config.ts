@@ -23,6 +23,8 @@ const configSchema = z.object({
   delay: z.number().int().nonnegative().optional(),
   waitForNetworkIdle: z.boolean().optional(),
   networkIdleTimeout: z.number().int().positive().optional(),
+  saveFailureArtifacts: z.boolean().optional(),
+  artifactsDir: z.string().min(1).optional(),
   recordSelectorPolicy: z.enum(["reliable", "raw"]).optional(),
   recordBrowser: z.enum(["chromium", "firefox", "webkit"]).optional(),
   recordDevice: z.string().min(1).optional(),
@@ -88,7 +90,7 @@ export async function loadConfig(): Promise<UITestConfig> {
 
       throw new UserError(
         `Invalid config in ${filename}: ${issues}`,
-        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer, waitForNetworkIdle?: boolean, networkIdleTimeout?: positive integer, recordSelectorPolicy?: 'reliable'|'raw', recordBrowser?: 'chromium'|'firefox'|'webkit', recordDevice?: string, recordTestIdAttribute?: string, recordLoadStorage?: string, recordSaveStorage?: string, improveProvider?: 'auto'|'playwright'|'playwright-cli', improveApplyMode?: 'review'|'apply', improveAssertions?: 'none'|'candidates', llm?: { enabled?: boolean, provider?: 'ollama', baseUrl?: URL, model?: string, timeoutMs?: positive integer, temperature?: 0..2, maxOutputTokens?: positive integer } }."
+        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer, waitForNetworkIdle?: boolean, networkIdleTimeout?: positive integer, saveFailureArtifacts?: boolean, artifactsDir?: string, recordSelectorPolicy?: 'reliable'|'raw', recordBrowser?: 'chromium'|'firefox'|'webkit', recordDevice?: string, recordTestIdAttribute?: string, recordLoadStorage?: string, recordSaveStorage?: string, improveProvider?: 'auto'|'playwright'|'playwright-cli', improveApplyMode?: 'review'|'apply', improveAssertions?: 'none'|'candidates', llm?: { enabled?: boolean, provider?: 'ollama', baseUrl?: URL, model?: string, timeoutMs?: positive integer, temperature?: 0..2, maxOutputTokens?: positive integer } }."
       );
     }
 

@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer, type Server } from "node:http";
-import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
+import { access, readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import yaml from "js-yaml";
 import { play } from "./player.js";
+import { createTestSlug } from "./play-failure-report.js";
 import { ui } from "../utils/ui.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -94,6 +95,15 @@ async function writeInlineFixture(name: string, fixture: Record<string, unknown>
   return targetPath;
 }
 
+async function exists(pathToCheck: string): Promise<boolean> {
+  try {
+    await access(pathToCheck);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 describe("player integration tests", () => {
   it("should successfully play a valid test file", async () => {
     const testFile = await prepareFixtureYaml("valid-test.yaml");
@@ -122,6 +132,92 @@ describe("player integration tests", () => {
     expect(result.steps.some((s) => !s.passed)).toBe(true);
     const failedStep = result.steps.find((s) => !s.passed);
     expect(failedStep?.error).toBeDefined();
+  }, 30000);
+
+  it("saves failure report, trace, and screenshot when artifact capture is enabled", async () => {
+    const testFile = await prepareFixtureYaml("missing-element.yaml");
+    const artifactsDir = join(tempDir, "play-artifacts");
+    const runId = "run-integration-failure-artifacts";
+
+    const result = await play(testFile, {
+      headed: false,
+      timeout: 2000,
+      saveFailureArtifacts: true,
+      artifactsDir,
+      runId,
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.failureArtifacts).toBeDefined();
+    expect(result.failureArtifacts?.reportPath).toBeDefined();
+    expect(result.failureArtifacts?.tracePath).toBeDefined();
+    expect(result.failureArtifacts?.screenshotPath).toBeDefined();
+
+    const reportPath = result.failureArtifacts?.reportPath;
+    const tracePath = result.failureArtifacts?.tracePath;
+    const screenshotPath = result.failureArtifacts?.screenshotPath;
+    expect(reportPath).toContain(join(artifactsDir, "runs", runId, "tests"));
+    expect(tracePath).toContain(join(artifactsDir, "runs", runId, "tests"));
+    expect(screenshotPath).toContain(join(artifactsDir, "runs", runId, "tests"));
+
+    expect(await exists(reportPath ?? "")).toBe(true);
+    expect(await exists(tracePath ?? "")).toBe(true);
+    expect(await exists(screenshotPath ?? "")).toBe(true);
+
+    const reportContent = await readFile(reportPath ?? "", "utf-8");
+    const parsed = JSON.parse(reportContent) as {
+      runId: string;
+      failure: { stepIndex: number; action: string };
+      artifacts: { tracePath?: string; screenshotPath?: string };
+    };
+    expect(parsed.runId).toBe(runId);
+    expect(parsed.failure.stepIndex).toBeGreaterThanOrEqual(0);
+    expect(parsed.failure.action).toBe("click");
+    expect(parsed.artifacts.tracePath).toBe(tracePath);
+    expect(parsed.artifacts.screenshotPath).toBe(screenshotPath);
+  }, 30000);
+
+  it("does not save failure artifact files for passing runs", async () => {
+    const testFile = await prepareFixtureYaml("valid-test.yaml");
+    const artifactsDir = join(tempDir, "play-artifacts-pass");
+    const runId = "run-integration-pass-artifacts";
+
+    const result = await play(testFile, {
+      headed: false,
+      timeout: 5000,
+      saveFailureArtifacts: true,
+      artifactsDir,
+      runId,
+    });
+
+    expect(result.passed).toBe(true);
+    expect(result.failureArtifacts).toBeUndefined();
+
+    const testSlug = createTestSlug(testFile);
+    const testDir = join(artifactsDir, "runs", runId, "tests", testSlug);
+    expect(await exists(join(testDir, "failure-report.json"))).toBe(false);
+    expect(await exists(join(testDir, "trace.zip"))).toBe(false);
+    expect(await exists(join(testDir, "failure.png"))).toBe(false);
+  }, 30000);
+
+  it("keeps test failure result when artifact directory setup fails", async () => {
+    const testFile = await prepareFixtureYaml("missing-element.yaml");
+    const blockedArtifactsPath = join(tempDir, "artifacts-blocked-path");
+    await writeFile(blockedArtifactsPath, "blocked", "utf-8");
+
+    const result = await play(testFile, {
+      headed: false,
+      timeout: 2000,
+      saveFailureArtifacts: true,
+      artifactsDir: blockedArtifactsPath,
+      runId: "run-artifacts-io-warning",
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.artifactWarnings).toBeDefined();
+    expect(result.artifactWarnings?.join("\n")).toMatch(
+      /Failed to prepare failure artifact directory/
+    );
   }, 30000);
 });
 

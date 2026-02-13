@@ -13,6 +13,8 @@ timeout: 10000
 delay: 0
 waitForNetworkIdle: true
 networkIdleTimeout: 2000
+saveFailureArtifacts: true
+artifactsDir: .ui-test-artifacts
 recordSelectorPolicy: reliable
 recordBrowser: chromium
 recordDevice: iPhone 13
@@ -43,6 +45,16 @@ llm:
 - `delay`: delay between steps in milliseconds.
 - `waitForNetworkIdle`: wait for network idle after each step.
 - `networkIdleTimeout`: timeout for post-step network idle wait.
+- `saveFailureArtifacts`: save JSON report + trace + screenshot when a play run fails.
+- `artifactsDir`: base directory for play failure artifacts (default `.ui-test-artifacts`).
+
+### Failure Artifact Output Layout
+- Per failed test:
+  - `<artifactsDir>/runs/<runId>/tests/<testSlug>/failure-report.json`
+  - `<artifactsDir>/runs/<runId>/tests/<testSlug>/trace.zip`
+  - `<artifactsDir>/runs/<runId>/tests/<testSlug>/failure.png`
+- Per failing run:
+  - `<artifactsDir>/runs/<runId>/run-report.json`
 
 ### Record Defaults
 - `recordSelectorPolicy`: `reliable` or `raw`.
@@ -74,6 +86,8 @@ Examples:
 
 ```bash
 npx ui-test play --headed --timeout 15000
+npx ui-test play --save-failure-artifacts
+npx ui-test play --artifacts-dir ./tmp/ui-test-artifacts --no-save-failure-artifacts
 npx ui-test record --browser firefox --selector-policy raw
 npx ui-test improve e2e/login.yaml --no-llm --apply
 ```

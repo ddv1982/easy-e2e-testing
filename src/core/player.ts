@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
+  type BrowserContext,
   chromium,
   errors as playwrightErrors,
   type Browser,
@@ -17,6 +19,12 @@ import {
   resolveLocatorContext,
   resolveNavigateUrl,
 } from "./runtime/locator-runtime.js";
+import {
+  buildPlayFailureArtifactPaths,
+  buildPlayFailureReport,
+  createPlayRunId,
+  writePlayFailureReport,
+} from "./play-failure-report.js";
 
 const NETWORK_IDLE_WARNING_LIMIT = 3;
 
@@ -27,6 +35,9 @@ export interface PlayOptions {
   delayMs?: number;
   waitForNetworkIdle?: boolean;
   networkIdleTimeout?: number;
+  saveFailureArtifacts?: boolean;
+  artifactsDir?: string;
+  runId?: string;
 }
 
 export interface StepResult {
@@ -43,16 +54,28 @@ export interface TestResult {
   steps: StepResult[];
   passed: boolean;
   durationMs: number;
+  failureArtifacts?: {
+    runId: string;
+    testSlug: string;
+    reportPath?: string;
+    tracePath?: string;
+    screenshotPath?: string;
+  };
+  artifactWarnings?: string[];
 }
 
 export async function play(
   filePath: string,
   options: PlayOptions = {}
 ): Promise<TestResult> {
+  const absoluteFilePath = path.resolve(filePath);
   const timeout = options.timeout ?? 10_000;
   const delayMs = options.delayMs ?? 0;
   const waitForNetworkIdle = options.waitForNetworkIdle ?? true;
   const networkIdleTimeout = options.networkIdleTimeout ?? 2_000;
+  const saveFailureArtifacts = options.saveFailureArtifacts ?? true;
+  const artifactsDir = options.artifactsDir ?? ".ui-test-artifacts";
+  const runId = options.runId ?? createPlayRunId();
 
   if (!Number.isFinite(delayMs) || delayMs < 0 || !Number.isInteger(delayMs)) {
     throw new UserError(
@@ -72,7 +95,7 @@ export async function play(
     );
   }
 
-  const content = await fs.readFile(filePath, "utf-8");
+  const content = await fs.readFile(absoluteFilePath, "utf-8");
   const raw = yamlToTest(content);
   const parsed = testSchema.safeParse(raw);
 
@@ -81,7 +104,7 @@ export async function play(
       (i) => `${i.path.join(".")}: ${i.message}`
     );
     throw new ValidationError(
-      `Invalid test file: ${filePath}`,
+      `Invalid test file: ${absoluteFilePath}`,
       issues
     );
   }
@@ -91,13 +114,49 @@ export async function play(
   const stepResults: StepResult[] = [];
   const testStart = Date.now();
   let networkIdleTimeoutWarnings = 0;
+  const artifactWarnings: string[] = [];
+  let failureArtifacts:
+    | {
+        runId: string;
+        testSlug: string;
+        reportPath?: string;
+        tracePath?: string;
+        screenshotPath?: string;
+      }
+    | undefined;
+  let tracingStarted = false;
+  let tracingStopped = false;
 
   let browser: Browser | undefined;
+  let context: BrowserContext | undefined;
   let page: Page | undefined;
+  let artifactPaths = saveFailureArtifacts
+    ? buildPlayFailureArtifactPaths({
+        artifactsDir,
+        runId,
+        testFilePath: absoluteFilePath,
+      })
+    : undefined;
 
   try {
     browser = await launchBrowser(options.headed);
-    page = await browser.newPage();
+    context = await browser.newContext();
+    page = await context.newPage();
+
+    if (artifactPaths) {
+      try {
+        await context.tracing.start({
+          screenshots: true,
+          snapshots: true,
+          sources: true,
+          title: test.name,
+        });
+        tracingStarted = true;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        artifactWarnings.push(`Failed to start trace capture: ${message}`);
+      }
+    }
 
     for (let i = 0; i < test.steps.length; i++) {
       const step = test.steps[i];
@@ -150,20 +209,108 @@ export async function play(
         };
         stepResults.push(result);
         ui.error(`${desc}: ${errMsg}`);
+
+        if (artifactPaths) {
+          let canWriteArtifacts = true;
+          try {
+            await fs.mkdir(artifactPaths.testDir, { recursive: true });
+          } catch (mkdirErr) {
+            const message = mkdirErr instanceof Error ? mkdirErr.message : String(mkdirErr);
+            artifactWarnings.push(`Failed to prepare failure artifact directory: ${message}`);
+            canWriteArtifacts = false;
+          }
+
+          if (canWriteArtifacts) {
+            let tracePath: string | undefined;
+            let screenshotPath: string | undefined;
+            let reportPath: string | undefined;
+
+            if (tracingStarted) {
+              try {
+                await context.tracing.stop({ path: artifactPaths.tracePath });
+                tracePath = artifactPaths.tracePath;
+                tracingStopped = true;
+              } catch (traceErr) {
+                const message = traceErr instanceof Error ? traceErr.message : String(traceErr);
+                artifactWarnings.push(`Failed to save trace zip: ${message}`);
+              }
+            }
+
+            try {
+              await page.screenshot({ path: artifactPaths.screenshotPath, fullPage: true });
+              screenshotPath = artifactPaths.screenshotPath;
+            } catch (screenshotErr) {
+              const message = screenshotErr instanceof Error ? screenshotErr.message : String(screenshotErr);
+              artifactWarnings.push(`Failed to save failure screenshot: ${message}`);
+            }
+
+            try {
+              const report = buildPlayFailureReport({
+                runId,
+                testName: test.name,
+                testFile: absoluteFilePath,
+                testSlug: artifactPaths.testSlug,
+                failure: {
+                  stepIndex: i,
+                  action: step.action,
+                  error: errMsg,
+                  durationMs: result.durationMs,
+                },
+                steps: stepResults.map((stepResult) => ({
+                  index: stepResult.index,
+                  action: stepResult.step.action,
+                  passed: stepResult.passed,
+                  error: stepResult.error,
+                  durationMs: stepResult.durationMs,
+                })),
+                artifacts: {
+                  tracePath,
+                  screenshotPath,
+                },
+                warnings: [...artifactWarnings],
+              });
+              await writePlayFailureReport(report, artifactPaths.reportPath);
+              reportPath = artifactPaths.reportPath;
+            } catch (reportErr) {
+              const message = reportErr instanceof Error ? reportErr.message : String(reportErr);
+              artifactWarnings.push(`Failed to write failure report JSON: ${message}`);
+            }
+
+            failureArtifacts = {
+              runId,
+              testSlug: artifactPaths.testSlug,
+              reportPath,
+              tracePath,
+              screenshotPath,
+            };
+          }
+        }
+
         break; // stop on first failure
       }
     }
   } finally {
+    if (context && tracingStarted && !tracingStopped) {
+      try {
+        await context.tracing.stop();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        artifactWarnings.push(`Failed to stop trace capture cleanly: ${message}`);
+      }
+    }
+    await context?.close();
     await browser?.close();
   }
 
   const passed = stepResults.every((r) => r.passed);
   return {
     name: test.name,
-    file: filePath,
+    file: absoluteFilePath,
     steps: stepResults,
     passed,
     durationMs: Date.now() - testStart,
+    failureArtifacts,
+    artifactWarnings: artifactWarnings.length > 0 ? artifactWarnings : undefined,
   };
 }
 

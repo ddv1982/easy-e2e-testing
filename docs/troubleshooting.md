@@ -29,6 +29,31 @@ If `play` cannot reach your app:
 npx ui-test play --no-start
 ```
 
+## Failure Artifacts Not Saved
+
+By default, `play` saves failure artifacts (`failure-report.json`, `trace.zip`, `failure.png`).
+When one or more tests fail in a run, it also saves `run-report.json`.
+
+If artifacts are missing:
+1. Ensure `artifactsDir` is writable.
+2. Override output path for the run:
+
+```bash
+npx ui-test play --artifacts-dir ./tmp/ui-test-artifacts
+```
+
+3. If needed, disable capture for the run:
+
+```bash
+npx ui-test play --no-save-failure-artifacts
+```
+
+Open a saved trace:
+
+```bash
+npx playwright show-trace .ui-test-artifacts/runs/<runId>/tests/<testSlug>/trace.zip
+```
+
 ## Recorder Produces No Interactions
 
 - Ensure you actually click/type/interact before closing recording session.

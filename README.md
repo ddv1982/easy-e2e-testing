@@ -35,6 +35,24 @@ If your app is already running:
 npx ui-test play --no-start
 ```
 
+Disable failure artifact capture for a run:
+
+```bash
+npx ui-test play --no-save-failure-artifacts
+```
+
+Re-enable capture explicitly for a run:
+
+```bash
+npx ui-test play --save-failure-artifacts
+```
+
+Use a custom artifact directory:
+
+```bash
+npx ui-test play --artifacts-dir ./tmp/ui-test-artifacts
+```
+
 See: [Getting Started](docs/getting-started.md)
 
 ### Intermediate: record and replay your own tests
@@ -127,6 +145,8 @@ baseUrl: http://127.0.0.1:5173
 startCommand: npm run dev
 headed: false
 timeout: 10000
+saveFailureArtifacts: true
+artifactsDir: .ui-test-artifacts
 recordSelectorPolicy: reliable
 recordBrowser: chromium
 improveProvider: auto
@@ -142,6 +162,22 @@ llm:
 `startCommand` is optional. If omitted, start your app manually and run `npx ui-test play --no-start`.
 
 See all options in [Configuration](docs/configuration.md).
+
+## Failure Artifacts
+
+By default, `npx ui-test play` captures failure artifacts.
+
+Per failed test:
+- `<artifactsDir>/runs/<runId>/tests/<testSlug>/failure-report.json`
+- `<artifactsDir>/runs/<runId>/tests/<testSlug>/trace.zip`
+- `<artifactsDir>/runs/<runId>/tests/<testSlug>/failure.png`
+
+Per failing run:
+- `<artifactsDir>/runs/<runId>/run-report.json`
+
+When a run fails, CLI output includes:
+- `Failure artifacts index: .../run-report.json`
+- `Open trace: npx playwright show-trace .../trace.zip`
 
 ## Recorder & Improve Reliability Model
 
@@ -164,6 +200,8 @@ See all options in [Configuration](docs/configuration.md).
   - `npx playwright install-deps chromium`
 - App not reachable in play mode:
   - verify `baseUrl`, or run `--no-start` with app already running
+- Failure artifacts not written:
+  - verify `artifactsDir` permissions, or use `--artifacts-dir` with a writable path
 - Legacy config file error:
   - rename to `ui-test.config.yaml`
 

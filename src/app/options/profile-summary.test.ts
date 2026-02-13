@@ -42,9 +42,13 @@ describe("profile summary formatting", () => {
       waitForNetworkIdle: true,
       networkIdleTimeout: 2000,
       autoStart: true,
+      saveFailureArtifacts: true,
+      artifactsDir: ".ui-test-artifacts",
     });
 
     expect(out).toContain("timeout=10000ms");
     expect(out).toContain("autoStart=yes");
+    expect(out).toContain("saveFailureArtifacts=yes");
+    expect(out).toContain("artifactsDir=.ui-test-artifacts");
   });
 });

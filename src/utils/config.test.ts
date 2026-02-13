@@ -112,6 +112,8 @@ timeout: 15000
 delay: 2000
 waitForNetworkIdle: false
 networkIdleTimeout: 3500
+saveFailureArtifacts: true
+artifactsDir: ".ui-test-artifacts"
 recordSelectorPolicy: reliable
 recordBrowser: firefox
 recordDevice: "iPhone 13"
@@ -141,6 +143,8 @@ llm:
     expect(config.delay).toBe(2000);
     expect(config.waitForNetworkIdle).toBe(false);
     expect(config.networkIdleTimeout).toBe(3500);
+    expect(config.saveFailureArtifacts).toBe(true);
+    expect(config.artifactsDir).toBe(".ui-test-artifacts");
     expect(config.recordSelectorPolicy).toBe("reliable");
     expect(config.recordBrowser).toBe("firefox");
     expect(config.recordDevice).toBe("iPhone 13");
@@ -169,6 +173,8 @@ delay: -1
 startCommand: 123
 waitForNetworkIdle: "true"
 networkIdleTimeout: 0
+saveFailureArtifacts: "yes"
+artifactsDir: 123
 recordSelectorPolicy: fast
 recordBrowser: safari
 improveProvider: cli

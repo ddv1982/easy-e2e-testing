@@ -11,6 +11,8 @@ describe("resolvePlayProfile", () => {
         delay: "50",
         waitNetworkIdle: false,
         networkIdleTimeout: "700",
+        saveFailureArtifacts: false,
+        artifactsDir: "./tmp-artifacts",
         start: false,
       },
       {
@@ -19,6 +21,8 @@ describe("resolvePlayProfile", () => {
         delay: 0,
         waitForNetworkIdle: true,
         networkIdleTimeout: 2_000,
+        saveFailureArtifacts: true,
+        artifactsDir: ".ui-test-artifacts",
         startCommand: "npm run dev",
         baseUrl: "http://127.0.0.1:5173",
       }
@@ -30,6 +34,8 @@ describe("resolvePlayProfile", () => {
     expect(out.waitForNetworkIdle).toBe(false);
     expect(out.networkIdleTimeout).toBe(700);
     expect(out.shouldAutoStart).toBe(false);
+    expect(out.saveFailureArtifacts).toBe(false);
+    expect(out.artifactsDir).toBe("./tmp-artifacts");
   });
 
   it("uses defaults when values are missing", () => {
@@ -38,6 +44,8 @@ describe("resolvePlayProfile", () => {
     expect(out.delayMs).toBe(0);
     expect(out.waitForNetworkIdle).toBe(true);
     expect(out.networkIdleTimeout).toBe(2_000);
+    expect(out.saveFailureArtifacts).toBe(true);
+    expect(out.artifactsDir).toBe(".ui-test-artifacts");
     expect(out.testDir).toBe("e2e");
   });
 
@@ -45,5 +53,6 @@ describe("resolvePlayProfile", () => {
     expect(() => resolvePlayProfile({ timeout: "abc" }, {})).toThrow(UserError);
     expect(() => resolvePlayProfile({ delay: "-1" }, {})).toThrow(UserError);
     expect(() => resolvePlayProfile({ networkIdleTimeout: "0" }, {})).toThrow(UserError);
+    expect(() => resolvePlayProfile({ artifactsDir: "   " }, {})).toThrow(UserError);
   });
 });

@@ -13,6 +13,11 @@ vi.mock("../core/player.js", () => ({
   play: vi.fn(),
 }));
 
+vi.mock("../core/play-failure-report.js", () => ({
+  createPlayRunId: vi.fn(() => "run-test-id"),
+  writePlayRunReport: vi.fn(async () => "/tmp/run-report.json"),
+}));
+
 vi.mock("../utils/config.js", () => ({
   loadConfig: vi.fn(),
 }));
@@ -22,6 +27,7 @@ vi.mock("node:child_process", () => ({
 }));
 
 import { play } from "../core/player.js";
+import { createPlayRunId, writePlayRunReport } from "../core/play-failure-report.js";
 import { loadConfig } from "../utils/config.js";
 import { spawn } from "node:child_process";
 import { registerPlay, runPlay } from "./play.js";
@@ -42,7 +48,10 @@ function createMockChildProcess() {
 describe("runPlay startup behavior", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    process.exitCode = undefined;
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    vi.mocked(createPlayRunId).mockReturnValue("run-test-id");
+    vi.mocked(writePlayRunReport).mockResolvedValue("/tmp/run-report.json");
     vi.mocked(loadConfig).mockResolvedValue({
       testDir: "e2e",
       baseUrl: "http://127.0.0.1:5173",
@@ -78,6 +87,9 @@ describe("runPlay startup behavior", () => {
       delayMs: 0,
       waitForNetworkIdle: true,
       networkIdleTimeout: 2000,
+      saveFailureArtifacts: true,
+      artifactsDir: ".ui-test-artifacts",
+      runId: "run-test-id",
     });
   });
 
@@ -150,6 +162,9 @@ describe("runPlay startup behavior", () => {
       delayMs: 0,
       waitForNetworkIdle: false,
       networkIdleTimeout: 4500,
+      saveFailureArtifacts: true,
+      artifactsDir: ".ui-test-artifacts",
+      runId: "run-test-id",
     });
   });
 
@@ -179,6 +194,9 @@ describe("runPlay startup behavior", () => {
       delayMs: 0,
       waitForNetworkIdle: false,
       networkIdleTimeout: 700,
+      saveFailureArtifacts: true,
+      artifactsDir: ".ui-test-artifacts",
+      runId: "run-test-id",
     });
   });
 
@@ -187,6 +205,64 @@ describe("runPlay startup behavior", () => {
     await expect(run).rejects.toThrow(UserError);
     await expect(run).rejects.toThrow(/network idle timeout/);
     expect(play).not.toHaveBeenCalled();
+  });
+
+  it("writes run-level failure index when tests fail", async () => {
+    const child = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValue(child);
+    vi.mocked(play).mockResolvedValue({
+      name: "Broken Test",
+      file: path.resolve("e2e/example.yaml"),
+      steps: [
+        {
+          index: 0,
+          step: {
+            action: "click",
+            target: { value: "#missing", kind: "css", source: "manual" },
+          },
+          passed: false,
+          error: "Element not found",
+          durationMs: 10,
+        },
+      ],
+      passed: false,
+      durationMs: 10,
+      failureArtifacts: {
+        runId: "run-test-id",
+        testSlug: "e2e-example-yaml-abc12345",
+        reportPath: "/tmp/failure-report.json",
+        tracePath: "/tmp/trace.zip",
+        screenshotPath: "/tmp/failure.png",
+      },
+    });
+
+    await runPlay("e2e/example.yaml", {});
+
+    expect(writePlayRunReport).toHaveBeenCalledTimes(1);
+    expect(writePlayRunReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "run-test-id",
+        summary: {
+          total: 1,
+          passed: 0,
+          failed: 1,
+          durationMs: 10,
+        },
+      }),
+      {
+        artifactsDir: ".ui-test-artifacts",
+        runId: "run-test-id",
+      }
+    );
+  });
+
+  it("does not write run-level failure index when all tests pass", async () => {
+    const child = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValue(child);
+
+    await runPlay("e2e/example.yaml", {});
+
+    expect(writePlayRunReport).not.toHaveBeenCalled();
   });
 });
 
@@ -205,5 +281,21 @@ describe("play CLI option parsing", () => {
     expect(playCommand2).toBeDefined();
     playCommand2?.parseOptions(["--no-wait-network-idle", "--wait-network-idle"]);
     expect(playCommand2?.opts().waitNetworkIdle).toBe(true);
+  });
+
+  it("uses the last failure artifact flag when both are present", () => {
+    const program1 = new Command();
+    registerPlay(program1);
+    const playCommand1 = program1.commands.find((command) => command.name() === "play");
+    expect(playCommand1).toBeDefined();
+    playCommand1?.parseOptions(["--save-failure-artifacts", "--no-save-failure-artifacts"]);
+    expect(playCommand1?.opts().saveFailureArtifacts).toBe(false);
+
+    const program2 = new Command();
+    registerPlay(program2);
+    const playCommand2 = program2.commands.find((command) => command.name() === "play");
+    expect(playCommand2).toBeDefined();
+    playCommand2?.parseOptions(["--no-save-failure-artifacts", "--save-failure-artifacts"]);
+    expect(playCommand2?.opts().saveFailureArtifacts).toBe(true);
   });
 });

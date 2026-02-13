@@ -37,6 +37,13 @@ If your app is already running and you do not want auto-start:
 npx ui-test play --no-start
 ```
 
+`play` saves failure artifacts by default under `.ui-test-artifacts/`.
+To disable this for a run:
+
+```bash
+npx ui-test play --no-save-failure-artifacts
+```
+
 ## Initialize Manually
 
 If you want interactive initialization choices:

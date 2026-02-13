@@ -8,6 +8,8 @@ export interface PlayProfileInput {
   waitNetworkIdle?: boolean;
   networkIdleTimeout?: string;
   start?: boolean;
+  saveFailureArtifacts?: boolean;
+  artifactsDir?: string;
 }
 
 export interface ResolvedPlayProfile {
@@ -17,6 +19,8 @@ export interface ResolvedPlayProfile {
   waitForNetworkIdle: boolean;
   networkIdleTimeout: number;
   shouldAutoStart: boolean;
+  saveFailureArtifacts: boolean;
+  artifactsDir: string;
   baseUrl?: string;
   startCommand?: string;
   testDir: string;
@@ -28,6 +32,7 @@ export function resolvePlayProfile(
 ): ResolvedPlayProfile {
   const headed = input.headed ?? config.headed ?? false;
   const shouldAutoStart = input.start !== false;
+  const saveFailureArtifacts = input.saveFailureArtifacts ?? config.saveFailureArtifacts ?? true;
 
   const cliTimeout =
     input.timeout !== undefined
@@ -58,6 +63,7 @@ export function resolvePlayProfile(
         )
       : undefined;
   const networkIdleTimeout = cliNetworkIdleTimeout ?? config.networkIdleTimeout ?? 2_000;
+  const artifactsDir = (input.artifactsDir ?? config.artifactsDir ?? ".ui-test-artifacts").trim();
 
   if (!Number.isFinite(timeout) || timeout <= 0 || !Number.isInteger(timeout)) {
     throw new UserError(
@@ -84,6 +90,13 @@ export function resolvePlayProfile(
     );
   }
 
+  if (!artifactsDir) {
+    throw new UserError(
+      "Invalid artifacts directory value: empty path",
+      "Set a non-empty path with --artifacts-dir <path> or artifactsDir in ui-test.config.yaml."
+    );
+  }
+
   return {
     headed,
     timeout,
@@ -91,6 +104,8 @@ export function resolvePlayProfile(
     waitForNetworkIdle,
     networkIdleTimeout,
     shouldAutoStart,
+    saveFailureArtifacts,
+    artifactsDir,
     baseUrl: config.baseUrl,
     startCommand: config.startCommand?.trim() || undefined,
     testDir: config.testDir ?? "e2e",

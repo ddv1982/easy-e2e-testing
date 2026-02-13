@@ -4,6 +4,7 @@ dist/
 .DS_Store
 coverage/
 *.log
+.ui-test-artifacts/
 easy-e2e.config.yaml
 easy-e2e.config.yml
 ui-test.config.yaml

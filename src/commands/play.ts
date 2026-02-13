@@ -4,6 +4,11 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { globby } from "globby";
 import { play, type TestResult } from "../core/player.js";
+import {
+  createPlayRunId,
+  writePlayRunReport,
+  type PlayRunReport,
+} from "../core/play-failure-report.js";
 import { loadConfig } from "../utils/config.js";
 import { ui } from "../utils/ui.js";
 import { handleError, UserError } from "../utils/errors.js";
@@ -24,6 +29,9 @@ export function registerPlay(program: Command) {
     .option("--wait-network-idle", "Wait for network idle after each step")
     .option("--no-wait-network-idle", "Skip waiting for network idle after each step")
     .option("--network-idle-timeout <ms>", "Timeout for post-step network idle wait in milliseconds")
+    .option("--save-failure-artifacts", "Save JSON/trace/screenshot artifacts on test failure")
+    .option("--no-save-failure-artifacts", "Disable failure artifact capture")
+    .option("--artifacts-dir <path>", "Directory for play failure artifacts")
     .option("--no-start", "Do not auto-start app even when startCommand is configured")
     .action(async (testArg, opts) => {
       try {
@@ -42,11 +50,14 @@ async function runPlay(
     delay?: string;
     waitNetworkIdle?: boolean;
     networkIdleTimeout?: string;
+    saveFailureArtifacts?: boolean;
+    artifactsDir?: string;
     start?: boolean;
   }
 ) {
   const config = await loadConfig();
   const profile = resolvePlayProfile(opts, config);
+  const runId = createPlayRunId();
 
   ui.info(
     formatPlayProfileSummary({
@@ -56,6 +67,8 @@ async function runPlay(
       waitForNetworkIdle: profile.waitForNetworkIdle,
       networkIdleTimeout: profile.networkIdleTimeout,
       autoStart: profile.shouldAutoStart,
+      saveFailureArtifacts: profile.saveFailureArtifacts,
+      artifactsDir: profile.artifactsDir,
     })
   );
 
@@ -116,14 +129,74 @@ async function runPlay(
         delayMs: profile.delayMs,
         waitForNetworkIdle: profile.waitForNetworkIdle,
         networkIdleTimeout: profile.networkIdleTimeout,
+        saveFailureArtifacts: profile.saveFailureArtifacts,
+        artifactsDir: profile.artifactsDir,
+        runId,
       });
       results.push(result);
+      if (result.artifactWarnings) {
+        for (const warning of result.artifactWarnings) {
+          ui.warn(`Artifact warning (${path.basename(result.file)}): ${warning}`);
+        }
+      }
       console.log();
     }
 
     const passed = results.filter((r) => r.passed).length;
     const failed = results.filter((r) => !r.passed).length;
     const totalMs = results.reduce((sum, r) => sum + r.durationMs, 0);
+    let runReportPath: string | undefined;
+    let firstTracePath: string | undefined;
+
+    if (profile.saveFailureArtifacts && failed > 0) {
+      const failedTests = results
+        .filter((result) => !result.passed)
+        .map((result) => {
+          const failedStep = result.steps.find((step) => !step.passed);
+          if (!firstTracePath && result.failureArtifacts?.tracePath) {
+            firstTracePath = result.failureArtifacts.tracePath;
+          }
+          return {
+            name: result.name,
+            file: result.file,
+            slug: result.failureArtifacts?.testSlug ?? "unknown",
+            failure: {
+              stepIndex: failedStep?.index ?? 0,
+              action: failedStep?.step.action ?? "unknown",
+              error: failedStep?.error ?? "Unknown failure",
+            },
+            artifacts: {
+              reportPath: result.failureArtifacts?.reportPath,
+              tracePath: result.failureArtifacts?.tracePath,
+              screenshotPath: result.failureArtifacts?.screenshotPath,
+            },
+            warnings: result.artifactWarnings ?? [],
+          };
+        });
+
+      const runReport: PlayRunReport = {
+        schemaVersion: "1.0",
+        generatedAt: new Date().toISOString(),
+        runId,
+        summary: {
+          total: results.length,
+          passed,
+          failed,
+          durationMs: totalMs,
+        },
+        failedTests,
+      };
+
+      try {
+        runReportPath = await writePlayRunReport(runReport, {
+          artifactsDir: profile.artifactsDir,
+          runId,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        ui.warn(`Failed to write run artifact index: ${message}`);
+      }
+    }
 
     console.log();
     ui.heading("Results");
@@ -133,6 +206,12 @@ async function runPlay(
       ui.error(
         `${failed} failed, ${passed} passed out of ${results.length} test${results.length > 1 ? "s" : ""} (${totalMs}ms)`
       );
+      if (runReportPath) {
+        ui.step(`Failure artifacts index: ${runReportPath}`);
+      }
+      if (firstTracePath) {
+        ui.step(`Open trace: npx playwright show-trace ${firstTracePath}`);
+      }
       process.exitCode = 1;
     }
   } finally {
