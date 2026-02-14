@@ -6,12 +6,16 @@ This guide covers maintainer-focused workflows and CI details.
 
 ```bash
 npm test
+npm run lint
+npm run lint:typed
 npm run test:framework
 npm run test:unit
 npm run test:integration
 npm run test:smoke
 npm run test:coverage
 ```
+
+`npm test` includes architecture boundary checks (see `src/architecture/layer-boundaries.test.ts`).
 
 ## Packaging Validation
 
