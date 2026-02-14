@@ -8,6 +8,7 @@ import {
 } from "../../runtime/network-idle.js";
 import { resolveNavigateUrl } from "../../runtime/locator-runtime.js";
 import type { Step, Target } from "../../yaml-schema.js";
+import type { StepSnapshot } from "../assertion-candidates-snapshot-cli.js";
 import type { ImproveDiagnostic } from "../report-schema.js";
 
 interface CommandResult {
@@ -24,13 +25,6 @@ interface PlaywrightCliInvoker {
   source: "playwright-cli" | "npx";
 }
 
-export interface PlaywrightCliStepSnapshot {
-  index: number;
-  step: Step;
-  preSnapshot: string;
-  postSnapshot: string;
-}
-
 export interface PlaywrightCliReplayOptions {
   steps: Step[];
   baseUrl?: string;
@@ -41,7 +35,7 @@ export interface PlaywrightCliReplayOptions {
 
 export interface PlaywrightCliReplayResult {
   available: boolean;
-  stepSnapshots: PlaywrightCliStepSnapshot[];
+  stepSnapshots: StepSnapshot[];
   diagnostics: ImproveDiagnostic[];
 }
 
@@ -106,7 +100,7 @@ export async function collectPlaywrightCliStepSnapshots(
       options.timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS,
       runCommand
     );
-    const stepSnapshots: PlaywrightCliStepSnapshot[] = [];
+    const stepSnapshots: StepSnapshot[] = [];
     const waitForNetworkIdle = options.waitForNetworkIdle ?? DEFAULT_WAIT_FOR_NETWORK_IDLE;
     const networkIdleTimeout = options.networkIdleTimeout ?? DEFAULT_NETWORK_IDLE_TIMEOUT_MS;
 

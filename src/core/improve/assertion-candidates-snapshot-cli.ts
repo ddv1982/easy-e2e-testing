@@ -1,6 +1,6 @@
 import type { Step, Target } from "../yaml-schema.js";
-import type { AssertionCandidate } from "./report-schema.js";
-import type { PlaywrightCliStepSnapshot } from "./providers/playwright-cli-replay.js";
+import { quote } from "./candidate-generator.js";
+import type { AssertionCandidate, AssertionCandidateSource } from "./report-schema.js";
 
 interface SnapshotNode {
   role: string;
@@ -28,8 +28,22 @@ const VISIBLE_ROLE_ALLOWLIST = new Set([
 
 const TEXT_ROLE_ALLOWLIST = new Set(["heading", "status", "alert"]);
 
+export interface StepSnapshot {
+  index: number;
+  step: Step;
+  preSnapshot: string;
+  postSnapshot: string;
+}
+
 export function buildSnapshotCliAssertionCandidates(
-  snapshots: PlaywrightCliStepSnapshot[]
+  snapshots: StepSnapshot[]
+): AssertionCandidate[] {
+  return buildSnapshotAssertionCandidates(snapshots, "snapshot_cli");
+}
+
+export function buildSnapshotAssertionCandidates(
+  snapshots: StepSnapshot[],
+  candidateSource: AssertionCandidateSource
 ): AssertionCandidate[] {
   const candidates: AssertionCandidate[] = [];
 
@@ -48,7 +62,8 @@ export function buildSnapshotCliAssertionCandidates(
       snapshot.step.action,
       delta,
       actedTargetHint,
-      framePath
+      framePath,
+      candidateSource
     );
     if (textCandidate) {
       candidates.push(textCandidate);
@@ -60,7 +75,8 @@ export function buildSnapshotCliAssertionCandidates(
       snapshot.step.action,
       delta,
       actedTargetHint,
-      framePath
+      framePath,
+      candidateSource
     );
     if (visibleCandidate) {
       candidates.push(visibleCandidate);
@@ -113,7 +129,8 @@ function buildVisibleCandidate(
   afterAction: Step["action"],
   nodes: SnapshotNode[],
   actedTargetHint: string,
-  framePath: string[] | undefined
+  framePath: string[] | undefined,
+  candidateSource: AssertionCandidateSource
 ): AssertionCandidate | undefined {
   for (const node of nodes) {
     if (!VISIBLE_ROLE_ALLOWLIST.has(node.role)) continue;
@@ -129,7 +146,7 @@ function buildVisibleCandidate(
       },
       confidence: 0.78,
       rationale: "Snapshot delta found a new role/name element after this step.",
-      candidateSource: "snapshot_cli",
+      candidateSource,
     };
   }
   return undefined;
@@ -140,7 +157,8 @@ function buildTextCandidate(
   afterAction: Step["action"],
   nodes: SnapshotNode[],
   actedTargetHint: string,
-  framePath: string[] | undefined
+  framePath: string[] | undefined,
+  candidateSource: AssertionCandidateSource
 ): AssertionCandidate | undefined {
   for (const node of nodes) {
     if (!TEXT_ROLE_ALLOWLIST.has(node.role)) continue;
@@ -158,7 +176,7 @@ function buildTextCandidate(
       },
       confidence: 0.82,
       rationale: "Snapshot delta identified new high-signal text after this step.",
-      candidateSource: "snapshot_cli",
+      candidateSource,
     };
   }
   return undefined;
@@ -170,7 +188,7 @@ function buildRoleTarget(
   framePath: string[] | undefined
 ): Target {
   return {
-    value: `getByRole(${JSON.stringify(role)}, { name: ${JSON.stringify(name)} })`,
+    value: "getByRole(" + quote(role) + ", { name: " + quote(name) + " })",
     kind: "locatorExpression",
     source: "codegen-fallback",
     ...(framePath && framePath.length > 0 ? { framePath } : {}),
@@ -184,8 +202,8 @@ function buildTextTarget(
 ): Target {
   const value =
     node.name && VISIBLE_ROLE_ALLOWLIST.has(node.role)
-      ? `getByRole(${JSON.stringify(node.role)}, { name: ${JSON.stringify(node.name)} })`
-      : `getByText(${JSON.stringify(text)})`;
+      ? "getByRole(" + quote(node.role) + ", { name: " + quote(node.name) + " })"
+      : "getByText(" + quote(text) + ")";
 
   return {
     value,

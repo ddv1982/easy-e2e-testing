@@ -10,22 +10,30 @@ npx ui-test improve e2e/login.yaml
 
 This writes a JSON report and does not modify YAML.
 
-## Apply Approved Changes
+## Apply All Improvements
 
 ```bash
 npx ui-test improve e2e/login.yaml --apply
 ```
 
-Apply mode writes improved targets back to the same file.
+`--apply` writes both improved selectors and high-confidence assertion candidates to the YAML file.
 
-## Apply Assertion Candidates
+## Apply Selectors Only
+
+```bash
+npx ui-test improve e2e/login.yaml --apply-selectors
+```
+
+This applies only selector improvements without inserting assertion candidates.
+
+## Apply Assertions Only
 
 ```bash
 npx ui-test improve e2e/login.yaml --apply-assertions
 ```
 
-This inserts high-confidence assertion candidates into YAML after runtime validation.
-In the default deterministic source, auto-apply uses a conservative mapping:
+This inserts high-confidence assertion candidates into YAML after runtime validation, without updating selectors.
+In the deterministic source (`--assertion-source deterministic`), auto-apply uses a conservative mapping:
 - `fill/select -> assertValue`
 - `check/uncheck -> assertChecked`
 - click/press assertions are intentionally not auto-generated
@@ -37,14 +45,24 @@ Runtime validation failures are skipped and reported as warnings.
 ## Assertion Source (Opt-In Snapshot Mode)
 
 ```bash
-npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli
+npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
+npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
 ```
 
-This mode replays steps headlessly and captures Playwright-CLI snapshots after each step.
-Assertion candidates are generated from snapshot deltas (`assertVisible`/`assertText`) and then runtime-validated before insertion.
+Two snapshot-based assertion sources are available:
+
+### snapshot-native (recommended)
+
+Uses Playwright's native `locator.ariaSnapshot()` API to capture page state before and after each step during the existing improve replay. No external tool required.
+
+### snapshot-cli
+
+Replays steps in a separate Playwright-CLI process and captures snapshots after each step. Requires `playwright-cli` or `npx @playwright/cli@latest`.
+
+Both modes generate assertion candidates from snapshot deltas (`assertVisible`/`assertText`) and then runtime-validate before insertion.
 
 Fallback behavior:
-- If snapshot-cli is unavailable or replay fails, improve falls back to deterministic candidates.
+- If the snapshot source is unavailable or fails, improve falls back to deterministic candidates.
 - Diagnostics include fallback reason codes in the JSON report.
 
 ## Assertions Mode
@@ -56,11 +74,24 @@ npx ui-test improve e2e/login.yaml --assertions none
 
 Current scope:
 - Assertions are reported as candidates.
-- Assertions are auto-inserted only when `--apply-assertions` is enabled.
-- Default assertion source is `deterministic`; opt in to replay/snapshot generation with `--assertion-source snapshot-cli`.
+- Assertions are auto-inserted when `--apply` or `--apply-assertions` is used.
+- Default assertion source is `snapshot-native`, which captures page state changes during replay. Use `--assertion-source deterministic` for conservative form-state-only assertions, or `--assertion-source snapshot-cli` for external Playwright-CLI snapshots.
 - Deterministic source focuses on stable form-state assertions and excludes click/press-derived visibility checks.
-- Snapshot-cli source can additionally propose `assertVisible`/`assertText` from snapshot deltas.
+- Snapshot sources (`snapshot-native`, `snapshot-cli`) can additionally propose `assertVisible`/`assertText` from snapshot deltas.
 - Playwright codegen can generate assertions interactively, but `improve` assertion apply is deterministic.
+
+## Aria-Based Selector Improvement
+
+When a browser is available, improve uses Playwright's `ariaSnapshot()` API to inspect each element's accessibility role and name. This generates semantic locator candidates that replace brittle CSS, XPath, and Playwright selectors with resilient, human-readable alternatives:
+
+- `getByRole(role, { name })` — for any element with an accessible role and name (buttons, links, headings, form controls, dialogs, tabs, etc.)
+- `getByLabel(name)` — for form controls (textbox, combobox, listbox, searchbox, spinbutton)
+- `getByPlaceholder(text)` — for form controls with a placeholder attribute
+- `getByText(text)` — for text-bearing roles (headings, links, alerts, status elements)
+
+These candidates are scored alongside syntactic candidates and adopted when they score significantly higher than the current selector (delta >= 0.15).
+
+This happens automatically during improve — no extra flags needed.
 
 ## Report Contents
 
@@ -82,6 +113,6 @@ npx ui-test improve e2e/login.yaml --report ./reports/login.improve.json
 
 ## Runtime Safety Notes
 
-- Apply mode (`--apply` and `--apply-assertions`) requires runtime validation.
+- Apply mode (`--apply`, `--apply-selectors`, `--apply-assertions`) requires runtime validation.
 - Runtime analysis may replay actions; use a safe test environment.
 - If browser runtime is unavailable, review mode can still run with static scoring fallback.

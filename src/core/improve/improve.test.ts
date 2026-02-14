@@ -33,7 +33,7 @@ describe("improveTestFile", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: false,
       assertions: "none",
       reportPath,
@@ -59,7 +59,7 @@ describe("improveTestFile", () => {
 
     const run = improveTestFile({
       testFile: yamlPath,
-      apply: true,
+      applySelectors: true,
       applyAssertions: false,
       assertions: "none",
     });
@@ -81,7 +81,7 @@ describe("improveTestFile", () => {
 
     const run = improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
     });
@@ -90,7 +90,7 @@ describe("improveTestFile", () => {
     await expect(run).rejects.toThrow("Cannot apply improve changes without runtime validation");
   });
 
-  it("rejects apply-assertions when assertions mode is none", async () => {
+  it("downgrades applyAssertions when assertions mode is none", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
     tempDirs.push(dir);
 
@@ -101,16 +101,18 @@ describe("improveTestFile", () => {
       "utf-8"
     );
 
-    const run = improveTestFile({
+    const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "none",
     });
 
-    await expect(run).rejects.toBeInstanceOf(UserError);
-    await expect(run).rejects.toThrow(
-      "Cannot apply assertion candidates when assertions mode is disabled"
+    const diagnostic = result.report.diagnostics.find(
+      (d) => d.code === "apply_assertions_disabled_by_assertions_none"
     );
+    expect(diagnostic).toBeDefined();
+    expect(diagnostic!.level).toBe("warn");
+    expect(result.report.summary.appliedAssertions).toBe(0);
   });
 });

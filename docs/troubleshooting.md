@@ -70,22 +70,31 @@ UI_TEST_DISABLE_JSONL=1 npx ui-test record
 
 If you see runtime validation errors:
 - install Chromium (`npx playwright install chromium`)
-- run without `--apply` or `--apply-assertions` for report-only mode
+- run without `--apply`, `--apply-selectors`, or `--apply-assertions` for report-only mode
 
 ## Assertions Not Inserted by `improve`
 
 If assertions were listed as candidates but not written to YAML:
-1. Ensure you used `--apply-assertions`.
-2. Keep `--assertions candidates` (not `--assertions none`).
+1. Ensure you used `--apply` or `--apply-assertions`.
+2. Keep `--assertions candidates` (not `--assertions none`). If `--apply` is used with `--assertions none`, assertion apply is silently downgraded.
 3. Check report `assertionCandidates[].applyStatus` for skip reasons.
 4. Re-run in a stable test environment so runtime validation can pass.
-5. Note: with default `--assertion-source deterministic`, click/press assertions are intentionally not auto-generated and auto-apply targets stable form-state checks (`assertValue`/`assertChecked`).
-6. If you use `--assertion-source snapshot-cli`, improve can also propose/apply snapshot-derived `assertVisible`/`assertText` candidates after runtime validation.
+5. Note: with `--assertion-source deterministic`, click/press assertions are intentionally not auto-generated and auto-apply targets stable form-state checks (`assertValue`/`assertChecked`). The default source (`snapshot-native`) generates assertions from page state changes.
+6. If you use `--assertion-source snapshot-native` or `--assertion-source snapshot-cli`, improve can also propose/apply snapshot-derived `assertVisible`/`assertText` candidates after runtime validation.
 7. Apply modes also remove stale adjacent self-visibility assertions (`click/press` followed by same-target `assertVisible`).
 
 Validation timing mirrors `play` post-step waiting (network idle, `2000ms` default). If that wait times out, candidates are skipped with `skipped_runtime_failure`.
 
-## Snapshot-CLI Assertion Source Fallback
+## Snapshot Assertion Source Fallback
+
+### snapshot-native
+
+If you run `--assertion-source snapshot-native` and get no snapshot-driven candidates:
+1. Ensure Chromium is installed (`npx playwright install chromium`).
+2. Check report diagnostics for `assertion_source_snapshot_native_empty` or `assertion_source_snapshot_native_parse_failed`.
+3. Improve falls back to deterministic assertion candidates by design.
+
+### snapshot-cli
 
 If you run `--assertion-source snapshot-cli` and get no snapshot-driven candidates:
 1. Verify `playwright-cli` or `npx -y @playwright/cli@latest` is available.

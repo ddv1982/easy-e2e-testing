@@ -23,13 +23,13 @@ describe("profile summary formatting", () => {
 
   it("formats improve summary", () => {
     const out = formatImproveProfileSummary({
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
       assertionSource: "snapshot-cli",
     });
 
-    expect(out).toContain("apply=no");
+    expect(out).toContain("applySelectors=no");
     expect(out).toContain("applyAssertions=yes");
     expect(out).toContain("assertionSource=snapshot-cli");
   });

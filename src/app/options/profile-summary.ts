@@ -13,12 +13,12 @@ export function formatRecordingProfileSummary(profile: {
 }
 
 export function formatImproveProfileSummary(profile: {
-  apply: boolean;
+  applySelectors: boolean;
   applyAssertions: boolean;
   assertions: string;
   assertionSource: string;
 }): string {
-  return `Improve profile: apply=${profile.apply ? "yes" : "no"}, applyAssertions=${profile.applyAssertions ? "yes" : "no"}, assertions=${profile.assertions}, assertionSource=${profile.assertionSource}`;
+  return `Improve profile: applySelectors=${profile.applySelectors ? "yes" : "no"}, applyAssertions=${profile.applyAssertions ? "yes" : "no"}, assertions=${profile.assertions}, assertionSource=${profile.assertionSource}`;
 }
 
 export function formatPlayProfileSummary(profile: {

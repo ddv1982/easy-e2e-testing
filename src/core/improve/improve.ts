@@ -5,7 +5,8 @@ import { stepsToYaml, yamlToTest } from "../transformer.js";
 import { testSchema, type Step, type Target } from "../yaml-schema.js";
 import { UserError, ValidationError } from "../../utils/errors.js";
 import { buildAssertionCandidates } from "./assertion-candidates.js";
-import { buildSnapshotCliAssertionCandidates } from "./assertion-candidates-snapshot-cli.js";
+import { buildSnapshotCliAssertionCandidates, type StepSnapshot } from "./assertion-candidates-snapshot-cli.js";
+import { buildSnapshotNativeAssertionCandidates } from "./assertion-candidates-snapshot-native.js";
 import {
   type AssertionApplyOutcome,
   type AssertionCandidateRef,
@@ -15,6 +16,7 @@ import {
 } from "./assertion-apply.js";
 import { findStaleAssertions, removeStaleAssertions } from "./assertion-cleanup.js";
 import { generateTargetCandidates } from "./candidate-generator.js";
+import { generateAriaTargetCandidates } from "./candidate-generator-aria.js";
 import {
   scoreTargetCandidates,
   shouldAdoptCandidate,
@@ -32,11 +34,11 @@ import {
 } from "./report-schema.js";
 
 export type ImproveAssertionsMode = "none" | "candidates";
-export type ImproveAssertionSource = "deterministic" | "snapshot-cli";
+export type ImproveAssertionSource = "deterministic" | "snapshot-cli" | "snapshot-native";
 
 export interface ImproveOptions {
   testFile: string;
-  apply: boolean;
+  applySelectors: boolean;
   applyAssertions: boolean;
   assertions: ImproveAssertionsMode;
   assertionSource?: ImproveAssertionSource;
@@ -55,7 +57,7 @@ const SNAPSHOT_CLI_REPLAY_TIMEOUT_MS = 15_000;
 const ASSERTION_APPLY_MIN_CONFIDENCE = 0.75;
 
 export async function improveTestFile(options: ImproveOptions): Promise<ImproveResult> {
-  const assertionSource = options.assertionSource ?? "deterministic";
+  const assertionSource = options.assertionSource ?? "snapshot-native";
   const absoluteTestPath = path.resolve(options.testFile);
   const rawContent = await fs.readFile(absoluteTestPath, "utf-8");
   const parsedYaml = yamlToTest(rawContent);
@@ -69,13 +71,16 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
   const test = parsedTest.data;
   const diagnostics: ImproveDiagnostic[] = [];
   if (options.applyAssertions && options.assertions === "none") {
-    throw new UserError(
-      "Cannot apply assertion candidates when assertions mode is disabled.",
-      "Use --assertions candidates with --apply-assertions, or remove --apply-assertions."
-    );
+    diagnostics.push({
+      code: "apply_assertions_disabled_by_assertions_none",
+      level: "warn",
+      message:
+        "applyAssertions was requested but assertions mode is 'none'; downgrading to applyAssertions=false.",
+    });
+    options = { ...options, applyAssertions: false };
   }
 
-  const wantsWrite = options.apply || options.applyAssertions;
+  const wantsWrite = options.applySelectors || options.applyAssertions;
   const staleAssertions = findStaleAssertions(test.steps);
   for (const staleAssertion of staleAssertions) {
     diagnostics.push({
@@ -110,7 +115,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     if (wantsWrite) {
       throw new UserError(
         "Cannot apply improve changes without runtime validation.",
-        "Install and configure Chromium (for example: npx playwright install chromium), or run improve without --apply/--apply-assertions."
+        "Install and configure Chromium (for example: npx playwright install chromium), or run improve without apply flags (--apply, --apply-selectors, --apply-assertions)."
       );
     }
   }
@@ -124,6 +129,9 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     shouldRemoveStaleAssertions
   );
   const findings: StepFinding[] = [];
+  const wantsNativeSnapshots =
+    options.assertions === "candidates" && assertionSource === "snapshot-native";
+  const nativeStepSnapshots: StepSnapshot[] = [];
 
   try {
     for (let index = 0; index < outputSteps.length; index += 1) {
@@ -133,6 +141,19 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
 
       if (step.action !== "navigate") {
         const candidates = generateTargetCandidates(step.target);
+
+        if (page) {
+          const existingValues = new Set(candidates.map((c) => c.target.value));
+          const ariaResult = await generateAriaTargetCandidates(
+            page,
+            step.target,
+            existingValues,
+            DEFAULT_SCORING_TIMEOUT_MS
+          );
+          candidates.push(...ariaResult.candidates);
+          diagnostics.push(...ariaResult.diagnostics);
+        }
+
         const scored = await scoreTargetCandidates(page, candidates, DEFAULT_SCORING_TIMEOUT_MS);
         const current = scored.find((item) => item.candidate.source === "current") ?? scored[0];
         if (!current) {
@@ -147,12 +168,12 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
 
         const improveOpportunity = shouldAdoptCandidate(current, selected);
         const runtimeValidatedSelection = selected.matchCount === 1;
-        const adopt = improveOpportunity && (!options.apply || runtimeValidatedSelection);
+        const adopt = improveOpportunity && (!options.applySelectors || runtimeValidatedSelection);
         const recommendedTarget = adopt ? selected.candidate.target : step.target;
         const confidenceDelta = roundScore(selected.score - current.score);
         const reasonCodes = [...new Set([...current.reasonCodes, ...selected.reasonCodes])];
 
-        if (options.apply && !adopt && improveOpportunity) {
+        if (options.applySelectors && !adopt && improveOpportunity) {
           diagnostics.push({
             code: "apply_requires_runtime_unique_match",
             level: "warn",
@@ -172,7 +193,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
           reasonCodes,
         });
 
-        if (options.apply && adopt) {
+        if (options.applySelectors && adopt) {
           outputSteps[index] = {
             ...step,
             target: recommendedTarget,
@@ -181,6 +202,14 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       }
 
       if (page) {
+        let preSnapshot: string | undefined;
+        if (wantsNativeSnapshots) {
+          preSnapshot = await page
+            .locator("body")
+            .ariaSnapshot({ timeout: DEFAULT_SCORING_TIMEOUT_MS })
+            .catch(() => undefined);
+        }
+
         try {
           const runtimeStep = outputSteps[index] ?? step;
           await executeRuntimeStep(page, runtimeStep, {
@@ -198,6 +227,16 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
                 : `Runtime execution failed at step ${originalIndex + 1}; continuing with best-effort analysis.`,
           });
         }
+
+        if (wantsNativeSnapshots && preSnapshot !== undefined) {
+          const postSnapshot = await page
+            .locator("body")
+            .ariaSnapshot({ timeout: DEFAULT_SCORING_TIMEOUT_MS })
+            .catch(() => undefined);
+          if (postSnapshot) {
+            nativeStepSnapshots.push({ index, step, preSnapshot, postSnapshot });
+          }
+        }
       }
     }
 
@@ -205,6 +244,45 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       options.assertions === "candidates"
         ? buildAssertionCandidates(outputSteps, findings, outputStepOriginalIndexes)
         : [];
+
+    if (options.assertions === "candidates" && assertionSource === "snapshot-native") {
+      if (nativeStepSnapshots.length === 0) {
+        diagnostics.push({
+          code: "assertion_source_snapshot_native_empty",
+          level: "warn",
+          message:
+            "snapshot-native assertion source did not produce usable step snapshots; falling back to deterministic candidates.",
+        });
+      } else {
+        try {
+          const snapshotCandidates = buildSnapshotNativeAssertionCandidates(nativeStepSnapshots).map(
+            (candidate) => ({
+              ...candidate,
+              index: outputStepOriginalIndexes[candidate.index] ?? candidate.index,
+            })
+          );
+          rawAssertionCandidates = dedupeAssertionCandidates([
+            ...rawAssertionCandidates,
+            ...snapshotCandidates,
+          ]);
+        } catch (err) {
+          diagnostics.push({
+            code: "assertion_source_snapshot_native_parse_failed",
+            level: "warn",
+            message:
+              err instanceof Error
+                ? "Failed to parse snapshot-native assertion candidates: " + err.message
+                : "Failed to parse snapshot-native assertion candidates.",
+          });
+          diagnostics.push({
+            code: "assertion_source_snapshot_native_fallback",
+            level: "warn",
+            message:
+              "snapshot-native assertion source failed to parse; falling back to deterministic candidates.",
+          });
+        }
+      }
+    }
 
     if (options.assertions === "candidates" && assertionSource === "snapshot-cli") {
       const snapshotReplay = await collectPlaywrightCliStepSnapshots({

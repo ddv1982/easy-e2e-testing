@@ -24,6 +24,9 @@ vi.mock("playwright", () => ({
         url: () => "about:blank",
         goto: vi.fn(async () => {}),
         waitForLoadState: vi.fn(async () => {}),
+        locator: vi.fn(() => ({
+          ariaSnapshot: vi.fn(async () => "- generic"),
+        })),
       })),
       close: vi.fn(async () => {}),
     })),
@@ -49,6 +52,8 @@ vi.mock("./candidate-generator.js", () => ({
       reasonCodes: ["derived_target"],
     },
   ]),
+  quote: (value: string) =>
+    "'" + value.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n") + "'",
 }));
 
 vi.mock("./candidate-scorer.js", () => ({
@@ -85,6 +90,10 @@ vi.mock("./candidate-scorer.js", () => ({
     },
   ]),
   shouldAdoptCandidate: vi.fn(() => true),
+}));
+
+vi.mock("./candidate-generator-aria.js", () => ({
+  generateAriaTargetCandidates: vi.fn(async () => ({ candidates: [], diagnostics: [] })),
 }));
 
 vi.mock("./assertion-candidates.js", () => ({
@@ -140,7 +149,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: true,
+      applySelectors: true,
       applyAssertions: false,
       assertions: "none",
     });
@@ -196,7 +205,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
     });
@@ -246,7 +255,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: true,
+      applySelectors: true,
       applyAssertions: true,
       assertions: "candidates",
     });
@@ -295,7 +304,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
     });
@@ -348,7 +357,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
     });
@@ -397,14 +406,14 @@ describe("improve apply runtime replay", () => {
 
     await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
     });
 
     const second = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
     });
@@ -446,7 +455,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
     });
@@ -497,7 +506,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: false,
       assertions: "candidates",
       assertionSource: "snapshot-cli",
@@ -510,6 +519,60 @@ describe("improve apply runtime replay", () => {
     );
     expect(result.report.summary.assertionCandidates).toBe(1);
     expect(result.report.assertionCandidates[0]?.candidateSource).toBe("snapshot_cli");
+  });
+
+  it("adds snapshot-native assertion candidates when using default assertion source", async () => {
+    const { chromium } = await import("playwright");
+
+    const ariaSnapshotMock = vi.fn<[], Promise<string>>();
+    // Navigate step: pre/post identical → no delta
+    ariaSnapshotMock.mockResolvedValueOnce("- generic");
+    ariaSnapshotMock.mockResolvedValueOnce("- generic");
+    // Click step: new heading appears in post → delta produces candidate
+    ariaSnapshotMock.mockResolvedValueOnce('- button "Submit"');
+    ariaSnapshotMock.mockResolvedValueOnce('- button "Submit"\n- heading "Welcome"');
+
+    vi.mocked(chromium.launch).mockResolvedValueOnce({
+      newPage: vi.fn(async () => ({
+        url: () => "about:blank",
+        goto: vi.fn(async () => {}),
+        waitForLoadState: vi.fn(async () => {}),
+        locator: vi.fn(() => ({
+          ariaSnapshot: ariaSnapshotMock,
+        })),
+      })),
+      close: vi.fn(async () => {}),
+    } as any);
+
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-snapshot-native-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#submit"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: false,
+      assertions: "candidates",
+    });
+
+    expect(result.report.summary.assertionCandidates).toBeGreaterThan(0);
+    expect(result.report.assertionCandidates[0]?.candidateSource).toBe("snapshot_native");
   });
 
   it("falls back to deterministic candidates when snapshot-cli source is unavailable", async () => {
@@ -561,7 +624,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: false,
       assertions: "candidates",
       assertionSource: "snapshot-cli",
@@ -604,7 +667,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
     });
@@ -652,7 +715,7 @@ describe("improve apply runtime replay", () => {
 
     await improveTestFile({
       testFile: yamlPath,
-      apply: true,
+      applySelectors: true,
       applyAssertions: false,
       assertions: "none",
     });
@@ -706,7 +769,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
     });
@@ -751,7 +814,7 @@ describe("improve apply runtime replay", () => {
 
     const result = await improveTestFile({
       testFile: yamlPath,
-      apply: false,
+      applySelectors: false,
       applyAssertions: false,
       assertions: "candidates",
     });

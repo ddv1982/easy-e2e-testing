@@ -14,9 +14,9 @@ npx ui-test play
 ```
 
 What this does:
-1. Creates `ui-test.config.yaml` (if missing).
+1. Creates `ui-test.config.yaml` and a sample test in `e2e/` (if missing).
 2. Installs Chromium for Playwright.
-3. Runs example YAML tests from `e2e/`.
+3. Verifies Chromium can launch.
 
 ## Choose Your Path
 
@@ -75,8 +75,10 @@ See: [Record Workflow](docs/workflows/record.md)
 ```bash
 npx ui-test improve e2e/login.yaml
 npx ui-test improve e2e/login.yaml --apply
+npx ui-test improve e2e/login.yaml --apply-selectors
 npx ui-test improve e2e/login.yaml --apply-assertions
-npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli
+npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
+npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
 ```
 
 See: [Improve Workflow](docs/workflows/improve.md)
@@ -147,7 +149,7 @@ recordSelectorPolicy: reliable
 recordBrowser: chromium
 improveApplyMode: review
 improveApplyAssertions: false
-improveAssertionSource: deterministic
+improveAssertionSource: snapshot-native
 improveAssertions: candidates
 ```
 
@@ -180,16 +182,18 @@ When a run fails, CLI output includes:
 
 ### Improve
 - Default mode is review-first: writes report only.
-- `--apply` writes recommended selector updates.
-- `--apply-assertions` writes high-confidence, runtime-validated assertion candidates.
-- Auto-apply is conservative by default (`--assertion-source deterministic`): it inserts deterministic form-state checks (`fill/select -> assertValue`, `check/uncheck -> assertChecked`).
-- `--assertion-source snapshot-cli` enables opt-in headless replay + Playwright-CLI snapshot-delta candidates (`assertVisible`/`assertText`).
-- If snapshot-cli source is unavailable or fails, improve falls back to deterministic candidates and reports diagnostics.
+- `--apply` writes both recommended selector updates and high-confidence assertion candidates.
+- `--apply-selectors` writes only recommended selector updates.
+- `--apply-assertions` writes only high-confidence, runtime-validated assertion candidates.
+- By default (`--assertion-source snapshot-native`), assertions are generated from page state changes captured via native aria snapshots during the already-running replay — no external tool needed.
+- `--assertion-source snapshot-cli` enables external Playwright-CLI snapshot-delta candidates (`assertVisible`/`assertText`).
+- If a snapshot source is unavailable or fails, improve falls back to deterministic candidates and reports diagnostics.
+- When a browser is available, improve uses `ariaSnapshot()` to generate semantic selector candidates (`getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`) for any element with an accessible role — replacing brittle CSS/XPath selectors automatically.
 - Click/press assertions are intentionally not auto-generated to avoid false-positive postconditions.
 - In apply modes, stale adjacent self-visibility assertions are removed automatically (`click/press` followed by same-target `assertVisible`).
 - Assertion validation uses post-step network-idle timing like `play` (enabled by default, `2000ms` timeout).
 - Runtime validation is required for apply mode.
-- Improve is deterministic-only (no local LLM dependency).
+- Improve is deterministic (no local LLM dependency).
 
 ## Quick Troubleshooting
 

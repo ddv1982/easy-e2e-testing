@@ -7,6 +7,7 @@ import { UserError } from "../../utils/errors.js";
 
 export interface ImproveProfileInput {
   apply?: boolean;
+  applySelectors?: boolean;
   applyAssertions?: boolean;
   assertions?: string;
   assertionSource?: string;
@@ -16,7 +17,7 @@ export interface ImproveProfileInput {
 export interface ResolvedImproveProfile {
   assertions: ImproveAssertionsMode;
   assertionSource: ImproveAssertionSource;
-  apply: boolean;
+  applySelectors: boolean;
   applyAssertions: boolean;
   reportPath?: string;
 }
@@ -30,9 +31,12 @@ export function resolveImproveProfile(
     assertionSource:
       parseImproveAssertionSource(input.assertionSource) ??
       config.improveAssertionSource ??
-      "deterministic",
-    apply: input.apply ?? (config.improveApplyMode ? config.improveApplyMode === "apply" : false),
-    applyAssertions: input.applyAssertions ?? config.improveApplyAssertions ?? false,
+      "snapshot-native",
+    // Precedence: granular flags (--apply-selectors, --apply-assertions) > umbrella --apply > config
+    applySelectors: input.applySelectors ?? input.apply
+      ?? (config.improveApplyMode === "apply" ? true : false),
+    applyAssertions: input.applyAssertions ?? input.apply
+      ?? config.improveApplyAssertions ?? false,
     reportPath: input.report,
   };
 }
@@ -54,11 +58,11 @@ export function parseImproveAssertionSource(
 ): ImproveAssertionSource | undefined {
   if (!value) return undefined;
   const normalized = value.trim().toLowerCase();
-  if (normalized === "deterministic" || normalized === "snapshot-cli") {
+  if (normalized === "deterministic" || normalized === "snapshot-cli" || normalized === "snapshot-native") {
     return normalized;
   }
   throw new UserError(
     `Invalid assertion source: ${value}`,
-    "Use --assertion-source deterministic or --assertion-source snapshot-cli"
+    "Use --assertion-source deterministic, --assertion-source snapshot-cli, or --assertion-source snapshot-native"
   );
 }

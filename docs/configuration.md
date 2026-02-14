@@ -23,7 +23,7 @@ recordLoadStorage: .auth/in.json
 recordSaveStorage: .auth/out.json
 improveApplyMode: review
 improveApplyAssertions: false
-improveAssertionSource: deterministic
+improveAssertionSource: snapshot-native
 improveAssertions: candidates
 ```
 
@@ -58,9 +58,9 @@ improveAssertions: candidates
 - `recordSaveStorage`: save resulting storage state path.
 
 ### Improve Defaults
-- `improveApplyMode`: `review` or `apply`.
+- `improveApplyMode`: `review` or `apply`. Controls selector auto-apply. Note: CLI `--apply` enables both selectors and assertions; config keys control each independently.
 - `improveApplyAssertions`: apply high-confidence assertion candidates when improve runs.
-- `improveAssertionSource`: `deterministic` (default) or `snapshot-cli` (opt-in replay + Playwright-CLI snapshot mode).
+- `improveAssertionSource`: `snapshot-native` (default, native aria snapshot mode), `deterministic` (form-state only), or `snapshot-cli` (external Playwright-CLI snapshot mode).
 - `improveAssertions`: `none` or `candidates`.
 - `improveProvider`: removed; if present in config, improve will raise a migration error.
 - `llm`: removed; if present in config, improve will raise a migration error.
@@ -77,8 +77,10 @@ npx ui-test play --save-failure-artifacts
 npx ui-test play --artifacts-dir ./tmp/ui-test-artifacts --no-save-failure-artifacts
 npx ui-test record --browser firefox --selector-policy raw
 npx ui-test improve e2e/login.yaml --apply
+npx ui-test improve e2e/login.yaml --apply-selectors
 npx ui-test improve e2e/login.yaml --apply-assertions
-npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli
+npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
+npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
 ```
 
 ## V2 YAML Step Contract

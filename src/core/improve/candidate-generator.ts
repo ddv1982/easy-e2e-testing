@@ -140,7 +140,7 @@ function parseCssTestId(selector: string): string | undefined {
   return undefined;
 }
 
-function quote(value: string): string {
+export function quote(value: string): string {
   return `'${value.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n")}'`;
 }
 

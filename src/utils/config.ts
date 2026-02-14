@@ -23,7 +23,7 @@ const configSchema = z.object({
   recordSaveStorage: z.string().min(1).optional(),
   improveApplyMode: z.enum(["review", "apply"]).optional(),
   improveApplyAssertions: z.boolean().optional(),
-  improveAssertionSource: z.enum(["deterministic", "snapshot-cli"]).optional(),
+  improveAssertionSource: z.enum(["deterministic", "snapshot-cli", "snapshot-native"]).optional(),
   improveAssertions: z.enum(["none", "candidates"]).optional(),
 });
 
@@ -102,7 +102,7 @@ export async function loadConfig(): Promise<UITestConfig> {
 
       throw new UserError(
         `Invalid config in ${filename}: ${issues}`,
-        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer, waitForNetworkIdle?: boolean, networkIdleTimeout?: positive integer, saveFailureArtifacts?: boolean, artifactsDir?: string, recordSelectorPolicy?: 'reliable'|'raw', recordBrowser?: 'chromium'|'firefox'|'webkit', recordDevice?: string, recordTestIdAttribute?: string, recordLoadStorage?: string, recordSaveStorage?: string, improveApplyMode?: 'review'|'apply', improveApplyAssertions?: boolean, improveAssertionSource?: 'deterministic'|'snapshot-cli', improveAssertions?: 'none'|'candidates' }."
+        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer, waitForNetworkIdle?: boolean, networkIdleTimeout?: positive integer, saveFailureArtifacts?: boolean, artifactsDir?: string, recordSelectorPolicy?: 'reliable'|'raw', recordBrowser?: 'chromium'|'firefox'|'webkit', recordDevice?: string, recordTestIdAttribute?: string, recordLoadStorage?: string, recordSaveStorage?: string, improveApplyMode?: 'review'|'apply', improveApplyAssertions?: boolean, improveAssertionSource?: 'deterministic'|'snapshot-cli'|'snapshot-native', improveAssertions?: 'none'|'candidates' }."
       );
     }
 

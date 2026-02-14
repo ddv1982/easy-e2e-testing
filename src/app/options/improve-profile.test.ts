@@ -26,7 +26,7 @@ describe("resolveImproveProfile", () => {
 
     expect(out.assertions).toBe("none");
     expect(out.assertionSource).toBe("snapshot-cli");
-    expect(out.apply).toBe(false);
+    expect(out.applySelectors).toBe(false);
     expect(out.applyAssertions).toBe(true);
     expect(out.reportPath).toBe("out.json");
   });
@@ -34,8 +34,48 @@ describe("resolveImproveProfile", () => {
   it("uses defaults when omitted", () => {
     const out = resolveImproveProfile({}, {});
     expect(out.assertions).toBe("candidates");
-    expect(out.assertionSource).toBe("deterministic");
-    expect(out.apply).toBe(false);
+    expect(out.assertionSource).toBe("snapshot-native");
+    expect(out.applySelectors).toBe(false);
+    expect(out.applyAssertions).toBe(false);
+  });
+
+  it("--apply resolves both applySelectors and applyAssertions to true", () => {
+    const out = resolveImproveProfile({ apply: true }, {});
+    expect(out.applySelectors).toBe(true);
+    expect(out.applyAssertions).toBe(true);
+  });
+
+  it("--apply-selectors resolves applySelectors=true, applyAssertions=false", () => {
+    const out = resolveImproveProfile({ applySelectors: true }, {});
+    expect(out.applySelectors).toBe(true);
+    expect(out.applyAssertions).toBe(false);
+  });
+
+  it("--apply-assertions resolves applySelectors=false, applyAssertions=true", () => {
+    const out = resolveImproveProfile({ applyAssertions: true }, {});
+    expect(out.applySelectors).toBe(false);
+    expect(out.applyAssertions).toBe(true);
+  });
+
+  it("--apply --no-apply-assertions resolves applySelectors=true, applyAssertions=false", () => {
+    const out = resolveImproveProfile({ apply: true, applyAssertions: false }, {});
+    expect(out.applySelectors).toBe(true);
+    expect(out.applyAssertions).toBe(false);
+  });
+
+  it("--apply --no-apply-selectors resolves applySelectors=false, applyAssertions=true", () => {
+    const out = resolveImproveProfile({ apply: true, applySelectors: false }, {});
+    expect(out.applySelectors).toBe(false);
+    expect(out.applyAssertions).toBe(true);
+  });
+
+  it("granular --apply-selectors takes precedence over --apply", () => {
+    const out = resolveImproveProfile({ apply: true, applySelectors: false }, {});
+    expect(out.applySelectors).toBe(false);
+  });
+
+  it("granular --apply-assertions takes precedence over --apply", () => {
+    const out = resolveImproveProfile({ apply: true, applyAssertions: false }, {});
     expect(out.applyAssertions).toBe(false);
   });
 });
