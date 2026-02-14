@@ -25,6 +25,7 @@ export const assertionApplyStatusSchema = z.enum([
   "applied",
   "skipped_low_confidence",
   "skipped_runtime_failure",
+  "skipped_policy",
   "skipped_existing",
   "not_requested",
 ]);

@@ -11,6 +11,8 @@ import type {
   AssertionCandidate,
 } from "./report-schema.js";
 
+const MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP = 1;
+
 export interface AssertionCandidateRef {
   candidateIndex: number;
   candidate: AssertionCandidate;
@@ -20,7 +22,6 @@ export interface AssertionApplyOutcome {
   candidateIndex: number;
   applyStatus: AssertionApplyStatus;
   applyMessage?: string;
-  forcedByCoverage?: boolean;
 }
 
 export interface AssertionApplyValidationOptions {
@@ -28,7 +29,6 @@ export interface AssertionApplyValidationOptions {
   baseUrl?: string;
   waitForNetworkIdle?: boolean;
   networkIdleTimeout?: number;
-  forceApplyOnRuntimeFailureCandidateIndexes?: Set<number>;
 }
 
 export interface AssertionInsertion {
@@ -38,27 +38,17 @@ export interface AssertionInsertion {
 
 export function selectCandidatesForApply(
   candidates: AssertionCandidate[],
-  minConfidence: number,
-  alwaysApplyCandidateIndexes: Set<number> | number[] = []
+  minConfidence: number
 ): {
   selected: AssertionCandidateRef[];
   skippedLowConfidence: AssertionApplyOutcome[];
 } {
   const selected: AssertionCandidateRef[] = [];
   const skippedLowConfidence: AssertionApplyOutcome[] = [];
-  const alwaysApplySet =
-    alwaysApplyCandidateIndexes instanceof Set
-      ? alwaysApplyCandidateIndexes
-      : new Set(alwaysApplyCandidateIndexes);
 
   for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
     const candidate = candidates[candidateIndex];
     if (!candidate) continue;
-
-    if (alwaysApplySet.has(candidateIndex)) {
-      selected.push({ candidateIndex, candidate });
-      continue;
-    }
 
     if (candidate.confidence >= minConfidence) {
       selected.push({ candidateIndex, candidate });
@@ -85,7 +75,6 @@ export async function validateCandidatesAgainstRuntime(
   const candidatesByStepIndex = new Map<number, AssertionCandidateRef[]>();
   const waitForNetworkIdle = options.waitForNetworkIdle ?? DEFAULT_WAIT_FOR_NETWORK_IDLE;
   const networkIdleTimeout = options.networkIdleTimeout ?? DEFAULT_NETWORK_IDLE_TIMEOUT_MS;
-  const forceApplySet = options.forceApplyOnRuntimeFailureCandidateIndexes ?? new Set<number>();
 
   for (const candidateRef of candidates) {
     if (isDuplicateSourceOrAdjacentAssertion(steps, candidateRef.candidate.index, candidateRef.candidate.candidate)) {
@@ -100,6 +89,11 @@ export async function validateCandidatesAgainstRuntime(
     const existing = candidatesByStepIndex.get(candidateRef.candidate.index) ?? [];
     existing.push(candidateRef);
     candidatesByStepIndex.set(candidateRef.candidate.index, existing);
+  }
+
+  for (const [stepIndex, stepCandidates] of candidatesByStepIndex) {
+    stepCandidates.sort(compareAssertionCandidateRefs);
+    candidatesByStepIndex.set(stepIndex, stepCandidates);
   }
 
   if (candidatesByStepIndex.size === 0) return outcomes;
@@ -128,14 +122,10 @@ export async function validateCandidatesAgainstRuntime(
       );
       if (networkIdleTimedOut) {
         for (const candidateRef of candidatesByStepIndex.get(index) ?? []) {
-          const forceApply = forceApplySet.has(candidateRef.candidateIndex);
           outcomes.push({
             candidateIndex: candidateRef.candidateIndex,
-            applyStatus: forceApply ? "applied" : "skipped_runtime_failure",
-            applyMessage: forceApply
-              ? `Forced apply after runtime validation failure: post-step network idle not reached within ${networkIdleTimeout}ms.`
-              : `Post-step network idle not reached within ${networkIdleTimeout}ms; assertion skipped.`,
-            ...(forceApply ? { forcedByCoverage: true } : {}),
+            applyStatus: "skipped_runtime_failure",
+            applyMessage: `Post-step network idle not reached within ${networkIdleTimeout}ms; assertion skipped.`,
           });
         }
         continue;
@@ -145,14 +135,10 @@ export async function validateCandidatesAgainstRuntime(
       for (const [stepIndex, stepCandidates] of candidatesByStepIndex) {
         if (stepIndex < index) continue;
         for (const candidateRef of stepCandidates) {
-          const forceApply = forceApplySet.has(candidateRef.candidateIndex);
           outcomes.push({
             candidateIndex: candidateRef.candidateIndex,
-            applyStatus: forceApply ? "applied" : "skipped_runtime_failure",
-            applyMessage: forceApply
-              ? `Forced apply after runtime validation failure: runtime replay failed at step ${index + 1}: ${message}`
-              : `Runtime replay failed at step ${index + 1}: ${message}`,
-            ...(forceApply ? { forcedByCoverage: true } : {}),
+            applyStatus: "skipped_runtime_failure",
+            applyMessage: `Runtime replay failed at step ${index + 1}: ${message}`,
           });
         }
       }
@@ -160,28 +146,36 @@ export async function validateCandidatesAgainstRuntime(
     }
 
     const stepCandidates = candidatesByStepIndex.get(index) ?? [];
+    let appliedForStep = 0;
     for (const candidateRef of stepCandidates) {
+      if (appliedForStep >= MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP) {
+        outcomes.push({
+          candidateIndex: candidateRef.candidateIndex,
+          applyStatus: "skipped_policy",
+          applyMessage:
+            `Skipped by policy: max ${MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP} applied assertion per source step.`,
+        });
+        continue;
+      }
       try {
         await executeRuntimeStep(page, candidateRef.candidate.candidate, {
           timeout: options.timeout,
           baseUrl: options.baseUrl,
           mode: "playback",
         });
+        appliedForStep += 1;
         outcomes.push({
           candidateIndex: candidateRef.candidateIndex,
           applyStatus: "applied",
         });
       } catch (err) {
-        const forceApply = forceApplySet.has(candidateRef.candidateIndex);
         outcomes.push({
           candidateIndex: candidateRef.candidateIndex,
-          applyStatus: forceApply ? "applied" : "skipped_runtime_failure",
-          applyMessage: forceApply
-            ? `Forced apply after runtime validation failure: ${err instanceof Error ? err.message : "Assertion runtime validation failed."}`
-            : err instanceof Error
+          applyStatus: "skipped_runtime_failure",
+          applyMessage:
+            err instanceof Error
               ? err.message
               : "Assertion runtime validation failed.",
-          ...(forceApply ? { forcedByCoverage: true } : {}),
         });
       }
     }
@@ -269,4 +263,52 @@ function areFramePathsEqual(left: string[] | undefined, right: string[] | undefi
   const rightPath = right ?? [];
   if (leftPath.length !== rightPath.length) return false;
   return leftPath.every((segment, index) => segment === rightPath[index]);
+}
+
+function compareAssertionCandidateRefs(
+  left: AssertionCandidateRef,
+  right: AssertionCandidateRef
+): number {
+  const confidenceDelta = right.candidate.confidence - left.candidate.confidence;
+  if (confidenceDelta !== 0) return confidenceDelta;
+
+  const actionDelta =
+    assertionActionPriority(left.candidate.candidate.action) -
+    assertionActionPriority(right.candidate.candidate.action);
+  if (actionDelta !== 0) return actionDelta;
+
+  const sourceDelta =
+    candidateSourcePriority(left.candidate.candidateSource) -
+    candidateSourcePriority(right.candidate.candidateSource);
+  if (sourceDelta !== 0) return sourceDelta;
+
+  return left.candidateIndex - right.candidateIndex;
+}
+
+function assertionActionPriority(action: Step["action"]): number {
+  switch (action) {
+    case "assertValue":
+      return 0;
+    case "assertChecked":
+      return 1;
+    case "assertText":
+      return 2;
+    case "assertVisible":
+      return 3;
+    default:
+      return 4;
+  }
+}
+
+function candidateSourcePriority(source: AssertionCandidate["candidateSource"]): number {
+  switch (source) {
+    case "deterministic":
+      return 0;
+    case "snapshot_native":
+      return 1;
+    case "snapshot_cli":
+      return 2;
+    default:
+      return 3;
+  }
 }

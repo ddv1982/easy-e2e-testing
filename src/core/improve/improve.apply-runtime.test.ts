@@ -273,16 +273,15 @@ describe("improve apply runtime replay", () => {
 
     expect(result.outputPath).toBe(yamlPath);
     expect(result.report.summary.improved).toBeGreaterThan(0);
-    expect(result.report.summary.assertionCandidates).toBe(2);
-    expect(result.report.summary.appliedAssertions).toBe(2);
+    expect(result.report.summary.assertionCandidates).toBe(1);
+    expect(result.report.summary.appliedAssertions).toBe(1);
 
     const saved = await fs.readFile(yamlPath, "utf-8");
     expect(saved).toContain("getByRole('button', { name: 'Save' })");
     expect(saved).toContain("action: assertValue");
-    expect(saved).toContain("action: assertVisible");
   });
 
-  it("applies required low-confidence primary coverage assertions", async () => {
+  it("skips low-confidence assertion candidates", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
     tempDirs.push(dir);
 
@@ -322,15 +321,15 @@ describe("improve apply runtime replay", () => {
       assertions: "candidates",
     });
 
-    expect(result.report.summary.appliedAssertions).toBe(1);
-    expect(result.report.summary.skippedAssertions).toBe(0);
-    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("applied");
+    expect(result.report.summary.appliedAssertions).toBe(0);
+    expect(result.report.summary.skippedAssertions).toBe(1);
+    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("skipped_low_confidence");
 
     const saved = await fs.readFile(yamlPath, "utf-8");
-    expect(saved).toContain("action: assertVisible");
+    expect(saved).not.toContain("action: assertVisible");
   });
 
-  it("force-applies required coverage assertions when runtime validation fails", async () => {
+  it("never applies runtime-failing assertions", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
     tempDirs.push(dir);
 
@@ -355,6 +354,18 @@ describe("improve apply runtime replay", () => {
         throw new Error("Expected element to be visible");
       }
     });
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertVisible",
+          target: { value: "#status", kind: "css", source: "manual" },
+        },
+        confidence: 0.85,
+        rationale: "runtime validation candidate",
+      },
+    ]);
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -363,20 +374,19 @@ describe("improve apply runtime replay", () => {
       assertions: "candidates",
     });
 
-    expect(result.report.summary.appliedAssertions).toBe(1);
-    expect(result.report.summary.skippedAssertions).toBe(0);
+    expect(result.report.summary.appliedAssertions).toBe(0);
+    expect(result.report.summary.skippedAssertions).toBe(1);
     expect(result.report.summary.warnings).toBeGreaterThan(0);
-    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("applied");
-    expect(result.report.assertionCandidates[0]?.applyMessage).toContain("Forced apply");
+    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("skipped_runtime_failure");
     expect(
       result.report.diagnostics.some(
-        (diagnostic) => diagnostic.code === "assertion_coverage_forced_apply_after_runtime_failure"
+        (diagnostic) => diagnostic.code === "assertion_apply_runtime_failure"
       )
     ).toBe(true);
   });
 
-  it("does not insert duplicate adjacent assertions on repeated apply runs", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
+  it("applies at most one assertion per source step", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-cap-"));
     tempDirs.push(dir);
 
     const yamlPath = path.join(dir, "sample.yaml");
@@ -400,62 +410,26 @@ describe("improve apply runtime replay", () => {
         index: 1,
         afterAction: "click",
         candidate: {
+          action: "assertValue",
+          target: { value: "#name", kind: "css", source: "manual" },
+          value: "Alice",
+        },
+        confidence: 0.95,
+        rationale: "primary assertion",
+        candidateSource: "deterministic",
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
           action: "assertVisible",
           target: { value: "#status", kind: "css", source: "manual" },
         },
         confidence: 0.9,
-        rationale: "stable visible state",
+        rationale: "secondary assertion",
+        candidateSource: "snapshot_native",
       },
     ]);
-
-    await improveTestFile({
-      testFile: yamlPath,
-      applySelectors: false,
-      applyAssertions: true,
-      assertions: "candidates",
-    });
-
-    const second = await improveTestFile({
-      testFile: yamlPath,
-      applySelectors: false,
-      applyAssertions: true,
-      assertions: "candidates",
-    });
-
-    expect(second.report.summary.appliedAssertions).toBe(0);
-    expect(second.report.summary.skippedAssertions).toBe(2);
-    expect(second.report.assertionCandidates[0]?.applyStatus).toBe("skipped_existing");
-
-    const saved = await fs.readFile(yamlPath, "utf-8");
-    const matchCount = saved.match(/action: assertVisible/g)?.length ?? 0;
-    expect(matchCount).toBe(1);
-  });
-
-  it("inserts fallback click coverage assertions when using default candidate generation", async () => {
-    const { buildAssertionCandidates } = await vi.importActual<typeof import("./assertion-candidates.js")>(
-      "./assertion-candidates.js"
-    );
-    buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
-
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
-    tempDirs.push(dir);
-
-    const yamlPath = path.join(dir, "sample.yaml");
-    await fs.writeFile(
-      yamlPath,
-      [
-        "name: sample",
-        "steps:",
-        "  - action: navigate",
-        "    url: https://example.com",
-        "  - action: click",
-        "    target:",
-        '      value: "#submit"',
-        "      kind: css",
-        "      source: manual",
-      ].join("\n"),
-      "utf-8"
-    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -464,15 +438,15 @@ describe("improve apply runtime replay", () => {
       assertions: "candidates",
     });
 
-    expect(result.report.summary.assertionCandidates).toBe(1);
+    expect(result.report.summary.assertionCandidates).toBe(2);
     expect(result.report.summary.appliedAssertions).toBe(1);
-    expect(
-      result.report.diagnostics.some(
-        (diagnostic) => diagnostic.code === "assertion_coverage_fallback_generated"
-      )
-    ).toBe(true);
+    expect(result.report.summary.skippedAssertions).toBe(1);
+    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("applied");
+    expect(result.report.assertionCandidates[1]?.applyStatus).toBe("skipped_policy");
+
     const saved = await fs.readFile(yamlPath, "utf-8");
-    expect(saved).toContain("action: assertVisible");
+    const appliedAssertCount = saved.match(/action: assert/g)?.length ?? 0;
+    expect(appliedAssertCount).toBe(1);
   });
 
   it("adds snapshot-cli assertion candidates when assertion source is snapshot-cli", async () => {
@@ -722,7 +696,7 @@ describe("improve apply runtime replay", () => {
     ).toBe(true);
   });
 
-  it("keeps adjacent click visibility assertions and treats coverage as satisfied", async () => {
+  it("keeps adjacent click visibility assertions without coverage diagnostics", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cleanup-apply-"));
     tempDirs.push(dir);
 
@@ -756,11 +730,8 @@ describe("improve apply runtime replay", () => {
     });
 
     expect(
-      result.report.diagnostics.some(
-        (diagnostic) =>
-          diagnostic.code === "assertion_coverage_step_satisfied_by_existing_adjacent_assertion"
-      )
-    ).toBe(true);
+      result.report.diagnostics.some((diagnostic) => diagnostic.code.startsWith("assertion_coverage_"))
+    ).toBe(false);
 
     const saved = await fs.readFile(yamlPath, "utf-8");
     const matchCount = saved.match(/action: assertVisible/g)?.length ?? 0;
@@ -854,9 +825,9 @@ describe("improve apply runtime replay", () => {
       assertions: "candidates",
     });
 
-    expect(result.report.summary.appliedAssertions).toBe(2);
-    expect(result.report.summary.skippedAssertions).toBe(2);
-    expect(result.report.assertionCandidates).toHaveLength(4);
+    expect(result.report.summary.appliedAssertions).toBe(1);
+    expect(result.report.summary.skippedAssertions).toBe(0);
+    expect(result.report.assertionCandidates).toHaveLength(1);
     const fillCandidate = result.report.assertionCandidates.find(
       (candidate) =>
         candidate.index === 3 &&
@@ -871,7 +842,7 @@ describe("improve apply runtime replay", () => {
     expect(fillFinding?.index).toBe(3);
   });
 
-  it("reports coverage fallback diagnostics without mutating YAML in review mode", async () => {
+  it("does not emit coverage diagnostics in review mode", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cleanup-review-"));
     tempDirs.push(dir);
 
@@ -906,10 +877,8 @@ describe("improve apply runtime replay", () => {
     });
 
     expect(
-      result.report.diagnostics.some(
-        (diagnostic) => diagnostic.code === "assertion_coverage_fallback_generated"
-      )
-    ).toBe(true);
+      result.report.diagnostics.some((diagnostic) => diagnostic.code.startsWith("assertion_coverage_"))
+    ).toBe(false);
 
     const saved = await fs.readFile(yamlPath, "utf-8");
     expect(saved).toContain("action: assertVisible");

@@ -184,13 +184,14 @@ When a run fails, CLI output includes:
 - Default mode is review-first: writes report only.
 - `--apply` writes both recommended selector updates and high-confidence assertion candidates.
 - `--apply-selectors` writes only recommended selector updates.
-- `--apply-assertions` writes only high-confidence, runtime-validated assertion candidates.
+- `--apply-assertions` writes only high-confidence, runtime-validated assertion candidates (max 1 applied assertion per source step).
 - By default (`--assertion-source snapshot-native`), assertions are generated from page state changes captured via native aria snapshots during the already-running replay — no external tool needed.
 - `--assertion-source snapshot-cli` enables external Playwright-CLI snapshot-delta candidates (`assertVisible`/`assertText`).
 - If a snapshot source is unavailable or fails, improve falls back to deterministic candidates and reports diagnostics.
 - When a browser is available, improve uses `ariaSnapshot()` to generate semantic selector candidates (`getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`) for any element with an accessible role — replacing brittle CSS/XPath selectors automatically.
-- Click/press assertions are intentionally not auto-generated to avoid false-positive postconditions.
-- In apply modes, stale adjacent self-visibility assertions are removed automatically (`click/press` followed by same-target `assertVisible`).
+- Runtime-failing assertion candidates are never force-applied.
+- Improve no longer injects synthetic coverage fallback assertions.
+- Improve does not auto-remove existing adjacent self-visibility assertions.
 - Assertion validation uses post-step network-idle timing like `play` (enabled by default, `2000ms` timeout).
 - Runtime validation is required for apply mode.
 - Improve is deterministic (no local LLM dependency).

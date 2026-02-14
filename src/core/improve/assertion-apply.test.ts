@@ -66,7 +66,7 @@ describe("assertion apply helpers", () => {
     expect(out.skippedLowConfidence[0]?.applyStatus).toBe("skipped_low_confidence");
   });
 
-  it("always selects required coverage candidates even below confidence threshold", () => {
+  it("does not select low-confidence candidates without overrides", () => {
     const out = selectCandidatesForApply(
       [
         {
@@ -77,15 +77,15 @@ describe("assertion apply helpers", () => {
             target: { value: "#status", kind: "css", source: "manual" },
           },
           confidence: 0.3,
-          rationale: "fallback coverage assertion",
+          rationale: "low confidence",
         },
       ],
-      0.75,
-      new Set([0])
+      0.75
     );
 
-    expect(out.selected).toHaveLength(1);
-    expect(out.skippedLowConfidence).toHaveLength(0);
+    expect(out.selected).toHaveLength(0);
+    expect(out.skippedLowConfidence).toHaveLength(1);
+    expect(out.skippedLowConfidence[0]?.applyStatus).toBe("skipped_low_confidence");
   });
 
   it("inserts applied assertions with stable offsets", () => {
@@ -187,11 +187,12 @@ describe("assertion apply helpers", () => {
     expect(isDuplicateAdjacentAssertion(steps, 0, candidate)).toBe(true);
   });
 
-  it("validates runtime assertions and reports runtime failures", async () => {
-    executeRuntimeStepMock
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error("expected text not found"));
+  it("attempts lower-ranked candidates when a higher-ranked candidate fails runtime validation", async () => {
+    executeRuntimeStepMock.mockImplementation(async (_page, step) => {
+      if ((step as { action: string }).action === "assertVisible") {
+        throw new Error("expected element not visible");
+      }
+    });
 
     const steps: Step[] = [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }];
     const outcomes = await validateCandidatesAgainstRuntime(
@@ -214,12 +215,12 @@ describe("assertion apply helpers", () => {
             index: 0,
             afterAction: "click",
             candidate: {
-              action: "assertText",
-              target: { value: "#status", kind: "css", source: "manual" },
-              text: "Saved",
+              action: "assertChecked",
+              target: { value: "#agree", kind: "css", source: "manual" },
+              checked: true,
             },
-            confidence: 0.9,
-            rationale: "status text",
+            confidence: 0.85,
+            rationale: "fallback checkbox state",
           },
         },
       ],
@@ -227,9 +228,197 @@ describe("assertion apply helpers", () => {
     );
 
     expect(outcomes).toHaveLength(2);
-    expect(outcomes[0]?.applyStatus).toBe("applied");
-    expect(outcomes[1]?.applyStatus).toBe("skipped_runtime_failure");
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_runtime_failure");
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
     expect(waitForPostStepNetworkIdleMock).toHaveBeenCalledWith(expect.anything(), true, 2_000);
+  });
+
+  it("prefers higher-priority assertion action when confidence is tied", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#status", kind: "css", source: "manual" },
+            },
+            confidence: 0.9,
+            rationale: "visible fallback",
+            candidateSource: "deterministic",
+          },
+        },
+        {
+          candidateIndex: 1,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertValue",
+              target: { value: "#name", kind: "css", source: "manual" },
+              value: "Alice",
+            },
+            confidence: 0.9,
+            rationale: "value assertion",
+            candidateSource: "snapshot_cli",
+          },
+        },
+      ],
+      { timeout: 1000 }
+    );
+
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
+    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    expect(firstAppliedStep.action).toBe("assertValue");
+  });
+
+  it("prefers deterministic source when confidence and action are tied", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#from-snapshot", kind: "css", source: "manual" },
+            },
+            confidence: 0.9,
+            rationale: "snapshot candidate",
+            candidateSource: "snapshot_native",
+          },
+        },
+        {
+          candidateIndex: 1,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#from-deterministic", kind: "css", source: "manual" },
+            },
+            confidence: 0.9,
+            rationale: "deterministic candidate",
+            candidateSource: "deterministic",
+          },
+        },
+      ],
+      { timeout: 1000 }
+    );
+
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
+    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    expect(firstAppliedStep.action).toBe("assertVisible");
+    if (firstAppliedStep.action === "assertVisible") {
+      expect(firstAppliedStep.target.value).toBe("#from-deterministic");
+    }
+  });
+
+  it("uses candidate index as stable tie-breaker when confidence, action, and source are tied", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#first", kind: "css", source: "manual" },
+            },
+            confidence: 0.9,
+            rationale: "first",
+            candidateSource: "deterministic",
+          },
+        },
+        {
+          candidateIndex: 1,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#second", kind: "css", source: "manual" },
+            },
+            confidence: 0.9,
+            rationale: "second",
+            candidateSource: "deterministic",
+          },
+        },
+      ],
+      { timeout: 1000 }
+    );
+
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("skipped_policy");
+    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    expect(firstAppliedStep.action).toBe("assertVisible");
+    if (firstAppliedStep.action === "assertVisible") {
+      expect(firstAppliedStep.target.value).toBe("#first");
+    }
+  });
+
+  it("caps successful apply to one assertion per source step", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertValue",
+              target: { value: "#name", kind: "css", source: "manual" },
+              value: "Alice",
+            },
+            confidence: 0.95,
+            rationale: "high confidence form assertion",
+            candidateSource: "deterministic",
+          },
+        },
+        {
+          candidateIndex: 1,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#status", kind: "css", source: "manual" },
+            },
+            confidence: 0.9,
+            rationale: "secondary visible state",
+            candidateSource: "snapshot_native",
+          },
+        },
+      ],
+      { timeout: 1000 }
+    );
+
+    expect(outcomes).toHaveLength(2);
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("skipped_policy");
+    expect(executeRuntimeStepMock).toHaveBeenCalledTimes(2);
   });
 
   it("skips validation for a step when post-step network idle times out", async () => {
@@ -263,9 +452,12 @@ describe("assertion apply helpers", () => {
     expect(executeRuntimeStepMock).toHaveBeenCalledTimes(1);
   });
 
-  it("forces apply for required coverage candidate when runtime validation fails", async () => {
-    executeRuntimeStepMock.mockResolvedValue(undefined);
-    waitForPostStepNetworkIdleMock.mockResolvedValueOnce(true);
+  it("keeps runtime-failing assertions as skipped_runtime_failure", async () => {
+    executeRuntimeStepMock.mockImplementation(async (_page, step) => {
+      if ((step as { action: string }).action === "assertVisible") {
+        throw new Error("assertion runtime validation failed");
+      }
+    });
 
     const outcomes = await validateCandidatesAgainstRuntime(
       {} as Page,
@@ -280,20 +472,16 @@ describe("assertion apply helpers", () => {
               action: "assertVisible",
               target: { value: "#save", kind: "css", source: "manual" },
             },
-            confidence: 0.55,
-            rationale: "coverage fallback",
+            confidence: 0.8,
+            rationale: "visible state",
           },
         },
       ],
-      {
-        timeout: 1000,
-        forceApplyOnRuntimeFailureCandidateIndexes: new Set([0]),
-      }
+      { timeout: 1000 }
     );
 
     expect(outcomes).toHaveLength(1);
-    expect(outcomes[0]?.applyStatus).toBe("applied");
-    expect(outcomes[0]?.forcedByCoverage).toBe(true);
-    expect(outcomes[0]?.applyMessage).toContain("Forced apply");
+    expect(outcomes[0]?.applyStatus).toBe("skipped_runtime_failure");
+    expect(outcomes[0]?.applyMessage).toContain("assertion runtime validation failed");
   });
 });

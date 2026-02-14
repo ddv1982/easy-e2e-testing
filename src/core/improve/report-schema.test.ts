@@ -38,10 +38,10 @@ describe("improveReportSchema", () => {
             target: { value: "#toast", kind: "css", source: "manual" },
           },
           confidence: 0.5,
-          rationale: "Low confidence state check",
+          rationale: "Policy-capped state check",
           candidateSource: "snapshot_cli",
-          applyStatus: "skipped_low_confidence",
-          applyMessage: "Below threshold",
+          applyStatus: "skipped_policy",
+          applyMessage: "Skipped by policy",
         },
       ],
       diagnostics: [],
@@ -51,6 +51,6 @@ describe("improveReportSchema", () => {
     expect(parsed.assertionCandidates[0]?.candidateSource).toBe("deterministic");
     expect(parsed.assertionCandidates[0]?.applyStatus).toBe("applied");
     expect(parsed.assertionCandidates[1]?.candidateSource).toBe("snapshot_cli");
-    expect(parsed.assertionCandidates[1]?.applyStatus).toBe("skipped_low_confidence");
+    expect(parsed.assertionCandidates[1]?.applyStatus).toBe("skipped_policy");
   });
 });

@@ -7,7 +7,6 @@ import { UserError, ValidationError } from "../../utils/errors.js";
 import { buildAssertionCandidates } from "./assertion-candidates.js";
 import { buildSnapshotCliAssertionCandidates, type StepSnapshot } from "./assertion-candidates-snapshot-cli.js";
 import { buildSnapshotNativeAssertionCandidates } from "./assertion-candidates-snapshot-native.js";
-import { planAssertionCoverage } from "./assertion-coverage-planner.js";
 import {
   type AssertionApplyOutcome,
   type AssertionCandidateRef,
@@ -276,8 +275,6 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       options.assertions === "candidates"
         ? buildAssertionCandidates(outputSteps, findings, outputStepOriginalIndexes)
         : [];
-    let requiredCoverageCandidateIndexes = new Set<number>();
-    let fallbackCoverageCandidateIndexes = new Set<number>();
 
     if (options.assertions === "candidates" && assertionSource === "snapshot-native") {
       if (nativeStepSnapshots.length === 0) {
@@ -364,27 +361,6 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       }
     }
 
-    if (options.assertions === "candidates") {
-      const coveragePlan = planAssertionCoverage(
-        outputSteps,
-        outputStepOriginalIndexes,
-        rawAssertionCandidates
-      );
-      rawAssertionCandidates = coveragePlan.candidates;
-      requiredCoverageCandidateIndexes = new Set(coveragePlan.requiredCandidateIndexes);
-      fallbackCoverageCandidateIndexes = new Set(coveragePlan.fallbackCandidateIndexes);
-
-      for (const candidateIndex of coveragePlan.fallbackCandidateIndexes) {
-        const candidate = rawAssertionCandidates[candidateIndex];
-        if (!candidate) continue;
-        diagnostics.push({
-          code: "assertion_coverage_fallback_generated",
-          level: "info",
-          message: `Step ${candidate.index + 1}: generated fallback coverage assertion (${candidate.candidate.action}).`,
-        });
-      }
-    }
-
     let assertionCandidates: AssertionCandidate[] = rawAssertionCandidates.map((candidate) => ({
       ...candidate,
       applyStatus: "not_requested" as const,
@@ -396,8 +372,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       const originalToRuntimeIndex = buildOriginalToRuntimeIndex(outputStepOriginalIndexes);
       const selection = selectCandidatesForApply(
         rawAssertionCandidates,
-        ASSERTION_APPLY_MIN_CONFIDENCE,
-        requiredCoverageCandidateIndexes
+        ASSERTION_APPLY_MIN_CONFIDENCE
       );
       const runtimeSelection: AssertionCandidateRef[] = [];
       const unmappedOutcomes: AssertionApplyOutcome[] = [];
@@ -422,7 +397,6 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       const outcomes = await validateCandidatesAgainstRuntime(page, outputSteps, runtimeSelection, {
         timeout: DEFAULT_RUNTIME_TIMEOUT_MS,
         baseUrl: test.baseUrl,
-        forceApplyOnRuntimeFailureCandidateIndexes: requiredCoverageCandidateIndexes,
       });
       const outcomeByCandidate = new Map<
         number,
@@ -455,33 +429,10 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         });
         if (outcome.applyStatus === "applied") {
           appliedAssertions += 1;
-          if (outcome.forcedByCoverage) {
-            diagnostics.push({
-              code: "assertion_coverage_forced_apply_after_runtime_failure",
-              level: "warn",
-              message:
-                outcome.applyMessage
-                  ? `Assertion candidate ${outcome.candidateIndex + 1} force-applied: ${outcome.applyMessage}`
-                  : `Assertion candidate ${outcome.candidateIndex + 1} force-applied after runtime validation failure.`,
-            });
-          }
           continue;
         }
 
         skippedAssertions += 1;
-        if (
-          outcome.applyStatus === "skipped_existing" &&
-          requiredCoverageCandidateIndexes.has(outcome.candidateIndex)
-        ) {
-          const candidate = rawAssertionCandidates[outcome.candidateIndex];
-          if (candidate) {
-            diagnostics.push({
-              code: "assertion_coverage_step_satisfied_by_existing_adjacent_assertion",
-              level: "info",
-              message: `Step ${candidate.index + 1}: coverage satisfied by existing adjacent assertion.`,
-            });
-          }
-        }
         if (outcome.applyStatus === "skipped_runtime_failure") {
           diagnostics.push({
             code: "assertion_apply_runtime_failure",
@@ -515,12 +466,6 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
           return {
             ...candidate,
             applyStatus: "not_requested" as const,
-            ...(fallbackCoverageCandidateIndexes.has(candidateIndex)
-              ? {
-                  applyMessage:
-                    "Coverage fallback candidate generated for this step.",
-                }
-              : {}),
           };
         }
         return {

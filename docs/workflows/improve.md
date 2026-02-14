@@ -37,10 +37,13 @@ In the deterministic source (`--assertion-source deterministic`), auto-apply use
 - `fill/select -> assertValue`
 - `check/uncheck -> assertChecked`
 - click/press assertions are intentionally not auto-generated
-- stale adjacent self-visibility assertions are removed in apply modes (`click/press -> same-target assertVisible`)
+- existing adjacent self-visibility assertions are preserved (no automatic cleanup)
+- at most one assertion is auto-applied per source step
 
 Validation uses post-step network-idle timing similar to `play` defaults (enabled, `2000ms` timeout).
 Runtime validation failures are skipped and reported as warnings.
+Runtime-failing assertions are never force-applied.
+Improve no longer injects coverage fallback assertions.
 
 ## Assertion Source (Opt-In Snapshot Mode)
 
@@ -99,7 +102,8 @@ The report includes:
 - step-level old/recommended targets
 - confidence deltas
 - assertion candidates
-- assertion apply status (`applied`, `skipped_low_confidence`, `skipped_runtime_failure`, `skipped_existing`, `not_requested`)
+- assertion apply status (`applied`, `skipped_low_confidence`, `skipped_runtime_failure`, `skipped_policy`, `skipped_existing`, `not_requested`)
+- legacy `assertion_coverage_*` diagnostics are no longer emitted
 - diagnostics and degradations
 
 Default report path:
