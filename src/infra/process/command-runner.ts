@@ -1,17 +1,17 @@
 import { spawn, type SpawnOptions } from "node:child_process";
 
-interface InteractiveCommandResult {
+export interface InteractiveCommandResult {
   exitCode?: number;
   signal?: NodeJS.Signals | null;
 }
 
-interface RunCapturedOptions {
+export interface RunCapturedOptions {
   timeoutMs: number;
   killGraceMs?: number;
   spawnOptions?: SpawnOptions;
 }
 
-interface CapturedCommandResult {
+export interface CapturedCommandResult {
   ok: boolean;
   stdout: string;
   stderr: string;
@@ -78,12 +78,12 @@ export function runCapturedCommand(
     }, options.timeoutMs);
     let killTimer: NodeJS.Timeout | undefined;
 
-    child.stdout?.on("data", (chunk) => {
-      stdout += chunk.toString();
+    child.stdout?.on("data", (chunk: unknown) => {
+      stdout += chunkToString(chunk);
     });
 
-    child.stderr?.on("data", (chunk) => {
-      stderr += chunk.toString();
+    child.stderr?.on("data", (chunk: unknown) => {
+      stderr += chunkToString(chunk);
     });
 
     child.on("error", (err) => {
@@ -105,4 +105,10 @@ export function runCapturedCommand(
       });
     });
   });
+}
+
+function chunkToString(chunk: unknown): string {
+  if (typeof chunk === "string") return chunk;
+  if (chunk instanceof Uint8Array) return Buffer.from(chunk).toString("utf-8");
+  return "";
 }

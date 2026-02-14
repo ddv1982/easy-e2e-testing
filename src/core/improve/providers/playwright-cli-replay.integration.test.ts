@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
-import { runCapturedCommand } from "../../../utils/process-runner.js";
+import { runCapturedCommand } from "../../../infra/process/command-runner.js";
 import { collectPlaywrightCliStepSnapshots } from "./playwright-cli-replay.js";
 import type { Step } from "../../yaml-schema.js";
 

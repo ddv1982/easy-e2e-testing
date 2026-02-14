@@ -12,7 +12,7 @@ import {
 import type { Step } from "./yaml-schema.js";
 import { ui } from "../utils/ui.js";
 import { UserError } from "../utils/errors.js";
-import { runInteractiveCommand } from "../utils/process-runner.js";
+import { runInteractiveCommand } from "../infra/process/command-runner.js";
 
 export type RecordBrowser = "chromium" | "firefox" | "webkit";
 type JsonlCapability = "supported" | "unsupported" | "unknown";
@@ -201,8 +201,8 @@ async function saveRecordingYaml(options: RecordOptions, steps: Step[]): Promise
 
 async function findPlaywrightCli(): Promise<string> {
   try {
-    const pwPath = await import.meta.resolve?.("playwright/cli");
-    if (pwPath) {
+    const pwPath = import.meta.resolve?.("playwright/cli");
+    if (typeof pwPath === "string" && pwPath.length > 0) {
       const resolved = resolvePlaywrightCliPath(pwPath);
       await fs.access(resolved);
       return resolved;

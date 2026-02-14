@@ -1,0 +1,291 @@
+import type { Page } from "playwright";
+import { buildAssertionCandidates } from "./assertion-candidates.js";
+import {
+  buildSnapshotCliAssertionCandidates,
+  type StepSnapshot,
+} from "./assertion-candidates-snapshot-cli.js";
+import { buildSnapshotNativeAssertionCandidates } from "./assertion-candidates-snapshot-native.js";
+import {
+  type AssertionApplyOutcome,
+  type AssertionCandidateRef,
+  insertAppliedAssertions,
+  selectCandidatesForApply,
+  validateCandidatesAgainstRuntime,
+} from "./assertion-apply.js";
+import { collectPlaywrightCliStepSnapshots } from "./providers/playwright-cli-replay.js";
+import {
+  ASSERTION_APPLY_MIN_CONFIDENCE,
+  DEFAULT_RUNTIME_TIMEOUT_MS,
+  SNAPSHOT_CLI_REPLAY_TIMEOUT_MS,
+  type ImproveAssertionApplyPolicy,
+  type ImproveAssertionSource,
+  type ImproveAssertionsMode,
+} from "./improve-types.js";
+import {
+  buildOriginalToRuntimeIndex,
+  dedupeAssertionCandidates,
+} from "./improve-helpers.js";
+import type {
+  AssertionApplyStatus,
+  AssertionCandidate,
+  ImproveDiagnostic,
+} from "./report-schema.js";
+import { UserError } from "../../utils/errors.js";
+
+export interface AssertionPassResult {
+  outputSteps: import("../yaml-schema.js").Step[];
+  assertionCandidates: AssertionCandidate[];
+  appliedAssertions: number;
+  skippedAssertions: number;
+}
+
+export async function runImproveAssertionPass(input: {
+  assertions: ImproveAssertionsMode;
+  assertionSource: ImproveAssertionSource;
+  assertionApplyPolicy: ImproveAssertionApplyPolicy;
+  applyAssertions: boolean;
+  page?: Page;
+  outputSteps: import("../yaml-schema.js").Step[];
+  findings: import("./report-schema.js").StepFinding[];
+  outputStepOriginalIndexes: number[];
+  nativeStepSnapshots: StepSnapshot[];
+  testBaseUrl?: string;
+  diagnostics: ImproveDiagnostic[];
+}): Promise<AssertionPassResult> {
+  let outputSteps = [...input.outputSteps];
+
+  let rawAssertionCandidates =
+    input.assertions === "candidates"
+      ? buildAssertionCandidates(outputSteps, input.findings, input.outputStepOriginalIndexes)
+      : [];
+
+  if (input.assertions === "candidates" && input.assertionSource === "snapshot-native") {
+    if (input.nativeStepSnapshots.length === 0) {
+      input.diagnostics.push({
+        code: "assertion_source_snapshot_native_empty",
+        level: "warn",
+        message:
+          "snapshot-native assertion source did not produce usable step snapshots; falling back to deterministic candidates.",
+      });
+    } else {
+      try {
+        const snapshotCandidates = buildSnapshotNativeAssertionCandidates(
+          input.nativeStepSnapshots
+        ).map((candidate) => ({
+          ...candidate,
+          index: input.outputStepOriginalIndexes[candidate.index] ?? candidate.index,
+        }));
+        rawAssertionCandidates = dedupeAssertionCandidates([
+          ...rawAssertionCandidates,
+          ...snapshotCandidates,
+        ]);
+      } catch (err) {
+        input.diagnostics.push({
+          code: "assertion_source_snapshot_native_parse_failed",
+          level: "warn",
+          message:
+            err instanceof Error
+              ? "Failed to parse snapshot-native assertion candidates: " + err.message
+              : "Failed to parse snapshot-native assertion candidates.",
+        });
+        input.diagnostics.push({
+          code: "assertion_source_snapshot_native_fallback",
+          level: "warn",
+          message:
+            "snapshot-native assertion source failed to parse; falling back to deterministic candidates.",
+        });
+      }
+    }
+  }
+
+  if (input.assertions === "candidates" && input.assertionSource === "snapshot-cli") {
+    const snapshotReplay = await collectPlaywrightCliStepSnapshots({
+      steps: outputSteps,
+      baseUrl: input.testBaseUrl,
+      timeoutMs: SNAPSHOT_CLI_REPLAY_TIMEOUT_MS,
+    });
+    input.diagnostics.push(...snapshotReplay.diagnostics);
+
+    if (!snapshotReplay.available || snapshotReplay.stepSnapshots.length === 0) {
+      input.diagnostics.push({
+        code: "assertion_source_snapshot_cli_fallback",
+        level: "warn",
+        message:
+          "snapshot-cli assertion source did not produce usable step snapshots; falling back to deterministic candidates.",
+      });
+    } else {
+      try {
+        const snapshotCandidates = buildSnapshotCliAssertionCandidates(
+          snapshotReplay.stepSnapshots
+        ).map((candidate) => ({
+          ...candidate,
+          index: input.outputStepOriginalIndexes[candidate.index] ?? candidate.index,
+        }));
+        rawAssertionCandidates = dedupeAssertionCandidates([
+          ...rawAssertionCandidates,
+          ...snapshotCandidates,
+        ]);
+      } catch (err) {
+        input.diagnostics.push({
+          code: "assertion_source_snapshot_cli_parse_failed",
+          level: "warn",
+          message:
+            err instanceof Error
+              ? `Failed to parse snapshot-cli assertion candidates: ${err.message}`
+              : "Failed to parse snapshot-cli assertion candidates.",
+        });
+        input.diagnostics.push({
+          code: "assertion_source_snapshot_cli_fallback",
+          level: "warn",
+          message:
+            "snapshot-cli assertion source failed to parse; falling back to deterministic candidates.",
+        });
+      }
+    }
+  }
+
+  let assertionCandidates: AssertionCandidate[] = rawAssertionCandidates.map((candidate) => ({
+    ...candidate,
+    applyStatus: "not_requested" as const,
+  }));
+  let appliedAssertions = 0;
+  let skippedAssertions = 0;
+
+  if (input.applyAssertions && input.page) {
+    const originalToRuntimeIndex = buildOriginalToRuntimeIndex(
+      input.outputStepOriginalIndexes
+    );
+    const selection = selectCandidatesForApply(
+      rawAssertionCandidates,
+      ASSERTION_APPLY_MIN_CONFIDENCE,
+      input.assertionApplyPolicy
+    );
+    const runtimeSelection: AssertionCandidateRef[] = [];
+    const unmappedOutcomes: AssertionApplyOutcome[] = [];
+
+    for (const selectedCandidate of selection.selected) {
+      const runtimeIndex = originalToRuntimeIndex.get(selectedCandidate.candidate.index);
+      if (runtimeIndex === undefined) {
+        unmappedOutcomes.push({
+          candidateIndex: selectedCandidate.candidateIndex,
+          applyStatus: "skipped_runtime_failure",
+          applyMessage: `Candidate source step ${selectedCandidate.candidate.index + 1} could not be mapped to runtime replay index.`,
+        });
+        continue;
+      }
+      runtimeSelection.push({
+        candidateIndex: selectedCandidate.candidateIndex,
+        candidate: {
+          ...selectedCandidate.candidate,
+          index: runtimeIndex,
+        },
+      });
+    }
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      input.page,
+      outputSteps,
+      runtimeSelection,
+      {
+        timeout: DEFAULT_RUNTIME_TIMEOUT_MS,
+        baseUrl: input.testBaseUrl,
+      }
+    );
+
+    const outcomeByCandidate = new Map<
+      number,
+      {
+        applyStatus: AssertionApplyStatus;
+        applyMessage?: string;
+      }
+    >();
+
+    for (const outcome of selection.skippedLowConfidence) {
+      outcomeByCandidate.set(outcome.candidateIndex, {
+        applyStatus: outcome.applyStatus,
+        applyMessage: outcome.applyMessage,
+      });
+      skippedAssertions += 1;
+    }
+
+    for (const outcome of selection.skippedPolicy) {
+      outcomeByCandidate.set(outcome.candidateIndex, {
+        applyStatus: outcome.applyStatus,
+        applyMessage: outcome.applyMessage,
+      });
+      skippedAssertions += 1;
+    }
+
+    for (const outcome of unmappedOutcomes) {
+      outcomeByCandidate.set(outcome.candidateIndex, {
+        applyStatus: outcome.applyStatus,
+        applyMessage: outcome.applyMessage,
+      });
+      skippedAssertions += 1;
+    }
+
+    for (const outcome of outcomes) {
+      outcomeByCandidate.set(outcome.candidateIndex, {
+        applyStatus: outcome.applyStatus,
+        applyMessage: outcome.applyMessage,
+      });
+      if (outcome.applyStatus === "applied") {
+        appliedAssertions += 1;
+        continue;
+      }
+
+      skippedAssertions += 1;
+      if (outcome.applyStatus === "skipped_runtime_failure") {
+        input.diagnostics.push({
+          code: "assertion_apply_runtime_failure",
+          level: "warn",
+          message: `Assertion candidate ${outcome.candidateIndex + 1} skipped: ${outcome.applyMessage ?? "runtime validation failed"}`,
+        });
+      }
+    }
+
+    const appliedInsertions = outcomes
+      .filter((outcome) => outcome.applyStatus === "applied")
+      .map((outcome) => {
+        const candidate = rawAssertionCandidates[outcome.candidateIndex];
+        if (!candidate) {
+          throw new UserError(
+            "Assertion candidate index was out of range during apply."
+          );
+        }
+        const runtimeIndex = originalToRuntimeIndex.get(candidate.index);
+        if (runtimeIndex === undefined) {
+          throw new UserError(
+            "Assertion candidate source index could not be mapped to runtime index during apply."
+          );
+        }
+        return {
+          sourceIndex: runtimeIndex,
+          assertionStep: candidate.candidate,
+        };
+      });
+
+    outputSteps = insertAppliedAssertions(outputSteps, appliedInsertions);
+    assertionCandidates = rawAssertionCandidates.map((candidate, candidateIndex) => {
+      const outcome = outcomeByCandidate.get(candidateIndex);
+      if (!outcome) {
+        return {
+          ...candidate,
+          applyStatus: "not_requested" as const,
+        };
+      }
+      return {
+        ...candidate,
+        applyStatus: outcome.applyStatus,
+        ...(outcome.applyMessage ? { applyMessage: outcome.applyMessage } : {}),
+      };
+    });
+  }
+
+  return {
+    outputSteps,
+    assertionCandidates,
+    appliedAssertions,
+    skippedAssertions,
+  };
+}

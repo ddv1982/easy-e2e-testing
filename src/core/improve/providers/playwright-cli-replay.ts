@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { runCapturedCommand } from "../../../utils/process-runner.js";
+import { runCapturedCommand } from "../../../infra/process/command-runner.js";
 import {
   DEFAULT_NETWORK_IDLE_TIMEOUT_MS,
   DEFAULT_WAIT_FOR_NETWORK_IDLE,
