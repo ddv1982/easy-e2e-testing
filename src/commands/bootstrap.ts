@@ -1,13 +1,11 @@
 import type { Command } from "commander";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleError, UserError } from "../utils/errors.js";
 
 const MIN_NODE_MAJOR = 18;
-const require = createRequire(import.meta.url);
 
 const HELP_TEXT = `
 ui-test bootstrap
@@ -209,57 +207,34 @@ function resolveUiTestCliEntry(): string {
 }
 
 function runInstallPlaywrightCli() {
-  ensureCommandAvailable("npx");
-  const cliVersion = resolvePlaywrightVersion();
+  const failures: string[] = [];
   try {
+    runCommand("Install/verify Playwright-CLI (playwright-cli)", "playwright-cli", ["--help"]);
+    return true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    failures.push(`playwright-cli --help failed: ${message}`);
+  }
+
+  try {
+    ensureCommandAvailable("npx");
     runCommand(
-      `Install/verify Playwright-CLI (@${cliVersion})`,
+      "Install/verify Playwright-CLI (@latest)",
       "npx",
-      ["-y", `@playwright/cli@${cliVersion}`, "--help"]
+      ["-y", "@playwright/cli@latest", "--help"]
     );
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.warn(
-      `[bootstrap] WARN: ${message} ` +
-      `Retry manually: npx -y @playwright/cli@${cliVersion} --help. ` +
-      "Continuing because Playwright-CLI is only required for improve --assertion-source snapshot-cli."
-    );
-    return false;
-  }
-}
-
-function resolvePlaywrightVersion() {
-  let manifestPath: string;
-  try {
-    manifestPath = require.resolve("playwright/package.json");
-  } catch {
-    throw new UserError(
-      "Could not resolve installed Playwright version. Install dependencies first."
-    );
+    failures.push(`npx -y @playwright/cli@latest --help failed: ${message}`);
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(manifestPath, "utf-8"));
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new UserError(`Failed to read Playwright package metadata: ${message}`);
-  }
-
-  const version =
-    typeof parsed === "object" &&
-    parsed !== null &&
-    "version" in parsed &&
-    typeof parsed.version === "string"
-      ? parsed.version.trim()
-      : "";
-
-  if (!/^\d+\.\d+\.\d+(-.+)?$/u.test(version)) {
-    throw new UserError(`Invalid installed Playwright version: ${version || "(empty)"}`);
-  }
-
-  return version;
+  console.warn(
+    `[bootstrap] WARN: ${failures.join(" ")} ` +
+    "Retry manually: playwright-cli --help or npx -y @playwright/cli@latest --help. " +
+    "Continuing because Playwright-CLI is only required for improve --assertion-source snapshot-cli."
+  );
+  return false;
 }
 
 function ensureCommandAvailable(command: string) {
@@ -295,7 +270,6 @@ function runCommand(label: string, command: string, args: string[]) {
 export {
   parseBootstrapArgs,
   resolveInstallArgs,
-  resolvePlaywrightVersion,
   resolveUiTestCliEntry,
   runBootstrap,
   runInstallPlaywrightCli,

@@ -1,7 +1,4 @@
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(),
@@ -10,7 +7,6 @@ vi.mock("node:child_process", () => ({
 import { spawnSync } from "node:child_process";
 import {
   parseArgs,
-  resolvePlaywrightVersion,
   runInstallPlaywrightCli,
 } from "./bootstrap.mjs";
 
@@ -73,35 +69,56 @@ describe("bootstrap argument parsing", () => {
 });
 
 describe("bootstrap playwright-cli provisioning", () => {
-  let prevCwd = "";
-  let tempDir = "";
-
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.resetAllMocks();
-    prevCwd = process.cwd();
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-bootstrap-test-"));
-    process.chdir(tempDir);
-    await fs.mkdir(path.join(tempDir, "node_modules", "playwright"), { recursive: true });
-    await fs.writeFile(
-      path.join(tempDir, "node_modules", "playwright", "package.json"),
-      JSON.stringify({ version: "1.58.2" }, null, 2),
-      "utf-8"
+  });
+
+  it("returns true when playwright-cli is available on PATH", () => {
+    mockSpawnSync.mockReturnValueOnce({ status: 0, error: undefined });
+
+    const ok = runInstallPlaywrightCli();
+    expect(ok).toBe(true);
+    expect(mockSpawnSync).toHaveBeenCalledTimes(1);
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--help"], {
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      env: process.env,
+    });
+  });
+
+  it("falls back to npx @latest when playwright-cli is unavailable", () => {
+    mockSpawnSync
+      .mockReturnValueOnce({ status: 1, error: undefined })
+      .mockReturnValueOnce({ status: 0, error: undefined })
+      .mockReturnValueOnce({ status: 0, error: undefined });
+
+    const ok = runInstallPlaywrightCli();
+    expect(ok).toBe(true);
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--help"], {
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      env: process.env,
+    });
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(2, "npx", ["--version"], {
+      stdio: "ignore",
+      shell: process.platform === "win32",
+      env: process.env,
+    });
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(
+      3,
+      "npx",
+      ["-y", "@playwright/cli@latest", "--help"],
+      {
+        stdio: "inherit",
+        shell: process.platform === "win32",
+        env: process.env,
+      }
     );
   });
 
-  afterEach(async () => {
-    process.chdir(prevCwd);
-    if (tempDir) {
-      await fs.rm(tempDir, { recursive: true, force: true });
-    }
-  });
-
-  it("resolves installed playwright version from node_modules", () => {
-    expect(resolvePlaywrightVersion()).toBe("1.58.2");
-  });
-
-  it("warns and continues when playwright-cli provisioning fails", () => {
+  it("warns and continues when both playwright-cli and npx fallback fail", () => {
     mockSpawnSync
+      .mockReturnValueOnce({ status: 1, error: undefined })
       .mockReturnValueOnce({ status: 0, error: undefined })
       .mockReturnValueOnce({ status: 1, error: undefined });
 
@@ -109,16 +126,10 @@ describe("bootstrap playwright-cli provisioning", () => {
     const ok = runInstallPlaywrightCli();
     expect(ok).toBe(false);
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("npx -y @playwright/cli@1.58.2 --help")
+      expect.stringContaining("Retry manually: playwright-cli --help or npx -y @playwright/cli@latest --help.")
     );
-  });
-
-  it("returns true when playwright-cli provisioning succeeds", () => {
-    mockSpawnSync
-      .mockReturnValueOnce({ status: 0, error: undefined })
-      .mockReturnValueOnce({ status: 0, error: undefined });
-
-    const ok = runInstallPlaywrightCli();
-    expect(ok).toBe(true);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Continuing because Playwright-CLI is only required")
+    );
   });
 });

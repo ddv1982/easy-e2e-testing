@@ -128,14 +128,67 @@ describe("bootstrap execution", () => {
 
   it("warns and continues when playwright-cli provisioning fails", () => {
     mockSpawnSync
+      .mockReturnValueOnce({ status: 1, error: undefined })
       .mockReturnValueOnce({ status: 0, error: undefined })
       .mockReturnValueOnce({ status: 1, error: undefined });
 
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const ok = runInstallPlaywrightCli();
     expect(ok).toBe(false);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Retry manually: npx -y @playwright/cli@")
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--help"], {
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      env: process.env,
+    });
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(2, "npx", ["--version"], {
+      stdio: "ignore",
+      shell: process.platform === "win32",
+      env: process.env,
+    });
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(
+      3,
+      "npx",
+      ["-y", "@playwright/cli@latest", "--help"],
+      {
+        stdio: "inherit",
+        shell: process.platform === "win32",
+        env: process.env,
+      }
     );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Retry manually: playwright-cli --help or npx -y @playwright/cli@latest --help.")
+    );
+  });
+
+  it("falls back to npx @latest when playwright-cli is unavailable", () => {
+    mockSpawnSync
+      .mockReturnValueOnce({ status: 1, error: undefined })
+      .mockReturnValueOnce({ status: 0, error: undefined })
+      .mockReturnValueOnce({ status: 0, error: undefined });
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const ok = runInstallPlaywrightCli();
+    expect(ok).toBe(true);
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--help"], {
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      env: process.env,
+    });
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(2, "npx", ["--version"], {
+      stdio: "ignore",
+      shell: process.platform === "win32",
+      env: process.env,
+    });
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(
+      3,
+      "npx",
+      ["-y", "@playwright/cli@latest", "--help"],
+      {
+        stdio: "inherit",
+        shell: process.platform === "win32",
+        env: process.env,
+      }
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 });

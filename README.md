@@ -159,7 +159,8 @@ It is not required for default `setup`, `play`, `record`, or default `improve`.
 Manual verify/install command:
 
 ```bash
-npx -y @playwright/cli@<playwright-version> --help
+playwright-cli --help
+npx -y @playwright/cli@latest --help
 ```
 
 ## Troubleshooting
