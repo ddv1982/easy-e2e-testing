@@ -42,13 +42,25 @@ export function selectCandidatesForApply(
 ): {
   selected: AssertionCandidateRef[];
   skippedLowConfidence: AssertionApplyOutcome[];
+  skippedPolicy: AssertionApplyOutcome[];
 } {
   const selected: AssertionCandidateRef[] = [];
   const skippedLowConfidence: AssertionApplyOutcome[] = [];
+  const skippedPolicy: AssertionApplyOutcome[] = [];
 
   for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
     const candidate = candidates[candidateIndex];
     if (!candidate) continue;
+
+    if (!isAutoApplyAllowedByPolicy(candidate)) {
+      skippedPolicy.push({
+        candidateIndex,
+        applyStatus: "skipped_policy",
+        applyMessage:
+          "Skipped by policy: snapshot-derived assertVisible candidates are report-only.",
+      });
+      continue;
+    }
 
     if (candidate.confidence >= minConfidence) {
       selected.push({ candidateIndex, candidate });
@@ -62,7 +74,7 @@ export function selectCandidatesForApply(
     });
   }
 
-  return { selected, skippedLowConfidence };
+  return { selected, skippedLowConfidence, skippedPolicy };
 }
 
 export async function validateCandidatesAgainstRuntime(
@@ -311,4 +323,16 @@ function candidateSourcePriority(source: AssertionCandidate["candidateSource"]):
     default:
       return 3;
   }
+}
+
+function isAutoApplyAllowedByPolicy(candidate: AssertionCandidate): boolean {
+  if (
+    (candidate.candidateSource === "snapshot_native" ||
+      candidate.candidateSource === "snapshot_cli") &&
+    candidate.candidate.action === "assertVisible"
+  ) {
+    return false;
+  }
+
+  return true;
 }

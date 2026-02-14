@@ -88,6 +88,42 @@ describe("assertion apply helpers", () => {
     expect(out.skippedLowConfidence[0]?.applyStatus).toBe("skipped_low_confidence");
   });
 
+  it("marks snapshot-derived assertVisible candidates as skipped_policy during selection", () => {
+    const out = selectCandidatesForApply(
+      [
+        {
+          index: 0,
+          afterAction: "click",
+          candidate: {
+            action: "assertVisible",
+            target: { value: "#status", kind: "css", source: "manual" },
+          },
+          confidence: 0.99,
+          rationale: "snapshot visible candidate",
+          candidateSource: "snapshot_native",
+        },
+        {
+          index: 0,
+          afterAction: "click",
+          candidate: {
+            action: "assertText",
+            target: { value: "#status", kind: "css", source: "manual" },
+            text: "Saved",
+          },
+          confidence: 0.99,
+          rationale: "snapshot text candidate",
+          candidateSource: "snapshot_native",
+        },
+      ],
+      0.75
+    );
+
+    expect(out.selected).toHaveLength(1);
+    expect(out.selected[0]?.candidate.candidate.action).toBe("assertText");
+    expect(out.skippedPolicy).toHaveLength(1);
+    expect(out.skippedPolicy[0]?.applyStatus).toBe("skipped_policy");
+  });
+
   it("inserts applied assertions with stable offsets", () => {
     const steps: Step[] = [
       { action: "navigate", url: "https://example.com" },

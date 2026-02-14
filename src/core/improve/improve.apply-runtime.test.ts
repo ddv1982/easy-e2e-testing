@@ -883,4 +883,57 @@ describe("improve apply runtime replay", () => {
     const saved = await fs.readFile(yamlPath, "utf-8");
     expect(saved).toContain("action: assertVisible");
   });
+
+  it("keeps snapshot assertVisible candidates report-only in apply mode", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-policy-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#submit"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertVisible",
+          target: { value: "#status", kind: "css", source: "manual" },
+        },
+        confidence: 0.99,
+        rationale: "snapshot visible candidate",
+        candidateSource: "snapshot_native",
+      },
+    ]);
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+    });
+
+    expect(result.report.summary.assertionCandidates).toBe(1);
+    expect(result.report.summary.appliedAssertions).toBe(0);
+    expect(result.report.summary.skippedAssertions).toBe(1);
+    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("skipped_policy");
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "assertion_apply_runtime_failure"
+      )
+    ).toBe(false);
+  });
 });

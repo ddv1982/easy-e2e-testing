@@ -414,6 +414,14 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         skippedAssertions += 1;
       }
 
+      for (const outcome of selection.skippedPolicy) {
+        outcomeByCandidate.set(outcome.candidateIndex, {
+          applyStatus: outcome.applyStatus,
+          applyMessage: outcome.applyMessage,
+        });
+        skippedAssertions += 1;
+      }
+
       for (const outcome of unmappedOutcomes) {
         outcomeByCandidate.set(outcome.candidateIndex, {
           applyStatus: outcome.applyStatus,
