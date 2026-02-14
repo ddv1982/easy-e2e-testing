@@ -21,7 +21,7 @@ This project uses Playwright libraries and Playwright CLI functionality for:
 - Package(s): `@playwright/cli` (optional, runtime-detected)
 - Copyright: Microsoft Corporation
 - License: Apache License 2.0 (`Apache-2.0`)
-- Source: https://github.com/microsoft/playwright-cli
-- License text: https://github.com/microsoft/playwright-cli/blob/main/LICENSE
+- Source: https://github.com/microsoft/playwright
+- License text: https://github.com/microsoft/playwright/blob/main/LICENSE
 
 `ui-test improve` can optionally use `playwright-cli` when it is installed locally.

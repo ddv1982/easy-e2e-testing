@@ -10,7 +10,8 @@
     "dist",
     "examples/vue-app",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
     "bootstrap": "node ./scripts/bootstrap.mjs install",
