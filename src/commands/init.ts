@@ -11,14 +11,10 @@ interface UITestConfig {
   testDir: string;
   baseUrl: string;
   startCommand?: string;
-  headed: boolean;
-  timeout: number;
-  delay?: number;
 }
 
 interface PromptApi {
   input: typeof prompts.input;
-  confirm: typeof prompts.confirm;
   select: typeof prompts.select;
 }
 
@@ -27,8 +23,6 @@ type InitIntent = "example" | "running" | "custom";
 const DEFAULT_BASE_ORIGIN = "http://127.0.0.1";
 const DEFAULT_PORT = "5173";
 const DEFAULT_TEST_DIR = "e2e";
-const DEFAULT_TIMEOUT = 10_000;
-const DEFAULT_HEADED = false;
 const DEFAULT_INIT_INTENT: InitIntent = "example";
 
 export function registerInit(program: Command) {
@@ -92,13 +86,6 @@ async function runInit(
   const baseUrl = buildBaseUrl(baseOrigin, portInput);
   const defaultStartCommand = buildDefaultStartCommand(baseUrl, commandPrefix);
 
-  const headed = useDefaults
-    ? DEFAULT_HEADED
-    : await promptApi.confirm({
-        message: "Run tests in headed mode by default? (visible browser)",
-        default: DEFAULT_HEADED,
-      });
-
   const startCommand =
     intent === "example"
       ? defaultStartCommand
@@ -110,34 +97,10 @@ async function runInit(
           })
         : "";
 
-  const timeoutInput = useDefaults
-    ? String(DEFAULT_TIMEOUT)
-    : await promptApi.input({
-        message: "Default step timeout in milliseconds?",
-        default: String(DEFAULT_TIMEOUT),
-        validate: (v) => (!isNaN(Number(v)) && Number(v) > 0 ? true : "Must be a positive number"),
-      });
-
-  const delayInput = useDefaults
-    ? ""
-    : await promptApi.input({
-        message: "Delay between steps in milliseconds? (optional, blank for no delay)",
-        default: "",
-        validate: (v) => {
-          if (v.trim().length === 0) return true;
-          return !isNaN(Number(v)) && Number(v) >= 0 && Number.isInteger(Number(v))
-            ? true
-            : "Must be a non-negative integer or blank";
-        },
-      });
-
   const config: UITestConfig = {
     testDir,
     baseUrl,
     ...(startCommand.trim().length > 0 ? { startCommand: startCommand.trim() } : {}),
-    headed,
-    timeout: Number(timeoutInput),
-    ...(delayInput.trim().length > 0 ? { delay: Number(delayInput) } : {}),
   };
 
   const configPath = path.resolve("ui-test.config.yaml");
@@ -350,7 +313,6 @@ function isPromptApi(value: unknown): value is PromptApi {
   const record = value as Record<string, unknown>;
   return (
     typeof record.input === "function" &&
-    typeof record.confirm === "function" &&
     typeof record.select === "function"
   );
 }
@@ -367,8 +329,6 @@ export {
   DEFAULT_BASE_ORIGIN,
   DEFAULT_PORT,
   DEFAULT_TEST_DIR,
-  DEFAULT_TIMEOUT,
-  DEFAULT_HEADED,
   DEFAULT_INIT_INTENT,
   buildBaseUrl,
   buildDefaultStartCommand,

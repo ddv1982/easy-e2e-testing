@@ -1,7 +1,6 @@
 import type { Page } from "playwright";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
 import {
-  DEFAULT_NETWORK_IDLE_TIMEOUT_MS,
   DEFAULT_WAIT_FOR_NETWORK_IDLE,
   waitForPostStepNetworkIdle,
 } from "../runtime/network-idle.js";
@@ -149,8 +148,7 @@ export async function runImproveSelectorPass(input: {
       try {
         const networkIdleTimedOut = await waitForPostStepNetworkIdle(
           input.page,
-          DEFAULT_WAIT_FOR_NETWORK_IDLE,
-          DEFAULT_NETWORK_IDLE_TIMEOUT_MS
+          DEFAULT_WAIT_FOR_NETWORK_IDLE
         );
         if (networkIdleTimedOut) {
           input.diagnostics.push({

@@ -21,7 +21,6 @@ vi.mock("../runtime/step-executor.js", () => ({
 
 vi.mock("../runtime/network-idle.js", () => ({
   DEFAULT_WAIT_FOR_NETWORK_IDLE: true,
-  DEFAULT_NETWORK_IDLE_TIMEOUT_MS: 2_000,
   waitForPostStepNetworkIdle: waitForPostStepNetworkIdleMock,
 }));
 
@@ -290,7 +289,7 @@ describe("assertion apply helpers", () => {
     expect(outcomes).toHaveLength(2);
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_runtime_failure");
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
-    expect(waitForPostStepNetworkIdleMock).toHaveBeenCalledWith(expect.anything(), true, 2_000);
+    expect(waitForPostStepNetworkIdleMock).toHaveBeenCalledWith(expect.anything(), true);
   });
 
   it("prefers higher-priority assertion action when confidence is tied", async () => {
@@ -508,7 +507,7 @@ describe("assertion apply helpers", () => {
 
     expect(outcomes).toHaveLength(1);
     expect(outcomes[0]?.applyStatus).toBe("skipped_runtime_failure");
-    expect(outcomes[0]?.applyMessage).toContain("Post-step network idle not reached");
+    expect(outcomes[0]?.applyMessage).toContain("Post-step network idle wait timed out");
     expect(executeRuntimeStepMock).toHaveBeenCalledTimes(1);
   });
 

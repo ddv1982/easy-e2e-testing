@@ -414,8 +414,8 @@ describe("waitForPostStepNetworkIdle", () => {
       waitForLoadState: vi.fn().mockResolvedValue(undefined),
     } as unknown as Page;
 
-    await expect(waitForPostStepNetworkIdle(page, true, 2000)).resolves.toBe(false);
-    expect(page.waitForLoadState).toHaveBeenCalledWith("networkidle", { timeout: 2000 });
+    await expect(waitForPostStepNetworkIdle(page, true)).resolves.toBe(false);
+    expect(page.waitForLoadState).toHaveBeenCalledWith("networkidle");
   });
 
   it("returns timed out marker on network idle timeout", async () => {
@@ -423,7 +423,7 @@ describe("waitForPostStepNetworkIdle", () => {
       waitForLoadState: vi.fn().mockRejectedValue(new playwrightErrors.TimeoutError("timed out")),
     } as unknown as Page;
 
-    await expect(waitForPostStepNetworkIdle(page, true, 700)).resolves.toBe(true);
+    await expect(waitForPostStepNetworkIdle(page, true)).resolves.toBe(true);
   });
 
   it("throws non-timeout errors", async () => {
@@ -431,7 +431,7 @@ describe("waitForPostStepNetworkIdle", () => {
       waitForLoadState: vi.fn().mockRejectedValue(new Error("boom")),
     } as unknown as Page;
 
-    await expect(waitForPostStepNetworkIdle(page, true, 2000)).rejects.toThrow("boom");
+    await expect(waitForPostStepNetworkIdle(page, true)).rejects.toThrow("boom");
   });
 
   it("skips waiting when disabled", async () => {
@@ -439,7 +439,7 @@ describe("waitForPostStepNetworkIdle", () => {
       waitForLoadState: vi.fn(),
     } as unknown as Page;
 
-    await expect(waitForPostStepNetworkIdle(page, false, 2000)).resolves.toBe(false);
+    await expect(waitForPostStepNetworkIdle(page, false)).resolves.toBe(false);
     expect(page.waitForLoadState).not.toHaveBeenCalled();
   });
 });

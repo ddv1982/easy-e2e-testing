@@ -27,10 +27,9 @@ export function formatPlayProfileSummary(profile: {
   timeout: number;
   delayMs: number;
   waitForNetworkIdle: boolean;
-  networkIdleTimeout: number;
   autoStart: boolean;
   saveFailureArtifacts: boolean;
   artifactsDir: string;
 }): string {
-  return `Play profile: headed=${profile.headed ? "yes" : "no"}, timeout=${profile.timeout}ms, delay=${profile.delayMs}ms, waitNetworkIdle=${profile.waitForNetworkIdle ? "yes" : "no"}, networkIdleTimeout=${profile.networkIdleTimeout}ms, autoStart=${profile.autoStart ? "yes" : "no"}, saveFailureArtifacts=${profile.saveFailureArtifacts ? "yes" : "no"}, artifactsDir=${profile.artifactsDir}`;
+  return `Play profile: headed=${profile.headed ? "yes" : "no"}, timeout=${profile.timeout}ms, delay=${profile.delayMs}ms, waitNetworkIdle=${profile.waitForNetworkIdle ? "yes" : "no"}, autoStart=${profile.autoStart ? "yes" : "no"}, saveFailureArtifacts=${profile.saveFailureArtifacts ? "yes" : "no"}, artifactsDir=${profile.artifactsDir}`;
 }

@@ -15,8 +15,6 @@ describe("loadConfig", () => {
     const configContent = `
 testDir: e2e-tests
 baseUrl: https://example.com
-headed: true
-timeout: 5000
 startCommand: npm run dev
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
@@ -27,8 +25,6 @@ startCommand: npm run dev
       testDir: "e2e-tests",
       baseUrl: "https://example.com",
       startCommand: "npm run dev",
-      headed: true,
-      timeout: 5000,
     });
   });
 
@@ -132,19 +128,19 @@ improveAssertions: candidates
 
     expect(config.testDir).toBe("integration-tests");
     expect(config.baseUrl).toBe("https://staging.example.com");
-    expect(config.headed).toBe(false);
-    expect(config.timeout).toBe(15000);
-    expect(config.delay).toBe(2000);
-    expect(config.waitForNetworkIdle).toBe(false);
-    expect(config.networkIdleTimeout).toBe(3500);
-    expect(config.saveFailureArtifacts).toBe(true);
-    expect(config.artifactsDir).toBe(".ui-test-artifacts");
-    expect(config.recordSelectorPolicy).toBe("reliable");
-    expect(config.recordBrowser).toBe("firefox");
-    expect(config.recordDevice).toBe("iPhone 13");
-    expect(config.recordTestIdAttribute).toBe("data-qa");
-    expect(config.recordLoadStorage).toBe(".auth/in.json");
-    expect(config.recordSaveStorage).toBe(".auth/out.json");
+    expect(config).not.toHaveProperty("headed");
+    expect(config).not.toHaveProperty("timeout");
+    expect(config).not.toHaveProperty("delay");
+    expect(config).not.toHaveProperty("waitForNetworkIdle");
+    expect(config).not.toHaveProperty("networkIdleTimeout");
+    expect(config).not.toHaveProperty("saveFailureArtifacts");
+    expect(config).not.toHaveProperty("artifactsDir");
+    expect(config).not.toHaveProperty("recordSelectorPolicy");
+    expect(config).not.toHaveProperty("recordBrowser");
+    expect(config).not.toHaveProperty("recordDevice");
+    expect(config).not.toHaveProperty("recordTestIdAttribute");
+    expect(config).not.toHaveProperty("recordLoadStorage");
+    expect(config).not.toHaveProperty("recordSaveStorage");
     expect(config.improveApplyMode).toBe("review");
     expect(config.improveApplyAssertions).toBe(true);
     expect(config.improveAssertionSource).toBe("snapshot-cli");
@@ -179,16 +175,9 @@ improveProvider: auto
 
   it("should reject invalid config types", async () => {
     const configContent = `
-timeout: "5000"
-headed: yes
-delay: -1
+testDir: 42
+baseUrl: "not-a-url"
 startCommand: 123
-waitForNetworkIdle: "true"
-networkIdleTimeout: 0
-saveFailureArtifacts: "yes"
-artifactsDir: 123
-recordSelectorPolicy: fast
-recordBrowser: safari
 improveApplyMode: merge
 improveApplyAssertions: "yes"
 improveAssertionSource: auto

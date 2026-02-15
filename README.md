@@ -60,14 +60,6 @@ Install and fallback details are in [Troubleshooting](docs/troubleshooting.md).
 | `ui-test list` | List discovered tests |
 | `ui-test doctor` | Show invocation/version diagnostics |
 
-Reconfigure settings later (interactive):
-
-```bash
-ui-test setup --reconfigure
-```
-
-`setup --reconfigure` updates runtime defaults (play + record) without re-running URL/start-command onboarding.
-
 ## Typical Workflow
 
 ### Record and replay
@@ -133,18 +125,17 @@ target:
 testDir: e2e
 baseUrl: http://127.0.0.1:5173
 startCommand: npm run dev
-headed: false
-timeout: 10000
-saveFailureArtifacts: true
-artifactsDir: .ui-test-artifacts
-recordSelectorPolicy: reliable
-recordBrowser: chromium
 improveApplyMode: review
 improveApplyAssertions: false
 improveAssertionSource: snapshot-native
 improveAssertionApplyPolicy: reliable
 improveAssertions: candidates
 ```
+
+Runtime defaults are now flags-first:
+- `play`: headless, `--delay 0`, waits for `networkidle` by default (Playwright default timeout behavior), saves failure artifacts to `.ui-test-artifacts`.
+- `record`: `--browser chromium`, `--selector-policy reliable`.
+- Override per run with CLI flags (`ui-test play --help`, `ui-test record --help`).
 
 `startCommand` is optional. If omitted, start your app manually and run:
 

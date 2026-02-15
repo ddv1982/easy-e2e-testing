@@ -5,11 +5,9 @@ import path from "node:path";
 import yaml from "js-yaml";
 import {
   DEFAULT_BASE_ORIGIN,
-  DEFAULT_HEADED,
   DEFAULT_INIT_INTENT,
   DEFAULT_PORT,
   DEFAULT_TEST_DIR,
-  DEFAULT_TIMEOUT,
   buildBaseUrl,
   buildDefaultStartCommand,
   migrateStockSample,
@@ -27,8 +25,6 @@ describe("init URL helpers", () => {
     expect(DEFAULT_BASE_ORIGIN).toBe("http://127.0.0.1");
     expect(DEFAULT_PORT).toBe("5173");
     expect(DEFAULT_TEST_DIR).toBe("e2e");
-    expect(DEFAULT_TIMEOUT).toBe(10_000);
-    expect(DEFAULT_HEADED).toBe(false);
     expect(DEFAULT_INIT_INTENT).toBe("example");
     expect(buildDefaultStartCommand("http://127.0.0.1:5173")).toBe(
       "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173"
@@ -123,9 +119,6 @@ describe("runInit --yes", () => {
     const inputSpy = vi.fn(async () => {
       throw new Error("input prompt should not be called for --yes");
     });
-    const confirmSpy = vi.fn(async () => {
-      throw new Error("confirm prompt should not be called for --yes");
-    });
     const selectSpy = vi.fn(async () => {
       throw new Error("select prompt should not be called for --yes");
     });
@@ -138,13 +131,11 @@ describe("runInit --yes", () => {
         yes: true,
         promptApi: {
           input: inputSpy as never,
-          confirm: confirmSpy as never,
           select: selectSpy as never,
         },
       });
 
       expect(inputSpy).not.toHaveBeenCalled();
-      expect(confirmSpy).not.toHaveBeenCalled();
       expect(selectSpy).not.toHaveBeenCalled();
 
       const configPath = path.join(dir, "ui-test.config.yaml");
@@ -156,10 +147,7 @@ describe("runInit --yes", () => {
         baseUrl: "http://127.0.0.1:5173",
         startCommand:
           "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
-        headed: false,
-        timeout: 10000,
       });
-      expect(config).not.toHaveProperty("delay");
 
       const samplePath = path.join(dir, "e2e", "example.yaml");
       const sampleText = await fs.readFile(samplePath, "utf-8");
@@ -207,10 +195,7 @@ describe("runInit interactive intents", () => {
       .fn()
       .mockResolvedValueOnce("e2e")
       .mockResolvedValueOnce("http://127.0.0.1")
-      .mockResolvedValueOnce("5173")
-      .mockResolvedValueOnce("10000")
-      .mockResolvedValueOnce("");
-    const confirmSpy = vi.fn().mockResolvedValue(false);
+      .mockResolvedValueOnce("5173");
     const selectSpy = vi.fn().mockResolvedValue("example");
 
     try {
@@ -218,7 +203,6 @@ describe("runInit interactive intents", () => {
       await runInit({
         promptApi: {
           input: inputSpy as never,
-          confirm: confirmSpy as never,
           select: selectSpy as never,
         },
       });
@@ -226,7 +210,7 @@ describe("runInit interactive intents", () => {
       expect(selectSpy).toHaveBeenCalledTimes(1);
       const selectArg = selectSpy.mock.calls[0]?.[0] as { default?: string };
       expect(selectArg.default).toBe("example");
-      expect(inputSpy).toHaveBeenCalledTimes(5);
+      expect(inputSpy).toHaveBeenCalledTimes(3);
 
       const configPath = path.join(dir, "ui-test.config.yaml");
       const configText = await fs.readFile(configPath, "utf-8");
@@ -247,10 +231,7 @@ describe("runInit interactive intents", () => {
       .fn()
       .mockResolvedValueOnce("e2e")
       .mockResolvedValueOnce("http://localhost")
-      .mockResolvedValueOnce("3000")
-      .mockResolvedValueOnce("10000")
-      .mockResolvedValueOnce("");
-    const confirmSpy = vi.fn().mockResolvedValue(false);
+      .mockResolvedValueOnce("3000");
     const selectSpy = vi.fn().mockResolvedValue("running");
 
     try {
@@ -258,12 +239,11 @@ describe("runInit interactive intents", () => {
       await runInit({
         promptApi: {
           input: inputSpy as never,
-          confirm: confirmSpy as never,
           select: selectSpy as never,
         },
       });
 
-      expect(inputSpy).toHaveBeenCalledTimes(5);
+      expect(inputSpy).toHaveBeenCalledTimes(3);
 
       const configPath = path.join(dir, "ui-test.config.yaml");
       const configText = await fs.readFile(configPath, "utf-8");
@@ -283,10 +263,7 @@ describe("runInit interactive intents", () => {
       .mockResolvedValueOnce("e2e")
       .mockResolvedValueOnce("http://localhost")
       .mockResolvedValueOnce("3000")
-      .mockResolvedValueOnce("npm run my-app")
-      .mockResolvedValueOnce("10000")
-      .mockResolvedValueOnce("");
-    const confirmSpy = vi.fn().mockResolvedValue(false);
+      .mockResolvedValueOnce("npm run my-app");
     const selectSpy = vi.fn().mockResolvedValue("custom");
 
     try {
@@ -294,12 +271,11 @@ describe("runInit interactive intents", () => {
       await runInit({
         promptApi: {
           input: inputSpy as never,
-          confirm: confirmSpy as never,
           select: selectSpy as never,
         },
       });
 
-      expect(inputSpy).toHaveBeenCalledTimes(6);
+      expect(inputSpy).toHaveBeenCalledTimes(4);
 
       const configPath = path.join(dir, "ui-test.config.yaml");
       const configText = await fs.readFile(configPath, "utf-8");

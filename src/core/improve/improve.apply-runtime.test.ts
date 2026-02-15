@@ -43,7 +43,6 @@ vi.mock("../runtime/step-executor.js", () => ({
 vi.mock("../runtime/network-idle.js", () => ({
   waitForPostStepNetworkIdle: waitForPostStepNetworkIdleMock,
   DEFAULT_WAIT_FOR_NETWORK_IDLE: true,
-  DEFAULT_NETWORK_IDLE_TIMEOUT_MS: 2_000,
 }));
 
 vi.mock("./candidate-generator.js", () => ({

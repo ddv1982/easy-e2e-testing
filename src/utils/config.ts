@@ -8,19 +8,6 @@ const configSchema = z.object({
   testDir: z.string().min(1).optional(),
   baseUrl: z.string().url().optional(),
   startCommand: z.string().min(1).optional(),
-  headed: z.boolean().optional(),
-  timeout: z.number().int().positive().optional(),
-  delay: z.number().int().nonnegative().optional(),
-  waitForNetworkIdle: z.boolean().optional(),
-  networkIdleTimeout: z.number().int().positive().optional(),
-  saveFailureArtifacts: z.boolean().optional(),
-  artifactsDir: z.string().min(1).optional(),
-  recordSelectorPolicy: z.enum(["reliable", "raw"]).optional(),
-  recordBrowser: z.enum(["chromium", "firefox", "webkit"]).optional(),
-  recordDevice: z.string().min(1).optional(),
-  recordTestIdAttribute: z.string().min(1).optional(),
-  recordLoadStorage: z.string().min(1).optional(),
-  recordSaveStorage: z.string().min(1).optional(),
   improveApplyMode: z.enum(["review", "apply"]).optional(),
   improveApplyAssertions: z.boolean().optional(),
   improveAssertionSource: z.enum(["deterministic", "snapshot-cli", "snapshot-native"]).optional(),
@@ -103,7 +90,7 @@ export async function loadConfig(): Promise<UITestConfig> {
 
       throw new UserError(
         `Invalid config in ${filename}: ${issues}`,
-        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, headed?: boolean, timeout?: positive integer, delay?: non-negative integer, waitForNetworkIdle?: boolean, networkIdleTimeout?: positive integer, saveFailureArtifacts?: boolean, artifactsDir?: string, recordSelectorPolicy?: 'reliable'|'raw', recordBrowser?: 'chromium'|'firefox'|'webkit', recordDevice?: string, recordTestIdAttribute?: string, recordLoadStorage?: string, recordSaveStorage?: string, improveApplyMode?: 'review'|'apply', improveApplyAssertions?: boolean, improveAssertionSource?: 'deterministic'|'snapshot-cli'|'snapshot-native', improveAssertionApplyPolicy?: 'reliable'|'aggressive', improveAssertions?: 'none'|'candidates' }."
+        "Expected shape: { testDir?: string, baseUrl?: URL, startCommand?: string, improveApplyMode?: 'review'|'apply', improveApplyAssertions?: boolean, improveAssertionSource?: 'deterministic'|'snapshot-cli'|'snapshot-native', improveAssertionApplyPolicy?: 'reliable'|'aggressive', improveAssertions?: 'none'|'candidates' }."
       );
     }
 

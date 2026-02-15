@@ -2,10 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { runCapturedCommand } from "../../../infra/process/command-runner.js";
-import {
-  DEFAULT_NETWORK_IDLE_TIMEOUT_MS,
-  DEFAULT_WAIT_FOR_NETWORK_IDLE,
-} from "../../runtime/network-idle.js";
+import { DEFAULT_WAIT_FOR_NETWORK_IDLE } from "../../runtime/network-idle.js";
 import { resolveNavigateUrl } from "../../runtime/locator-runtime.js";
 import type { Step, Target } from "../../yaml-schema.js";
 import type { StepSnapshot } from "../assertion-candidates-snapshot-cli.js";
@@ -30,7 +27,6 @@ export interface PlaywrightCliReplayOptions {
   baseUrl?: string;
   timeoutMs?: number;
   waitForNetworkIdle?: boolean;
-  networkIdleTimeout?: number;
 }
 
 export interface PlaywrightCliReplayResult {
@@ -83,11 +79,11 @@ export async function collectPlaywrightCliStepSnapshots(
       runCommand
     );
     if (!open.ok) {
-        diagnostics.push({
-          code: "assertion_source_snapshot_cli_step_replay_failed",
-          level: "warn",
-          message: `Failed to open playwright-cli session: ${(open.stderr || open.error) || "unknown error"}`,
-        });
+      diagnostics.push({
+        code: "assertion_source_snapshot_cli_step_replay_failed",
+        level: "warn",
+        message: `Failed to open playwright-cli session: ${(open.stderr || open.error) || "unknown error"}`,
+      });
       return { available: true, stepSnapshots: [], diagnostics };
     }
 
@@ -102,7 +98,6 @@ export async function collectPlaywrightCliStepSnapshots(
     );
     const stepSnapshots: StepSnapshot[] = [];
     const waitForNetworkIdle = options.waitForNetworkIdle ?? DEFAULT_WAIT_FOR_NETWORK_IDLE;
-    const networkIdleTimeout = options.networkIdleTimeout ?? DEFAULT_NETWORK_IDLE_TIMEOUT_MS;
 
     for (let index = 0; index < options.steps.length; index += 1) {
       const step = options.steps[index];
@@ -135,7 +130,7 @@ export async function collectPlaywrightCliStepSnapshots(
         const wait = await runCliCode(
           invoker,
           session,
-          `const __timeout = ${networkIdleTimeout}; try { await page.waitForLoadState("networkidle", { timeout: __timeout }); } catch (error) { if (!(error && typeof error === "object" && "name" in error && error.name === "TimeoutError")) throw error; }`,
+          `try { await page.waitForLoadState("networkidle"); } catch (error) { if (!(error && typeof error === "object" && "name" in error && error.name === "TimeoutError")) throw error; }`,
           options.timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS,
           outputDir,
           runCommand

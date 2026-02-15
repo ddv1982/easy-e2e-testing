@@ -1,12 +1,19 @@
 import type { UITestConfig } from "../../utils/config.js";
 import { UserError } from "../../utils/errors.js";
+import {
+  PLAY_DEFAULT_ARTIFACTS_DIR,
+  PLAY_DEFAULT_DELAY_MS,
+  PLAY_DEFAULT_HEADED,
+  PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+  PLAY_DEFAULT_TIMEOUT_MS,
+  PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+} from "../../core/play/play-defaults.js";
 
 export interface PlayProfileInput {
   headed?: boolean;
   timeout?: string;
   delay?: string;
   waitNetworkIdle?: boolean;
-  networkIdleTimeout?: string;
   start?: boolean;
   saveFailureArtifacts?: boolean;
   artifactsDir?: string;
@@ -17,7 +24,6 @@ export interface ResolvedPlayProfile {
   timeout: number;
   delayMs: number;
   waitForNetworkIdle: boolean;
-  networkIdleTimeout: number;
   shouldAutoStart: boolean;
   saveFailureArtifacts: boolean;
   artifactsDir: string;
@@ -30,9 +36,9 @@ export function resolvePlayProfile(
   input: PlayProfileInput,
   config: UITestConfig
 ): ResolvedPlayProfile {
-  const headed = input.headed ?? config.headed ?? false;
+  const headed = input.headed ?? PLAY_DEFAULT_HEADED;
   const shouldAutoStart = input.start !== false;
-  const saveFailureArtifacts = input.saveFailureArtifacts ?? config.saveFailureArtifacts ?? true;
+  const saveFailureArtifacts = input.saveFailureArtifacts ?? PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS;
 
   const cliTimeout =
     input.timeout !== undefined
@@ -43,27 +49,16 @@ export function resolvePlayProfile(
           "Use a positive integer in milliseconds, for example: --timeout 10000"
         )
       : undefined;
-  const timeout = cliTimeout ?? config.timeout ?? 10_000;
+  const timeout = cliTimeout ?? PLAY_DEFAULT_TIMEOUT_MS;
 
   const cliDelay =
     input.delay !== undefined
       ? parseNonNegativeInt(input.delay, "CLI flag --delay")
       : undefined;
-  const delayMs = cliDelay ?? config.delay ?? 0;
+  const delayMs = cliDelay ?? PLAY_DEFAULT_DELAY_MS;
 
-  const waitForNetworkIdle = input.waitNetworkIdle ?? config.waitForNetworkIdle ?? true;
-
-  const cliNetworkIdleTimeout =
-    input.networkIdleTimeout !== undefined
-      ? parsePositiveInt(
-          input.networkIdleTimeout,
-          "network idle timeout",
-          "CLI flag --network-idle-timeout",
-          "Use a positive integer in milliseconds, for example: --network-idle-timeout 2000"
-        )
-      : undefined;
-  const networkIdleTimeout = cliNetworkIdleTimeout ?? config.networkIdleTimeout ?? 2_000;
-  const artifactsDir = (input.artifactsDir ?? config.artifactsDir ?? ".ui-test-artifacts").trim();
+  const waitForNetworkIdle = input.waitNetworkIdle ?? PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE;
+  const artifactsDir = (input.artifactsDir ?? PLAY_DEFAULT_ARTIFACTS_DIR).trim();
 
   if (!Number.isFinite(timeout) || timeout <= 0 || !Number.isInteger(timeout)) {
     throw new UserError(
@@ -79,21 +74,10 @@ export function resolvePlayProfile(
     );
   }
 
-  if (
-    !Number.isFinite(networkIdleTimeout) ||
-    networkIdleTimeout <= 0 ||
-    !Number.isInteger(networkIdleTimeout)
-  ) {
-    throw new UserError(
-      `Invalid network idle timeout value: ${networkIdleTimeout}`,
-      "Network idle timeout must be a positive integer in milliseconds."
-    );
-  }
-
   if (!artifactsDir) {
     throw new UserError(
       "Invalid artifacts directory value: empty path",
-      "Set a non-empty path with --artifacts-dir <path> or artifactsDir in ui-test.config.yaml."
+      "Set a non-empty path with --artifacts-dir <path>."
     );
   }
 
@@ -102,7 +86,6 @@ export function resolvePlayProfile(
     timeout,
     delayMs,
     waitForNetworkIdle,
-    networkIdleTimeout,
     shouldAutoStart,
     saveFailureArtifacts,
     artifactsDir,

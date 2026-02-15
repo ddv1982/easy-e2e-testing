@@ -1,15 +1,8 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import yaml from "js-yaml";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UserError } from "../utils/errors.js";
-
-vi.mock("@inquirer/prompts", () => ({
-  input: vi.fn(),
-  confirm: vi.fn(),
-  select: vi.fn(),
-}));
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(),
@@ -26,7 +19,6 @@ vi.mock("./init.js", () => ({
 }));
 
 import { spawnSync } from "node:child_process";
-import * as promptApi from "@inquirer/prompts";
 import { chromium } from "playwright";
 import { runInit } from "./init.js";
 import { buildInstallFailureHint, buildLaunchFailureHint, runSetup } from "./setup.js";
@@ -34,9 +26,6 @@ import { buildInstallFailureHint, buildLaunchFailureHint, runSetup } from "./set
 const mockSpawnSync = vi.mocked(spawnSync);
 const mockLaunch = vi.mocked(chromium.launch);
 const mockRunInit = vi.mocked(runInit);
-const mockInput = vi.mocked(promptApi.input);
-const mockConfirm = vi.mocked(promptApi.confirm);
-const mockSelect = vi.mocked(promptApi.select);
 
 function mockSpawnSuccess(): void {
   mockSpawnSync.mockReturnValue({
@@ -55,9 +44,6 @@ describe("runSetup", () => {
     mockLaunch.mockResolvedValue({
       close: vi.fn().mockResolvedValue(undefined),
     } as never);
-    mockInput.mockResolvedValue("");
-    mockConfirm.mockResolvedValue(false);
-    mockSelect.mockResolvedValue("chromium" as never);
   });
 
   afterEach(() => {
@@ -93,7 +79,7 @@ describe("runSetup", () => {
 
       await runSetup();
       expect(mockRunInit).not.toHaveBeenCalled();
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("ui-test setup --reconfigure"));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("ui-test setup --force-init"));
     } finally {
       logSpy.mockRestore();
       process.chdir(prevCwd);
@@ -130,118 +116,6 @@ describe("runSetup", () => {
     }
   });
 
-  it("reconfigures existing config runtime defaults and preserves non-runtime settings", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
-    const prevCwd = process.cwd();
-
-    try {
-      process.chdir(dir);
-      await fs.writeFile(
-        "ui-test.config.yaml",
-        [
-          'testDir: "custom-e2e"',
-          'baseUrl: "http://127.0.0.1:5173"',
-          'startCommand: "npm run dev"',
-          "headed: false",
-          "timeout: 11000",
-          "delay: 25",
-          "networkIdleTimeout: 4500",
-        ].join("\n"),
-        "utf-8"
-      );
-
-      mockConfirm.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-      mockInput.mockResolvedValueOnce("15000").mockResolvedValueOnce("");
-      mockSelect.mockResolvedValueOnce("firefox" as never).mockResolvedValueOnce("raw" as never);
-
-      await runSetup({ reconfigure: true, skipBrowserInstall: true });
-      expect(mockRunInit).not.toHaveBeenCalled();
-
-      const updatedRaw = await fs.readFile("ui-test.config.yaml", "utf-8");
-      const updated = yaml.load(updatedRaw) as Record<string, unknown>;
-
-      expect(updated.headed).toBe(true);
-      expect(updated.timeout).toBe(15000);
-      expect(updated.waitForNetworkIdle).toBe(false);
-      expect(updated.recordBrowser).toBe("firefox");
-      expect(updated.recordSelectorPolicy).toBe("raw");
-      expect("delay" in updated).toBe(false);
-      expect(updated.testDir).toBe("custom-e2e");
-      expect(updated.baseUrl).toBe("http://127.0.0.1:5173");
-      expect(updated.startCommand).toBe("npm run dev");
-      expect(updated.networkIdleTimeout).toBe(4500);
-    } finally {
-      process.chdir(prevCwd);
-      await fs.rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("runs init --yes first when reconfigure is requested without config", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
-    const prevCwd = process.cwd();
-
-    try {
-      process.chdir(dir);
-      mockRunInit.mockImplementationOnce(async () => {
-        await fs.writeFile(
-          "ui-test.config.yaml",
-          'testDir: "e2e"\nbaseUrl: "http://127.0.0.1:5173"\ntimeout: 10000\nheaded: false\n',
-          "utf-8"
-        );
-      });
-      mockConfirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-      mockInput.mockResolvedValueOnce("10000").mockResolvedValueOnce("10");
-      mockSelect.mockResolvedValueOnce("chromium" as never).mockResolvedValueOnce("reliable" as never);
-
-      await runSetup({ reconfigure: true, skipBrowserInstall: true });
-
-      expect(mockRunInit).toHaveBeenCalledTimes(1);
-      expect(mockRunInit).toHaveBeenCalledWith({ yes: true });
-      const updatedRaw = await fs.readFile("ui-test.config.yaml", "utf-8");
-      const updated = yaml.load(updatedRaw) as Record<string, unknown>;
-      expect(updated.delay).toBe(10);
-      expect(updated.waitForNetworkIdle).toBe(true);
-    } finally {
-      process.chdir(prevCwd);
-      await fs.rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("defaults waitForNetworkIdle to true when config key is unset", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
-    const prevCwd = process.cwd();
-
-    try {
-      process.chdir(dir);
-      await fs.writeFile(
-        "ui-test.config.yaml",
-        'testDir: "e2e"\nbaseUrl: "http://127.0.0.1:5173"\ntimeout: 10000\nheaded: false\n',
-        "utf-8"
-      );
-
-      mockConfirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-      mockInput.mockResolvedValueOnce("10000").mockResolvedValueOnce("");
-      mockSelect.mockResolvedValueOnce("chromium" as never).mockResolvedValueOnce("reliable" as never);
-
-      await runSetup({ reconfigure: true, skipBrowserInstall: true });
-
-      expect(mockConfirm).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ default: true })
-      );
-    } finally {
-      process.chdir(prevCwd);
-      await fs.rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("rejects using --force-init and --reconfigure together", async () => {
-    const run = runSetup({ forceInit: true, reconfigure: true });
-    await expect(run).rejects.toBeInstanceOf(UserError);
-    await expect(run).rejects.toThrow(/Cannot use --force-init and --reconfigure together/);
-    expect(mockRunInit).not.toHaveBeenCalled();
-  });
-
   it("fails fast when only legacy easy-e2e config exists", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
     const prevCwd = process.cwd();
@@ -251,24 +125,6 @@ describe("runSetup", () => {
       await fs.writeFile("easy-e2e.config.yaml", 'testDir: "e2e"\n', "utf-8");
 
       const run = runSetup();
-      await expect(run).rejects.toBeInstanceOf(UserError);
-      await expect(run).rejects.toThrow(/Legacy config file detected/);
-      expect(mockRunInit).not.toHaveBeenCalled();
-    } finally {
-      process.chdir(prevCwd);
-      await fs.rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("fails fast for --reconfigure when only legacy easy-e2e config exists", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
-    const prevCwd = process.cwd();
-
-    try {
-      process.chdir(dir);
-      await fs.writeFile("easy-e2e.config.yaml", 'testDir: "e2e"\n', "utf-8");
-
-      const run = runSetup({ reconfigure: true });
       await expect(run).rejects.toBeInstanceOf(UserError);
       await expect(run).rejects.toThrow(/Legacy config file detected/);
       expect(mockRunInit).not.toHaveBeenCalled();

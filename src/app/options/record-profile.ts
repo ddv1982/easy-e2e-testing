@@ -28,12 +28,12 @@ export function resolveRecordProfile(
   config: UITestConfig
 ): ResolvedRecordProfile {
   return {
-    selectorPolicy: parseSelectorPolicy(input.selectorPolicy) ?? config.recordSelectorPolicy ?? "reliable",
-    browser: parseRecordBrowser(input.browser) ?? config.recordBrowser ?? "chromium",
-    device: cleanOptional(input.device ?? config.recordDevice),
-    testIdAttribute: cleanOptional(input.testIdAttribute ?? config.recordTestIdAttribute),
-    loadStorage: cleanOptional(input.loadStorage ?? config.recordLoadStorage),
-    saveStorage: cleanOptional(input.saveStorage ?? config.recordSaveStorage),
+    selectorPolicy: parseSelectorPolicy(input.selectorPolicy) ?? "reliable",
+    browser: parseRecordBrowser(input.browser) ?? "chromium",
+    device: cleanOptional(input.device),
+    testIdAttribute: cleanOptional(input.testIdAttribute),
+    loadStorage: cleanOptional(input.loadStorage),
+    saveStorage: cleanOptional(input.saveStorage),
     outputDir: config.testDir ?? "e2e",
   };
 }

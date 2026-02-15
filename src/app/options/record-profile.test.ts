@@ -20,8 +20,6 @@ describe("resolveRecordProfile", () => {
       },
       {
         testDir: "tests",
-        recordSelectorPolicy: "reliable",
-        recordBrowser: "chromium",
       }
     );
 

@@ -43,13 +43,15 @@ ui-test bootstrap quickstart -- --skip-browser-install
 
 `bootstrap quickstart` handles dependency install, setup, browser provisioning, and optionally a first `play` run.
 
-To reconfigure an existing project interactively:
+To reset config + sample defaults:
 
 ```bash
-ui-test setup --reconfigure
+ui-test setup --force-init
 ```
 
-This flow updates runtime defaults (play + record) and does not ask app URL/start-command onboarding questions.
+Runtime behavior is flags-first. Use:
+- `ui-test play --help`
+- `ui-test record --help`
 
 ## Run Tests
 

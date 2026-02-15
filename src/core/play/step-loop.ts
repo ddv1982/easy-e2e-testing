@@ -24,7 +24,6 @@ export async function runPlayStepLoop(input: {
   delayMs: number;
   effectiveBaseUrl?: string;
   waitForNetworkIdle: boolean;
-  networkIdleTimeout: number;
   runId: string;
   absoluteFilePath: string;
   testName: string;
@@ -33,7 +32,7 @@ export async function runPlayStepLoop(input: {
   artifactPaths?: PlayFailureArtifactPaths;
 }): Promise<StepLoopResult> {
   const stepResults: StepResult[] = [];
-  let networkIdleTimeoutWarnings = 0;
+  let networkIdleWarnings = 0;
   let failureArtifacts: PlayFailureArtifacts | undefined;
 
   for (let i = 0; i < input.steps.length; i++) {
@@ -50,19 +49,18 @@ export async function runPlayStepLoop(input: {
 
       const networkIdleTimedOut = await waitForPostStepNetworkIdle(
         input.page,
-        input.waitForNetworkIdle,
-        input.networkIdleTimeout
+        input.waitForNetworkIdle
       );
 
       if (networkIdleTimedOut) {
-        networkIdleTimeoutWarnings += 1;
-        if (networkIdleTimeoutWarnings <= NETWORK_IDLE_WARNING_LIMIT) {
+        networkIdleWarnings += 1;
+        if (networkIdleWarnings <= NETWORK_IDLE_WARNING_LIMIT) {
           ui.warn(
-            `Step ${i + 1} (${step.action}): network idle not reached within ${input.networkIdleTimeout}ms; continuing.`
+            `Step ${i + 1} (${step.action}): network idle wait timed out; continuing.`
           );
-        } else if (networkIdleTimeoutWarnings === NETWORK_IDLE_WARNING_LIMIT + 1) {
+        } else if (networkIdleWarnings === NETWORK_IDLE_WARNING_LIMIT + 1) {
           ui.warn(
-            "Additional network idle timeout warnings will be suppressed for this test file."
+            "Additional network idle wait warnings will be suppressed for this test file."
           );
         }
       }

@@ -87,7 +87,6 @@ describe("collectPlaywrightCliStepSnapshots integration", () => {
       steps,
       timeoutMs: 15_000,
       waitForNetworkIdle: true,
-      networkIdleTimeout: 2_000,
     });
 
     expect(result.available).toBe(true);

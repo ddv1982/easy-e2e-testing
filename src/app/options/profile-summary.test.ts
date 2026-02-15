@@ -42,7 +42,6 @@ describe("profile summary formatting", () => {
       timeout: 10000,
       delayMs: 0,
       waitForNetworkIdle: true,
-      networkIdleTimeout: 2000,
       autoStart: true,
       saveFailureArtifacts: true,
       artifactsDir: ".ui-test-artifacts",

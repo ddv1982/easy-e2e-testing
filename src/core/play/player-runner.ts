@@ -5,13 +5,16 @@ import { testSchema } from "../yaml-schema.js";
 import { yamlToTest } from "../transformer.js";
 import { ValidationError, UserError } from "../../utils/errors.js";
 import {
-  DEFAULT_NETWORK_IDLE_TIMEOUT_MS,
-  DEFAULT_WAIT_FOR_NETWORK_IDLE,
-} from "../runtime/network-idle.js";
-import {
   buildPlayFailureArtifactPaths,
   createPlayRunId,
 } from "../play-failure-report.js";
+import {
+  PLAY_DEFAULT_ARTIFACTS_DIR,
+  PLAY_DEFAULT_DELAY_MS,
+  PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+  PLAY_DEFAULT_TIMEOUT_MS,
+  PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+} from "./play-defaults.js";
 import {
   startTraceCapture,
   stopTraceCaptureIfNeeded,
@@ -25,29 +28,17 @@ export async function play(
   options: PlayOptions = {}
 ): Promise<TestResult> {
   const absoluteFilePath = path.resolve(filePath);
-  const timeout = options.timeout ?? 10_000;
-  const delayMs = options.delayMs ?? 0;
-  const waitForNetworkIdle = options.waitForNetworkIdle ?? DEFAULT_WAIT_FOR_NETWORK_IDLE;
-  const networkIdleTimeout = options.networkIdleTimeout ?? DEFAULT_NETWORK_IDLE_TIMEOUT_MS;
-  const saveFailureArtifacts = options.saveFailureArtifacts ?? true;
-  const artifactsDir = options.artifactsDir ?? ".ui-test-artifacts";
+  const timeout = options.timeout ?? PLAY_DEFAULT_TIMEOUT_MS;
+  const delayMs = options.delayMs ?? PLAY_DEFAULT_DELAY_MS;
+  const waitForNetworkIdle = options.waitForNetworkIdle ?? PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE;
+  const saveFailureArtifacts = options.saveFailureArtifacts ?? PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS;
+  const artifactsDir = options.artifactsDir ?? PLAY_DEFAULT_ARTIFACTS_DIR;
   const runId = options.runId ?? createPlayRunId();
 
   if (!Number.isFinite(delayMs) || delayMs < 0 || !Number.isInteger(delayMs)) {
     throw new UserError(
       `Invalid delay value: ${delayMs}`,
       "Delay must be a non-negative integer in milliseconds."
-    );
-  }
-
-  if (
-    !Number.isFinite(networkIdleTimeout) ||
-    networkIdleTimeout <= 0 ||
-    !Number.isInteger(networkIdleTimeout)
-  ) {
-    throw new UserError(
-      `Invalid network idle timeout value: ${networkIdleTimeout}`,
-      "Network idle timeout must be a positive integer in milliseconds."
     );
   }
 
@@ -99,7 +90,6 @@ export async function play(
       delayMs,
       effectiveBaseUrl,
       waitForNetworkIdle,
-      networkIdleTimeout,
       runId,
       absoluteFilePath,
       testName: test.name,

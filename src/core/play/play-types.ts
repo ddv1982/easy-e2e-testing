@@ -6,7 +6,6 @@ export interface PlayOptions {
   baseUrl?: string;
   delayMs?: number;
   waitForNetworkIdle?: boolean;
-  networkIdleTimeout?: number;
   saveFailureArtifacts?: boolean;
   artifactsDir?: string;
   runId?: string;

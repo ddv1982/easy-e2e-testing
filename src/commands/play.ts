@@ -23,7 +23,6 @@ interface PlayCliOptions {
   timeout?: string;
   delay?: string;
   waitNetworkIdle?: boolean;
-  networkIdleTimeout?: string;
   saveFailureArtifacts?: boolean;
   artifactsDir?: string;
   start?: boolean;
@@ -39,7 +38,6 @@ export function registerPlay(program: Command) {
     .option("--delay <ms>", "Delay between steps in milliseconds")
     .option("--wait-network-idle", "Wait for network idle after each step")
     .option("--no-wait-network-idle", "Skip waiting for network idle after each step")
-    .option("--network-idle-timeout <ms>", "Timeout for post-step network idle wait in milliseconds")
     .option("--save-failure-artifacts", "Save JSON/trace/screenshot artifacts on test failure")
     .option("--no-save-failure-artifacts", "Disable failure artifact capture")
     .option("--artifacts-dir <path>", "Directory for play failure artifacts")
@@ -67,7 +65,6 @@ async function runPlay(
       timeout: profile.timeout,
       delayMs: profile.delayMs,
       waitForNetworkIdle: profile.waitForNetworkIdle,
-      networkIdleTimeout: profile.networkIdleTimeout,
       autoStart: profile.shouldAutoStart,
       saveFailureArtifacts: profile.saveFailureArtifacts,
       artifactsDir: profile.artifactsDir,
@@ -130,7 +127,6 @@ async function runPlay(
         baseUrl: profile.baseUrl,
         delayMs: profile.delayMs,
         waitForNetworkIdle: profile.waitForNetworkIdle,
-        networkIdleTimeout: profile.networkIdleTimeout,
         saveFailureArtifacts: profile.saveFailureArtifacts,
         artifactsDir: profile.artifactsDir,
         runId,
@@ -232,7 +228,6 @@ function parsePlayCliOptions(value: unknown): PlayCliOptions {
     timeout: asOptionalString(record.timeout),
     delay: asOptionalString(record.delay),
     waitNetworkIdle: asOptionalBoolean(record.waitNetworkIdle),
-    networkIdleTimeout: asOptionalString(record.networkIdleTimeout),
     saveFailureArtifacts: asOptionalBoolean(record.saveFailureArtifacts),
     artifactsDir: asOptionalString(record.artifactsDir),
     start: asOptionalBoolean(record.start),

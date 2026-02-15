@@ -1,7 +1,6 @@
 import type { Page } from "playwright";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
 import {
-  DEFAULT_NETWORK_IDLE_TIMEOUT_MS,
   DEFAULT_WAIT_FOR_NETWORK_IDLE,
   waitForPostStepNetworkIdle,
 } from "../runtime/network-idle.js";
@@ -29,7 +28,6 @@ export interface AssertionApplyValidationOptions {
   timeout: number;
   baseUrl?: string;
   waitForNetworkIdle?: boolean;
-  networkIdleTimeout?: number;
 }
 
 export interface AssertionInsertion {
@@ -87,7 +85,6 @@ export async function validateCandidatesAgainstRuntime(
   const outcomes: AssertionApplyOutcome[] = [];
   const candidatesByStepIndex = new Map<number, AssertionCandidateRef[]>();
   const waitForNetworkIdle = options.waitForNetworkIdle ?? DEFAULT_WAIT_FOR_NETWORK_IDLE;
-  const networkIdleTimeout = options.networkIdleTimeout ?? DEFAULT_NETWORK_IDLE_TIMEOUT_MS;
 
   for (const candidateRef of candidates) {
     if (isDuplicateSourceOrAdjacentAssertion(steps, candidateRef.candidate.index, candidateRef.candidate.candidate)) {
@@ -130,15 +127,14 @@ export async function validateCandidatesAgainstRuntime(
       });
       const networkIdleTimedOut = await waitForPostStepNetworkIdle(
         page,
-        waitForNetworkIdle,
-        networkIdleTimeout
+        waitForNetworkIdle
       );
       if (networkIdleTimedOut) {
         for (const candidateRef of candidatesByStepIndex.get(index) ?? []) {
           outcomes.push({
             candidateIndex: candidateRef.candidateIndex,
             applyStatus: "skipped_runtime_failure",
-            applyMessage: `Post-step network idle not reached within ${networkIdleTimeout}ms; assertion skipped.`,
+            applyMessage: "Post-step network idle wait timed out; assertion skipped.",
           });
         }
         continue;

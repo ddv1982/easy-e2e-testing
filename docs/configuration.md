@@ -8,19 +8,6 @@ Create `ui-test.config.yaml` in project root.
 testDir: e2e
 baseUrl: http://127.0.0.1:5173
 startCommand: ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173
-headed: false
-timeout: 10000
-delay: 0
-waitForNetworkIdle: true
-networkIdleTimeout: 2000
-saveFailureArtifacts: true
-artifactsDir: .ui-test-artifacts
-recordSelectorPolicy: reliable
-recordBrowser: chromium
-recordDevice: iPhone 13
-recordTestIdAttribute: data-testid
-recordLoadStorage: .auth/in.json
-recordSaveStorage: .auth/out.json
 improveApplyMode: review
 improveApplyAssertions: false
 improveAssertionSource: snapshot-native
@@ -30,34 +17,10 @@ improveAssertions: candidates
 
 ## Fields
 
-### Core Play Settings
+### Project Settings
 - `testDir`: directory to discover YAML tests.
 - `baseUrl`: base URL used for relative navigations.
 - `startCommand`: app startup command used by `play` auto-start.
-- `headed`: run browser visibly.
-- `timeout`: per-step timeout in milliseconds.
-- `delay`: delay between steps in milliseconds.
-- `waitForNetworkIdle`: wait for network idle after each step.
-- `networkIdleTimeout`: timeout for post-step network idle wait.
-  - `setup --reconfigure` lets you toggle `waitForNetworkIdle` but keeps `networkIdleTimeout` as an advanced manual config key.
-- `saveFailureArtifacts`: save JSON report + trace + screenshot when a play run fails.
-- `artifactsDir`: base directory for play failure artifacts (default `.ui-test-artifacts`).
-
-### Failure Artifact Output Layout
-- Per failed test:
-  - `<artifactsDir>/runs/<runId>/tests/<testSlug>/failure-report.json`
-  - `<artifactsDir>/runs/<runId>/tests/<testSlug>/trace.zip`
-  - `<artifactsDir>/runs/<runId>/tests/<testSlug>/failure.png`
-- Per failing run:
-  - `<artifactsDir>/runs/<runId>/run-report.json`
-
-### Record Defaults
-- `recordSelectorPolicy`: `reliable` or `raw`.
-- `recordBrowser`: `chromium`, `firefox`, or `webkit`.
-- `recordDevice`: Playwright device name.
-- `recordTestIdAttribute`: custom test-id attribute.
-- `recordLoadStorage`: preload storage state path.
-- `recordSaveStorage`: save resulting storage state path.
 
 ### Improve Defaults
 - `improveApplyMode`: `review` or `apply`. Controls selector auto-apply. Note: CLI `--apply` enables both selectors and assertions; config keys control each independently.
@@ -70,14 +33,26 @@ improveAssertions: candidates
 - `improveProvider`: removed; if present in config, improve will raise a migration error.
 - `llm`: removed; if present in config, improve will raise a migration error.
 
-## Command Overrides
+## Runtime Defaults (Flags-First)
 
-CLI flags override config values for each run.
+Runtime behavior is not configured in `ui-test.config.yaml`.
+
+Built-in defaults:
+- `play`: `headed=false`, `timeout=10000`, `delay=0`, `waitForNetworkIdle=true`, `saveFailureArtifacts=true`, `artifactsDir=.ui-test-artifacts`.
+- Network-idle wait uses Playwright default timeout behavior (no custom timeout value is set by `ui-test`).
+- `record`: `browser=chromium`, `selectorPolicy=reliable`.
+
+Override per run with CLI flags.
+
+Deprecated runtime config keys (for example `headed`, `timeout`, `delay`, `waitForNetworkIdle`, `networkIdleTimeout`, and `record*` runtime keys) are silently ignored.
+
+## Command Overrides
 
 Examples:
 
 ```bash
 ui-test play --headed --timeout 15000
+ui-test play --delay 250 --no-wait-network-idle
 ui-test play --save-failure-artifacts
 ui-test play --artifacts-dir ./tmp/ui-test-artifacts --no-save-failure-artifacts
 ui-test record --browser firefox --selector-policy raw

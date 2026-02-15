@@ -4,6 +4,13 @@ import type { ChildProcess } from "node:child_process";
 import { Command } from "commander";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserError } from "../utils/errors.js";
+import {
+  PLAY_DEFAULT_ARTIFACTS_DIR,
+  PLAY_DEFAULT_DELAY_MS,
+  PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+  PLAY_DEFAULT_TIMEOUT_MS,
+  PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+} from "../core/play/play-defaults.js";
 
 vi.mock("globby", () => ({
   globby: vi.fn(),
@@ -57,9 +64,6 @@ describe("runPlay startup behavior", () => {
       baseUrl: "http://127.0.0.1:5173",
       startCommand:
         "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
-      timeout: 10000,
-      delay: 0,
-      headed: false,
     });
     vi.mocked(play).mockResolvedValue({
       name: "Example Test",
@@ -86,13 +90,12 @@ describe("runPlay startup behavior", () => {
     expect(play).toHaveBeenCalledTimes(1);
     expect(play).toHaveBeenCalledWith(path.resolve("e2e/example.yaml"), {
       headed: false,
-      timeout: 10000,
+      timeout: PLAY_DEFAULT_TIMEOUT_MS,
       baseUrl: "http://127.0.0.1:5173",
-      delayMs: 0,
-      waitForNetworkIdle: true,
-      networkIdleTimeout: 2000,
-      saveFailureArtifacts: true,
-      artifactsDir: ".ui-test-artifacts",
+      delayMs: PLAY_DEFAULT_DELAY_MS,
+      waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
       runId: "run-test-id",
     });
   });
@@ -133,9 +136,6 @@ describe("runPlay startup behavior", () => {
       testDir: "e2e",
       startCommand:
         "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
-      timeout: 10000,
-      delay: 0,
-      headed: false,
     });
 
     await runPlay("e2e/example.yaml", {});
@@ -144,32 +144,29 @@ describe("runPlay startup behavior", () => {
     expect(play).toHaveBeenCalledTimes(1);
   });
 
-  it("uses network idle values from config when set", async () => {
+  it("ignores deprecated network idle config values", async () => {
     const child = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(child);
-    vi.mocked(loadConfig).mockResolvedValue({
-      testDir: "e2e",
-      baseUrl: "http://127.0.0.1:5173",
-      startCommand:
-        "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
-      timeout: 10000,
-      delay: 0,
-      headed: false,
-      waitForNetworkIdle: false,
-      networkIdleTimeout: 4500,
-    });
+    vi.mocked(loadConfig).mockResolvedValue(
+      {
+        testDir: "e2e",
+        baseUrl: "http://127.0.0.1:5173",
+        startCommand:
+          "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
+        waitForNetworkIdle: false,
+      } as never
+    );
 
     await runPlay("e2e/example.yaml", {});
 
     expect(play).toHaveBeenCalledWith(path.resolve("e2e/example.yaml"), {
       headed: false,
-      timeout: 10000,
+      timeout: PLAY_DEFAULT_TIMEOUT_MS,
       baseUrl: "http://127.0.0.1:5173",
-      delayMs: 0,
-      waitForNetworkIdle: false,
-      networkIdleTimeout: 4500,
-      saveFailureArtifacts: true,
-      artifactsDir: ".ui-test-artifacts",
+      delayMs: PLAY_DEFAULT_DELAY_MS,
+      waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
       runId: "run-test-id",
     });
   });
@@ -177,41 +174,30 @@ describe("runPlay startup behavior", () => {
   it("lets CLI network idle flags override config", async () => {
     const child = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(child);
-    vi.mocked(loadConfig).mockResolvedValue({
-      testDir: "e2e",
-      baseUrl: "http://127.0.0.1:5173",
-      startCommand:
-        "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
-      timeout: 10000,
-      delay: 0,
-      headed: false,
-      waitForNetworkIdle: true,
-      networkIdleTimeout: 4500,
-    });
+    vi.mocked(loadConfig).mockResolvedValue(
+      {
+        testDir: "e2e",
+        baseUrl: "http://127.0.0.1:5173",
+        startCommand:
+          "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
+        waitForNetworkIdle: true,
+      } as never
+    );
 
     await runPlay("e2e/example.yaml", {
       waitNetworkIdle: false,
-      networkIdleTimeout: "700",
     });
 
     expect(play).toHaveBeenCalledWith(path.resolve("e2e/example.yaml"), {
       headed: false,
-      timeout: 10000,
+      timeout: PLAY_DEFAULT_TIMEOUT_MS,
       baseUrl: "http://127.0.0.1:5173",
-      delayMs: 0,
+      delayMs: PLAY_DEFAULT_DELAY_MS,
       waitForNetworkIdle: false,
-      networkIdleTimeout: 700,
-      saveFailureArtifacts: true,
-      artifactsDir: ".ui-test-artifacts",
+      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
       runId: "run-test-id",
     });
-  });
-
-  it("throws on invalid --network-idle-timeout", async () => {
-    const run = runPlay("e2e/example.yaml", { networkIdleTimeout: "abc" });
-    await expect(run).rejects.toThrow(UserError);
-    await expect(run).rejects.toThrow(/network idle timeout/);
-    expect(play).not.toHaveBeenCalled();
   });
 
   it("writes run-level failure index when tests fail", async () => {
@@ -257,7 +243,7 @@ describe("runPlay startup behavior", () => {
         },
       }),
       {
-        artifactsDir: ".ui-test-artifacts",
+        artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
         runId: "run-test-id",
       }
     );
