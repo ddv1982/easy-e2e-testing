@@ -100,6 +100,35 @@ describe("setup execution", () => {
     });
   });
 
+  it("prints next-step help after quickstart", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runSetup("quickstart", {});
+
+    const output = logSpy.mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(output).toContain("✔ Setup complete.");
+    expect(output).toContain("Next:");
+    expect(output).toContain("ui-test play");
+    expect(output).toContain("ui-test play --help");
+    expect(output).toContain("ui-test --help");
+  });
+
+  it("prints play-help tip after quickstart --run-play", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runSetup("quickstart", { runPlay: true });
+
+    const output = logSpy.mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(output).toContain("✔ Setup complete.");
+    expect(output).toContain("Tip: Explore play options with ui-test play --help.");
+  });
+
   it("rejects install mode with --run-play", async () => {
     const run = runSetup("install", { runPlay: true });
     await expect(run).rejects.toThrow(UserError);

@@ -62,6 +62,8 @@ export async function runSetup(modeInput: unknown, opts: SetupCliOptions): Promi
       uiTestCliEntry: resolveUiTestCliEntry(),
     }
   );
+
+  printSetupNextSteps(mode, runPlay);
 }
 
 function parseSetupCliOptions(value: unknown): SetupCliOptions {
@@ -103,8 +105,29 @@ function asOptionalBoolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
+function printSetupNextSteps(mode: SetupMode, runPlay: boolean) {
+  if (mode !== "quickstart") {
+    return;
+  }
+
+  console.log("");
+  console.log("✔ Setup complete.");
+  console.log("");
+
+  if (runPlay) {
+    console.log("Tip: Explore play options with ui-test play --help.");
+    return;
+  }
+
+  console.log("Next:");
+  console.log("  ui-test play");
+  console.log("  ui-test play --help");
+  console.log("  ui-test --help");
+}
+
 export {
   parseSetupMode,
+  printSetupNextSteps,
   resolveInstallArgs,
   resolveUiTestCliEntry,
   runInstallPlaywrightCli,
