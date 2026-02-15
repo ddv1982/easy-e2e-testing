@@ -16,7 +16,7 @@ npm run bootstrap:quickstart
 ### 2) Global install (standalone, current)
 
 ```bash
-npm i -g github:ddv1982/easy-e2e-testing
+npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
 ui-test bootstrap quickstart
 ```
 
@@ -31,6 +31,8 @@ npm i -g ui-test
 ```bash
 npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
+
+If your npm setup has issues with direct git-global installs, prefer the `npm pack ... && npm i -g <tarball>` flow above.
 
 After npm publish is live:
 

@@ -18,7 +18,7 @@ npm run bootstrap:quickstart
 ### Global install (standalone, current)
 
 ```bash
-npm i -g github:ddv1982/easy-e2e-testing
+npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
 ui-test bootstrap quickstart
 ```
 

@@ -21,7 +21,7 @@ ui-test bootstrap setup
 Install globally from GitHub if not yet installed:
 
 ```bash
-npm i -g github:ddv1982/easy-e2e-testing
+npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
 ```
 
 If you are using one-off execution (current):
@@ -33,7 +33,7 @@ npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 If you see `Standalone install policy: project-local installs are not supported`, use this cleanup flow:
 1. Remove `ui-test` from `dependencies`/`devDependencies` in `package.json`.
 2. Run `npm uninstall ui-test`.
-3. Run `npm i -g github:ddv1982/easy-e2e-testing`.
+3. Run `npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"`.
 4. Re-run `ui-test bootstrap quickstart`.
 
 After npm publish is live, equivalent commands are:
