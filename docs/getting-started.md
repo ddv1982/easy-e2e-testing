@@ -40,6 +40,7 @@ ui-test setup quickstart --run-play
 ```
 
 `setup quickstart` handles dependency install, Chromium provisioning, and optionally a first `play` run.
+With `--run-play`, it runs `ui-test play e2e/example.yaml`.
 
 ## Runtime Flags
 
@@ -59,6 +60,9 @@ If your app is already running and you do not want auto-start:
 ```bash
 ui-test play --no-start
 ```
+
+Auto-start note:
+- built-in example app auto-start runs only for `e2e/example.yaml` (or play-all with only that file).
 
 ## Record and Replay
 

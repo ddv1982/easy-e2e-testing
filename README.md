@@ -39,7 +39,7 @@ ui-test setup quickstart --run-play
 
 Mode behavior:
 1. `install`: installs project dependencies and verifies Playwright-CLI.
-2. `quickstart` (default): runs `install` + Chromium provisioning, with optional first `play` run.
+2. `quickstart` (default): runs `install` + Chromium provisioning, with optional first `play` run on `e2e/example.yaml`.
 
 ## Core Commands
 
@@ -81,8 +81,8 @@ ui-test play --no-start
 ```
 
 `--no-start` note:
-- current default workflow is example-app-first
-- reachability preflight checks the default URL (`http://127.0.0.1:5173`)
+- built-in example app auto-start runs only when playing `e2e/example.yaml` (or a play-all run containing only that file)
+- `--no-start` runs tests directly without default-URL preflight
 
 Useful `record` and `improve` flags:
 
@@ -125,7 +125,7 @@ npx -y @playwright/cli@latest --help
 
 - Browser missing: `npx playwright install chromium`
 - Linux dependencies missing: `npx playwright install-deps chromium`
-- App not reachable: verify `baseUrl` or run `ui-test play --no-start`
+- Example app not reachable (example test auto-start): verify `http://127.0.0.1:5173` or run `ui-test play --no-start`
 
 Full guide: [Troubleshooting](docs/troubleshooting.md)
 

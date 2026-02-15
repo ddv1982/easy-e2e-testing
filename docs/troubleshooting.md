@@ -68,8 +68,8 @@ npx playwright install-deps chromium
 
 ## App Reachability Errors in `play`
 
-If `play` cannot reach your app:
-1. Verify your app is running at the URL your test targets (default: `http://127.0.0.1:5173`).
+If `play e2e/example.yaml` cannot reach the app:
+1. Verify the example app is running at `http://127.0.0.1:5173`.
 2. If you start the app manually, run:
 
 ```bash
@@ -77,8 +77,8 @@ ui-test play --no-start
 ```
 
 Current scope note:
-- `ui-test` is optimized for the built-in example app workflow.
-- `--no-start` preflight checks the default URL (`http://127.0.0.1:5173`).
+- built-in example app auto-start runs only for `e2e/example.yaml` (or play-all with only that file).
+- non-example test runs do not auto-start the example app and do not run default-URL preflight checks.
 
 ## Failure Artifacts Not Saved
 

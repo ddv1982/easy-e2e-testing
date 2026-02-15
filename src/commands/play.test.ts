@@ -5,11 +5,12 @@ import path from "node:path";
 import type { ChildProcess } from "node:child_process";
 import { Command } from "commander";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { UserError } from "../utils/errors.js";
+import { globby } from "globby";
 import {
   PLAY_DEFAULT_ARTIFACTS_DIR,
   PLAY_DEFAULT_BASE_URL,
   PLAY_DEFAULT_DELAY_MS,
+  PLAY_DEFAULT_EXAMPLE_TEST_FILE,
   PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
   PLAY_DEFAULT_START_COMMAND,
   PLAY_DEFAULT_TIMEOUT_MS,
@@ -56,6 +57,7 @@ describe("runPlay startup behavior", () => {
     vi.resetAllMocks();
     process.exitCode = undefined;
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    vi.mocked(globby).mockResolvedValue([]);
     vi.mocked(createPlayRunId).mockReturnValue("run-test-id");
     vi.mocked(writePlayRunReport).mockResolvedValue("/tmp/run-report.json");
     vi.mocked(play).mockResolvedValue({
@@ -91,6 +93,9 @@ describe("runPlay startup behavior", () => {
       artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
       runId: "run-test-id",
     });
+    expect((child.kill as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+      "SIGTERM"
+    );
   });
 
   it("ignores invalid ui-test.config.yaml if present", async () => {
@@ -116,22 +121,59 @@ describe("runPlay startup behavior", () => {
     }
   });
 
-  it("skips startup when --no-start is used", async () => {
+  it("does not auto-start for non-example test files", async () => {
+    await runPlay("e2e/nu-nl.yaml", {});
+
+    expect(spawn).not.toHaveBeenCalled();
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(play).toHaveBeenCalledWith(path.resolve("e2e/nu-nl.yaml"), {
+      headed: false,
+      timeout: PLAY_DEFAULT_TIMEOUT_MS,
+      baseUrl: PLAY_DEFAULT_BASE_URL,
+      delayMs: PLAY_DEFAULT_DELAY_MS,
+      waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
+      runId: "run-test-id",
+    });
+  });
+
+  it("auto-starts for all-tests run only when discovered set is example-only", async () => {
+    const child = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValue(child);
+    vi.mocked(globby).mockResolvedValue([PLAY_DEFAULT_EXAMPLE_TEST_FILE]);
+
+    await runPlay(undefined, {});
+
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(play).toHaveBeenCalledWith(path.resolve(PLAY_DEFAULT_EXAMPLE_TEST_FILE), {
+      headed: false,
+      timeout: PLAY_DEFAULT_TIMEOUT_MS,
+      baseUrl: PLAY_DEFAULT_BASE_URL,
+      delayMs: PLAY_DEFAULT_DELAY_MS,
+      waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
+      runId: "run-test-id",
+    });
+  });
+
+  it("does not auto-start for mixed all-tests run", async () => {
+    vi.mocked(globby).mockResolvedValue(["e2e/nu-nl.yaml", PLAY_DEFAULT_EXAMPLE_TEST_FILE]);
+
+    await runPlay(undefined, {});
+
+    expect(spawn).not.toHaveBeenCalled();
+    expect(play).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips startup and preflight when --no-start is used", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     await runPlay("e2e/example.yaml", { start: false });
 
     expect(spawn).not.toHaveBeenCalled();
     expect(play).toHaveBeenCalledTimes(1);
-  });
-
-  it("fails fast when baseUrl is unreachable in no-start mode", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
-
-    const run = runPlay("e2e/example.yaml", { start: false });
-    await expect(run).rejects.toThrow(UserError);
-    await expect(run).rejects.toThrow(
-      /Cannot reach app/
-    );
-    expect(play).not.toHaveBeenCalled();
   });
 
   it("always stops spawned app process when test execution fails", async () => {

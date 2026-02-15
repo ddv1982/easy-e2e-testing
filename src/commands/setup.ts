@@ -15,7 +15,7 @@ const HELP_APPENDIX = [
   "",
   "Modes:",
   "  install       Install project dependencies and Playwright-CLI tooling",
-  '  quickstart    Run install + Chromium provisioning (default mode). Add --run-play to execute "ui-test play"',
+  '  quickstart    Run install + Chromium provisioning (default mode). Add --run-play to execute "ui-test play e2e/example.yaml"',
   "",
   "Examples:",
   "  ui-test setup install",
@@ -33,7 +33,7 @@ export function registerSetup(program: Command) {
   program
     .command("setup [mode]")
     .description("Install dependencies and run onboarding/play for first-time setup")
-    .option("--run-play", "Run ui-test play after quickstart onboarding")
+    .option("--run-play", "Run ui-test play e2e/example.yaml after quickstart onboarding")
     .addHelpText("after", HELP_APPENDIX)
     .action(async (mode: unknown, opts: unknown) => {
       try {

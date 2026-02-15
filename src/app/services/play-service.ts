@@ -8,6 +8,7 @@ import {
   writePlayRunReport,
   type PlayRunReport,
 } from "../../core/play-failure-report.js";
+import { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../../core/play/play-defaults.js";
 import { resolvePlayProfile } from "../options/play-profile.js";
 import { formatPlayProfileSummary } from "../options/profile-summary.js";
 import { UserError } from "../../utils/errors.js";
@@ -33,18 +34,6 @@ export async function runPlay(
   const profile = resolvePlayProfile(opts);
   const runId = createPlayRunId();
 
-  ui.info(
-    formatPlayProfileSummary({
-      headed: profile.headed,
-      timeout: profile.timeout,
-      delayMs: profile.delayMs,
-      waitForNetworkIdle: profile.waitForNetworkIdle,
-      autoStart: profile.shouldAutoStart,
-      saveFailureArtifacts: profile.saveFailureArtifacts,
-      artifactsDir: profile.artifactsDir,
-    })
-  );
-
   let files: string[];
 
   if (testArg) {
@@ -57,12 +46,28 @@ export async function runPlay(
         "Record a test first: ui-test record"
       );
     }
-    files.sort();
   }
+  files = files.map((file) => path.resolve(file)).sort();
+
+  const exampleTestFilePath = path.resolve(PLAY_DEFAULT_EXAMPLE_TEST_FILE);
+  const isExampleOnlyRun = files.length === 1 && files[0] === exampleTestFilePath;
+  const shouldStartApp = profile.shouldAutoStart && isExampleOnlyRun;
+
+  ui.info(
+    formatPlayProfileSummary({
+      headed: profile.headed,
+      timeout: profile.timeout,
+      delayMs: profile.delayMs,
+      waitForNetworkIdle: profile.waitForNetworkIdle,
+      autoStart: shouldStartApp,
+      saveFailureArtifacts: profile.saveFailureArtifacts,
+      artifactsDir: profile.artifactsDir,
+    })
+  );
 
   let appProcess: ChildProcess | undefined;
   try {
-    if (profile.shouldAutoStart) {
+    if (shouldStartApp) {
       ui.info(`Starting app: ${profile.startCommand}`);
       appProcess = spawn(profile.startCommand, {
         shell: true,
@@ -74,13 +79,10 @@ export async function runPlay(
       });
 
       await waitForReachableBaseUrl(profile.baseUrl, appProcess, START_TIMEOUT_MS);
-    } else {
-      const reachable = await isBaseUrlReachable(profile.baseUrl, 2_000);
-      if (!reachable) {
-        const hint =
-          `Cannot reach ${profile.baseUrl}. Run \`${profile.startCommand}\` first, or rerun without --no-start.`;
-        throw new UserError(`Cannot reach app at ${profile.baseUrl}`, hint);
-      }
+    } else if (profile.shouldAutoStart) {
+      ui.info(
+        `Auto-start skipped: built-in example app starts only for ${PLAY_DEFAULT_EXAMPLE_TEST_FILE}.`
+      );
     }
 
     ui.heading(`Running ${files.length} test${files.length > 1 ? "s" : ""}...`);

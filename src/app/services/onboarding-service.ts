@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { UserError } from "../../utils/errors.js";
+import { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../../core/play/play-defaults.js";
 import {
   installPlaywrightChromium,
   verifyChromiumLaunch,
@@ -33,7 +34,15 @@ export async function runOnboardingPlan(
   installPlaywrightChromium();
   await verifyChromiumLaunch();
   if (plan.runPlay) {
-    runUiTestCommand(context.uiTestCliEntry, "play", []);
+    const exampleTestPath = path.resolve(PLAY_DEFAULT_EXAMPLE_TEST_FILE);
+    if (existsSync(exampleTestPath)) {
+      runUiTestCommand(context.uiTestCliEntry, "play", [PLAY_DEFAULT_EXAMPLE_TEST_FILE]);
+    } else {
+      console.warn(
+        `[setup] WARN: Skipping run-play because ${PLAY_DEFAULT_EXAMPLE_TEST_FILE} was not found in ${process.cwd()}. ` +
+        "Record a test first with: ui-test record"
+      );
+    }
   }
 }
 

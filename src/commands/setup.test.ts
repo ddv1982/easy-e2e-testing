@@ -5,6 +5,14 @@ vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(),
 }));
 
+vi.mock("node:fs", async () => {
+  const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+  return {
+    ...actual,
+    existsSync: vi.fn(actual.existsSync),
+  };
+});
+
 vi.mock("playwright", () => ({
   chromium: {
     launch: vi.fn(async () => ({ close: vi.fn(async () => {}) })),
@@ -12,7 +20,9 @@ vi.mock("playwright", () => ({
 }));
 
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { UserError } from "../utils/errors.js";
+import { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../core/play/play-defaults.js";
 import {
   parseSetupMode,
   registerSetup,
@@ -22,6 +32,7 @@ import {
 } from "./setup.js";
 
 const mockSpawnSync = vi.mocked(spawnSync);
+const mockExistsSync = vi.mocked(existsSync);
 
 function createProgram(): Command {
   const program = new Command();
@@ -68,6 +79,7 @@ describe("setup mode parsing", () => {
 describe("setup execution", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockExistsSync.mockReturnValue(true);
     mockSpawnSync.mockReturnValue({
       status: 0,
       error: undefined,
@@ -81,13 +93,39 @@ describe("setup execution", () => {
 
     expect(mockSpawnSync).toHaveBeenCalledWith(
       process.execPath,
-      [resolveUiTestCliEntry(), "play"],
+      [resolveUiTestCliEntry(), "play", PLAY_DEFAULT_EXAMPLE_TEST_FILE],
       {
         stdio: "inherit",
         shell: process.platform === "win32",
         env: process.env,
       }
     );
+  });
+
+  it("skips runPlay with warning when example test file is missing", async () => {
+    mockExistsSync.mockImplementation((targetPath) => {
+      const value = String(targetPath);
+      if (value.endsWith(PLAY_DEFAULT_EXAMPLE_TEST_FILE)) {
+        return false;
+      }
+      return true;
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      await runSetup("quickstart", { runPlay: true });
+
+      expect(mockSpawnSync).not.toHaveBeenCalledWith(
+        process.execPath,
+        [resolveUiTestCliEntry(), "play", PLAY_DEFAULT_EXAMPLE_TEST_FILE],
+        expect.anything()
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Skipping run-play because e2e/example.yaml was not found")
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("runs install mode", async () => {
@@ -155,7 +193,7 @@ describe("setup command parsing (commander path)", () => {
 
     expect(mockSpawnSync).toHaveBeenCalledWith(
       process.execPath,
-      [resolveUiTestCliEntry(), "play"],
+      [resolveUiTestCliEntry(), "play", PLAY_DEFAULT_EXAMPLE_TEST_FILE],
       {
         stdio: "inherit",
         shell: process.platform === "win32",
