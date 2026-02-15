@@ -40,7 +40,7 @@ In the deterministic source (`--assertion-source deterministic`), auto-apply use
 - existing adjacent self-visibility assertions are preserved (no automatic cleanup)
 - at most one assertion is auto-applied per source step
 
-Validation uses post-step network-idle timing similar to `play` defaults (enabled, `2000ms` timeout).
+Validation uses post-step network-idle timing similar to `play` defaults (enabled, Playwright default timeout behavior).
 Runtime validation failures are skipped and reported as warnings.
 Runtime-failing assertions are never force-applied.
 Improve no longer injects coverage fallback assertions.
@@ -147,6 +147,6 @@ ui-test improve e2e/login.yaml --report ./reports/login.improve.json
 
 ## Runtime Safety Notes
 
-- Apply mode (`--apply`, `--apply-selectors`, `--apply-assertions`) requires runtime validation.
 - Runtime analysis may replay actions; use a safe test environment.
-- If browser runtime is unavailable, review mode can still run with static scoring fallback.
+- `improve` requires Chromium availability in CLI runs.
+- If Chromium is missing, provision it with `ui-test bootstrap quickstart` or `npx playwright install chromium`.

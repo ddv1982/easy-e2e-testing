@@ -1,8 +1,13 @@
 import type { Command } from "commander";
-import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  runOnboardingPlan,
+  type BootstrapMode,
+  type OnboardingPlan,
+  resolveInstallArgs,
+  runInstallPlaywrightCli,
+} from "../app/services/onboarding-service.js";
 import { handleError, UserError } from "../utils/errors.js";
 
 const MIN_NODE_MAJOR = 18;
@@ -15,42 +20,37 @@ Usage:
 
 Modes:
   install       Install project dependencies and Playwright-CLI tooling
-  setup         Run ui-test setup (passes through args to "ui-test setup")
-  quickstart    Run install + setup (default mode). Add --run-play to execute "ui-test play"
+  init          Run ui-test init (passes through args to "ui-test init") and provision Chromium
+  quickstart    Run install + init (default mode). Add --run-play to execute "ui-test play"
 
 Options:
-  --run-play    (quickstart only) run "ui-test play" after setup
+  --run-play    (quickstart only) run "ui-test play" after onboarding
   -h, --help    Show help
 
 Examples:
   ui-test bootstrap install
-  ui-test bootstrap setup --force-init
+  ui-test bootstrap init --yes
   ui-test bootstrap quickstart --run-play
-  ui-test bootstrap quickstart -- --skip-browser-install
+  ui-test bootstrap quickstart -- --yes
 
 One-off fallback:
   npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 `.trim();
 
-type BootstrapMode = "install" | "setup" | "quickstart";
-
-interface ParsedBootstrapArgs {
-  mode: BootstrapMode;
-  runPlay: boolean;
-  setupArgs: string[];
+interface ParsedBootstrapArgs extends OnboardingPlan {
   showHelp: boolean;
 }
 
 export function registerBootstrap(program: Command) {
   program
     .command("bootstrap [mode] [args...]")
-    .description("Install dependencies and run setup/play for first-time onboarding")
+    .description("Install dependencies and run onboarding/play for first-time setup")
     .allowUnknownOption(true)
     .allowExcessArguments(true)
     .helpOption(false)
-    .action((_mode: unknown, _args: unknown, command: Command) => {
+    .action(async (_mode: unknown, _args: unknown, command: Command) => {
       try {
-        runBootstrap(extractRawBootstrapArgs(command));
+        await runBootstrap(extractRawBootstrapArgs(command));
       } catch (err) {
         handleError(err);
       }
@@ -64,7 +64,7 @@ function extractRawBootstrapArgs(command: Command): string[] {
   return commandIndex === -1 ? [] : rawArgs.slice(commandIndex + 1);
 }
 
-function runBootstrap(argv: string[]): void {
+async function runBootstrap(argv: string[]): Promise<void> {
   ensureNodeVersion();
   const parsed = parseBootstrapArgs(argv);
 
@@ -73,23 +73,9 @@ function runBootstrap(argv: string[]): void {
     return;
   }
 
-  if (parsed.mode === "install") {
-    runInstallDependencies();
-    runInstallPlaywrightCli();
-    return;
-  }
-
-  if (parsed.mode === "setup") {
-    runUiTestSetup(parsed.setupArgs);
-    return;
-  }
-
-  runInstallDependencies();
-  runInstallPlaywrightCli();
-  runUiTestSetup(parsed.setupArgs);
-  if (parsed.runPlay) {
-    runUiTestPlay();
-  }
+  await runOnboardingPlan(parsed, {
+    uiTestCliEntry: resolveUiTestCliEntry(),
+  });
 }
 
 function parseBootstrapArgs(argv: string[]): ParsedBootstrapArgs {
@@ -98,18 +84,18 @@ function parseBootstrapArgs(argv: string[]): ParsedBootstrapArgs {
 
   const maybeMode = argv[0];
   if (maybeMode && !maybeMode.startsWith("-")) {
-    if (maybeMode !== "install" && maybeMode !== "setup" && maybeMode !== "quickstart") {
+    if (maybeMode !== "install" && maybeMode !== "init" && maybeMode !== "quickstart") {
       throw new UserError(`Unknown mode: ${maybeMode}`);
     }
     mode = maybeMode;
     rest = argv.slice(1);
   }
 
-  if (mode === "setup") {
+  if (mode === "init") {
     return {
       mode,
       runPlay: false,
-      setupArgs: rest,
+      initArgs: rest,
       showHelp: false,
     };
   }
@@ -119,7 +105,7 @@ function parseBootstrapArgs(argv: string[]): ParsedBootstrapArgs {
       return {
         mode,
         runPlay: false,
-        setupArgs: [],
+        initArgs: [],
         showHelp: true,
       };
     }
@@ -130,20 +116,20 @@ function parseBootstrapArgs(argv: string[]): ParsedBootstrapArgs {
     return {
       mode,
       runPlay: false,
-      setupArgs: [],
+      initArgs: [],
       showHelp: false,
     };
   }
 
   const separatorIndex = rest.indexOf("--");
   const quickstartOptions = separatorIndex === -1 ? rest : rest.slice(0, separatorIndex);
-  const setupArgs = separatorIndex === -1 ? [] : rest.slice(separatorIndex + 1);
+  const initArgs = separatorIndex === -1 ? [] : rest.slice(separatorIndex + 1);
 
   if (quickstartOptions.includes("-h") || quickstartOptions.includes("--help")) {
     return {
       mode,
       runPlay: false,
-      setupArgs: [],
+      initArgs: [],
       showHelp: true,
     };
   }
@@ -155,14 +141,14 @@ function parseBootstrapArgs(argv: string[]): ParsedBootstrapArgs {
       continue;
     }
     throw new UserError(
-      `Unknown quickstart option: ${option}. Use "--" before setup flags.`
+      `Unknown quickstart option: ${option}. Use "--" before init flags.`
     );
   }
 
   return {
     mode,
     runPlay,
-    setupArgs,
+    initArgs,
     showHelp: false,
   };
 }
@@ -176,113 +162,9 @@ function ensureNodeVersion() {
   }
 }
 
-function runInstallDependencies() {
-  ensureCommandAvailable("npm");
-  const installArgs = resolveInstallArgs();
-  runCommand(
-    `Install dependencies (npm ${installArgs.join(" ")})`,
-    "npm",
-    installArgs
-  );
-}
-
-function resolveInstallArgs() {
-  const lockFilePath = path.resolve("package-lock.json");
-  return existsSync(lockFilePath) ? ["ci"] : ["install"];
-}
-
-function runUiTestSetup(setupArgs: string[]) {
-  runCommand(
-    `Run ui-test setup${setupArgs.length > 0 ? ` ${setupArgs.join(" ")}` : ""}`,
-    process.execPath,
-    [resolveUiTestCliEntry(), "setup", ...setupArgs]
-  );
-}
-
-function runUiTestPlay() {
-  runCommand("Run ui-test play", process.execPath, [resolveUiTestCliEntry(), "play"]);
-}
-
 function resolveUiTestCliEntry(): string {
   const commandsDir = path.dirname(fileURLToPath(import.meta.url));
   return path.resolve(commandsDir, "..", "bin", "ui-test.js");
-}
-
-function runInstallPlaywrightCli() {
-  const failures: string[] = [];
-  try {
-    runCommandQuiet("Verify Playwright-CLI (playwright-cli)", "playwright-cli", ["--version"]);
-    return true;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    failures.push(`playwright-cli --version failed: ${message}`);
-  }
-
-  try {
-    ensureCommandAvailable("npx");
-    runCommandQuiet("Install/verify Playwright-CLI (@latest)", "npx", [
-      "-y",
-      "@playwright/cli@latest",
-      "--version",
-    ]);
-    return true;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    failures.push(`npx -y @playwright/cli@latest --version failed: ${message}`);
-  }
-
-  console.warn(
-    `[bootstrap] WARN: ${failures.join(" ")} ` +
-    "Retry manually: playwright-cli --help or npx -y @playwright/cli@latest --help. " +
-    "Continuing because Playwright-CLI is only required for improve --assertion-source snapshot-cli."
-  );
-  return false;
-}
-
-function ensureCommandAvailable(command: string) {
-  const result = spawnSync(command, ["--version"], {
-    stdio: "ignore",
-    shell: process.platform === "win32",
-    env: process.env,
-  });
-
-  if (result.error || result.status !== 0) {
-    throw new UserError(
-      `Required command "${command}" is unavailable in PATH.`
-    );
-  }
-}
-
-function runCommand(label: string, command: string, args: string[]) {
-  console.log(`[bootstrap] ${label}`);
-  const result = spawnSync(command, args, {
-    stdio: "inherit",
-    shell: process.platform === "win32",
-    env: process.env,
-  });
-
-  if (result.error) {
-    throw new UserError(`${label} failed: ${result.error.message}`);
-  }
-  if (result.status !== 0) {
-    throw new UserError(`${label} failed with exit code ${result.status ?? "unknown"}.`);
-  }
-}
-
-function runCommandQuiet(label: string, command: string, args: string[]) {
-  console.log(`[bootstrap] ${label}`);
-  const result = spawnSync(command, args, {
-    stdio: "ignore",
-    shell: process.platform === "win32",
-    env: process.env,
-  });
-
-  if (result.error) {
-    throw new UserError(`${label} failed: ${result.error.message}`);
-  }
-  if (result.status !== 0) {
-    throw new UserError(`${label} failed with exit code ${result.status ?? "unknown"}.`);
-  }
 }
 
 export {

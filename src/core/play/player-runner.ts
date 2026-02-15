@@ -4,6 +4,7 @@ import { chromium, type Browser, type BrowserContext } from "playwright";
 import { testSchema } from "../yaml-schema.js";
 import { yamlToTest } from "../transformer.js";
 import { ValidationError, UserError } from "../../utils/errors.js";
+import { chromiumNotInstalledError, isLikelyMissingChromium } from "../../utils/chromium-runtime.js";
 import {
   buildPlayFailureArtifactPaths,
   createPlayRunId,
@@ -125,11 +126,8 @@ async function launchBrowser(headed?: boolean): Promise<Browser> {
     return await chromium.launch({ headless: !headed });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("Executable doesn't exist") || message.includes("browserType.launch")) {
-      throw new UserError(
-        "Chromium browser is not installed.",
-        "Run: npx playwright install chromium"
-      );
+    if (isLikelyMissingChromium(message)) {
+      throw chromiumNotInstalledError();
     }
     throw err;
   }

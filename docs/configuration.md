@@ -25,13 +25,22 @@ improveAssertions: candidates
 ### Improve Defaults
 - `improveApplyMode`: `review` or `apply`. Controls selector auto-apply. Note: CLI `--apply` enables both selectors and assertions; config keys control each independently.
 - `improveApplyAssertions`: apply high-confidence assertion candidates when improve runs.
-- `improveAssertionSource`: `snapshot-native` (default, native aria snapshot mode), `deterministic` (form-state only), or `snapshot-cli` (external Playwright-CLI snapshot mode).
+- `improveAssertionSource`: `snapshot-native` (default), `deterministic`, or `snapshot-cli`.
 - `improveAssertionApplyPolicy`: `reliable` (default) or `aggressive`.
-  - `reliable`: snapshot-derived `assertVisible` is report-only.
-  - `aggressive`: snapshot-derived `assertVisible` can be auto-applied after runtime validation.
 - `improveAssertions`: `none` or `candidates`.
-- `improveProvider`: removed; if present in config, improve will raise a migration error.
-- `llm`: removed; if present in config, improve will raise a migration error.
+
+## Strict Schema Policy
+
+`ui-test.config.yaml` is strict.
+Unknown keys are validation errors.
+
+That includes previously removed runtime keys such as:
+- `headed`
+- `timeout`
+- `delay`
+- `waitForNetworkIdle`
+- `networkIdleTimeout`
+- `record*` runtime keys
 
 ## Runtime Defaults (Flags-First)
 
@@ -43,8 +52,6 @@ Built-in defaults:
 - `record`: `browser=chromium`, `selectorPolicy=reliable`.
 
 Override per run with CLI flags.
-
-Deprecated runtime config keys (for example `headed`, `timeout`, `delay`, `waitForNetworkIdle`, `networkIdleTimeout`, and `record*` runtime keys) are silently ignored.
 
 ## Command Overrides
 

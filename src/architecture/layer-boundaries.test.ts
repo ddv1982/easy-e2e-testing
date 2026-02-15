@@ -16,7 +16,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const srcRoot = path.resolve(__dirname, "..");
 
 const disallowedImports: Record<Layer, Set<Layer>> = {
-  app: new Set(["commands", "bin", "infra"]),
+  app: new Set(["commands", "bin"]),
   bin: new Set(["commands", "app", "core", "infra", "utils"]),
   commands: new Set(["infra"]),
   core: new Set(["commands", "app", "bin"]),

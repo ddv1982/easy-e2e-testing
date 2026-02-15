@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { stepSchema, targetSchema } from "../yaml-schema.js";
 
-export const improveProviderSchema = z.enum(["playwright", "none"]);
+export const improveProviderSchema = z.enum(["playwright"]);
 
 export const improveDiagnosticSchema = z.object({
   code: z.string().min(1),

@@ -29,118 +29,77 @@ npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 Project dependency installs are intentionally unsupported.
 All command examples below use global `ui-test`.
 
-## What `bootstrap quickstart` Does
-
-1. Installs dependencies (`npm ci` when `package-lock.json` exists, otherwise `npm install`).
-2. Installs/verifies Playwright-CLI (`playwright-cli` first, then `npx -y @playwright/cli@latest` fallback).
-3. Creates `ui-test.config.yaml` and a sample test (if missing).
-4. Installs Chromium and verifies it can launch.
-5. Optionally runs `ui-test play` when `--run-play` is provided.
-
-Use modes explicitly when needed:
+## Bootstrap Modes
 
 ```bash
 ui-test bootstrap install
-ui-test bootstrap setup
+ui-test bootstrap init --yes
+ui-test bootstrap quickstart
 ui-test bootstrap quickstart --run-play
-ui-test bootstrap quickstart -- --skip-browser-install
+ui-test bootstrap quickstart -- --yes
 ```
 
-Install and fallback details are in [Troubleshooting](docs/troubleshooting.md).
+Mode behavior:
+1. `install`: installs project dependencies and verifies Playwright-CLI.
+2. `init`: runs `ui-test init` and provisions Chromium.
+3. `quickstart` (default): runs `install` + `init`, with optional first `play` run.
 
 ## Core Commands
 
 | Command | Purpose |
 | --- | --- |
-| `ui-test bootstrap [mode]` | Onboarding/install/setup/play helper |
-| `ui-test setup` | Initialize config + browser dependencies |
+| `ui-test bootstrap [mode]` | Onboarding and provisioning helper |
+| `ui-test init` | Create `ui-test.config.yaml` and sample test |
 | `ui-test play [test]` | Run one YAML test or all tests |
 | `ui-test record` | Record browser interactions into YAML |
 | `ui-test improve <file>` | Analyze and suggest selector/assertion improvements |
 | `ui-test list` | List discovered tests |
 | `ui-test doctor` | Show invocation/version diagnostics |
 
-## Typical Workflow
+## Runtime Model (Flags-First)
 
-### Record and replay
+Runtime behavior is controlled by flags and built-in defaults.
+`ui-test.config.yaml` contains project settings only (`testDir`, `baseUrl`, `startCommand`, improve defaults).
 
-```bash
-ui-test record
-ui-test list
-ui-test play
-```
+`play` defaults:
+- headless (`--headed` opt-in)
+- `--delay 0`
+- `--wait-network-idle` enabled
+- network-idle wait uses Playwright default timeout behavior (`waitForLoadState("networkidle")` with no custom timeout)
+- failure artifacts enabled to `.ui-test-artifacts`
 
-### Improve selectors/assertions (review-first)
-
-```bash
-ui-test improve e2e/login.yaml
-ui-test improve e2e/login.yaml --apply
-ui-test improve e2e/login.yaml --apply-selectors
-ui-test improve e2e/login.yaml --apply-assertions
-ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
-ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
-ui-test improve e2e/login.yaml --apply --assertion-apply-policy aggressive
-```
-
-Defaults:
-- Improve is deterministic and review-first.
-- Snapshot-native is the default assertion source.
-- Snapshot-cli is optional and requires Playwright-CLI.
-
-## Test Format (V2)
-
-```yaml
-name: Login Test
-baseUrl: https://example.com
-steps:
-  - action: navigate
-    url: /login
-
-  - action: fill
-    target:
-      value: "#email"
-      kind: css
-      source: manual
-    text: user@example.com
-
-  - action: click
-    target:
-      value: "getByRole('button', { name: 'Sign in' })"
-      kind: locatorExpression
-      source: manual
-```
-
-Selector-based steps use:
-
-```yaml
-target:
-  value: "..."
-  kind: locatorExpression | playwrightSelector | css | xpath | internal | unknown
-  source: manual | codegen-jsonl | codegen-fallback
-```
-
-## Minimal Configuration
-
-```yaml
-testDir: e2e
-baseUrl: http://127.0.0.1:5173
-startCommand: npm run dev
-improveApplyMode: review
-improveApplyAssertions: false
-improveAssertionSource: snapshot-native
-improveAssertionApplyPolicy: reliable
-improveAssertions: candidates
-```
-
-Runtime defaults are now flags-first:
-- `play`: headless, `--delay 0`, waits for `networkidle` by default (Playwright default timeout behavior), saves failure artifacts to `.ui-test-artifacts`.
-- `record`: `--browser chromium`, `--selector-policy reliable`.
-- Override per run with CLI flags (`ui-test play --help`, `ui-test record --help`).
-
-`startCommand` is optional. If omitted, start your app manually and run:
+Useful `play` flags:
 
 ```bash
+ui-test play --headed
+ui-test play --timeout 15000
+ui-test play --delay 250
+ui-test play --no-wait-network-idle
+ui-test play --no-save-failure-artifacts
+ui-test play --artifacts-dir ./tmp/ui-test-artifacts
 ui-test play --no-start
+```
+
+Useful `record` and `improve` flags:
+
+```bash
+ui-test record --browser firefox --selector-policy raw
+ui-test improve e2e/login.yaml --apply
+ui-test improve e2e/login.yaml --apply-assertions
+ui-test improve e2e/login.yaml --assertion-source snapshot-cli
+```
+
+## Browser Provisioning Contract
+
+Chromium provisioning is onboarding-only (`bootstrap` modes).
+`play`, `record`, and `improve` do not auto-install browsers.
+
+If Chromium is missing, install with:
+
+```bash
+ui-test bootstrap quickstart
+# or
+npx playwright install chromium
 ```
 
 ## Playwright-CLI Clarification
@@ -150,8 +109,6 @@ Playwright-CLI is only required for:
 ```bash
 ui-test improve <file> --assertion-source snapshot-cli
 ```
-
-It is not required for default `setup`, `play`, `record`, or default `improve`.
 
 Manual verify/install command:
 
@@ -166,6 +123,7 @@ npx -y @playwright/cli@latest --help
 - Linux dependencies missing: `npx playwright install-deps chromium`
 - App not reachable: verify `baseUrl` or run `ui-test play --no-start`
 - Config filename must be `ui-test.config.yaml`
+- Unknown config keys are errors
 
 Full guide: [Troubleshooting](docs/troubleshooting.md)
 

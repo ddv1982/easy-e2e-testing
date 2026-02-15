@@ -5,6 +5,12 @@ vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(),
 }));
 
+vi.mock("playwright", () => ({
+  chromium: {
+    launch: vi.fn(async () => ({ close: vi.fn(async () => {}) })),
+  },
+}));
+
 import { spawnSync } from "node:child_process";
 import {
   parseBootstrapArgs,
@@ -35,7 +41,7 @@ describe("bootstrap argument parsing", () => {
     expect(parsed).toMatchObject({
       mode: "quickstart",
       runPlay: false,
-      setupArgs: [],
+      initArgs: [],
       showHelp: false,
     });
   });
@@ -48,32 +54,32 @@ describe("bootstrap argument parsing", () => {
     });
   });
 
-  it("parses quickstart flags and setup passthrough args", () => {
-    const parsed = parseBootstrapArgs(["quickstart", "--run-play", "--", "--skip-browser-install"]);
+  it("parses quickstart flags and init passthrough args", () => {
+    const parsed = parseBootstrapArgs(["quickstart", "--run-play", "--", "--yes"]);
     expect(parsed).toMatchObject({
       mode: "quickstart",
       runPlay: true,
-      setupArgs: ["--skip-browser-install"],
+      initArgs: ["--yes"],
       showHelp: false,
     });
   });
 
-  it("passes through setup --help to ui-test setup", () => {
-    const parsed = parseBootstrapArgs(["setup", "--help"]);
+  it("passes through init --help to ui-test init", () => {
+    const parsed = parseBootstrapArgs(["init", "--help"]);
     expect(parsed).toMatchObject({
-      mode: "setup",
+      mode: "init",
       runPlay: false,
-      setupArgs: ["--help"],
+      initArgs: ["--help"],
       showHelp: false,
     });
   });
 
-  it("passes quickstart -- --help through to setup", () => {
+  it("passes quickstart -- --help through to init", () => {
     const parsed = parseBootstrapArgs(["quickstart", "--", "--help"]);
     expect(parsed).toMatchObject({
       mode: "quickstart",
       runPlay: false,
-      setupArgs: ["--help"],
+      initArgs: ["--help"],
       showHelp: false,
     });
   });
@@ -102,12 +108,12 @@ describe("bootstrap execution", () => {
     } as never);
   });
 
-  it("runs quickstart setup and play via current ui-test binary", () => {
-    runBootstrap(["quickstart", "--run-play", "--", "--skip-browser-install"]);
+  it("runs quickstart init and play via current ui-test binary", async () => {
+    await runBootstrap(["quickstart", "--run-play", "--", "--yes"]);
 
     expect(mockSpawnSync).toHaveBeenCalledWith(
       process.execPath,
-      [resolveUiTestCliEntry(), "setup", "--skip-browser-install"],
+      [resolveUiTestCliEntry(), "init", "--yes"],
       {
         stdio: "inherit",
         shell: process.platform === "win32",
@@ -118,6 +124,36 @@ describe("bootstrap execution", () => {
     expect(mockSpawnSync).toHaveBeenCalledWith(
       process.execPath,
       [resolveUiTestCliEntry(), "play"],
+      {
+        stdio: "inherit",
+        shell: process.platform === "win32",
+        env: process.env,
+      }
+    );
+  });
+
+  it("runs init --help without provisioning side effects", async () => {
+    await runBootstrap(["init", "--help"]);
+
+    expect(mockSpawnSync).toHaveBeenCalledTimes(1);
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      process.execPath,
+      [resolveUiTestCliEntry(), "init", "--help"],
+      {
+        stdio: "inherit",
+        shell: process.platform === "win32",
+        env: process.env,
+      }
+    );
+  });
+
+  it("runs quickstart -- --help as init help passthrough only", async () => {
+    await runBootstrap(["quickstart", "--", "--help"]);
+
+    expect(mockSpawnSync).toHaveBeenCalledTimes(1);
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      process.execPath,
+      [resolveUiTestCliEntry(), "init", "--help"],
       {
         stdio: "inherit",
         shell: process.platform === "win32",

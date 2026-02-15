@@ -3,7 +3,8 @@ import path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { stepsToYaml, yamlToTest } from "../transformer.js";
 import { testSchema, type Step } from "../yaml-schema.js";
-import { UserError, ValidationError } from "../../utils/errors.js";
+import { ValidationError } from "../../utils/errors.js";
+import { chromiumNotInstalledError, isLikelyMissingChromium } from "../../utils/chromium-runtime.js";
 import { findStaleAssertions, removeStaleAssertions } from "./assertion-cleanup.js";
 import {
   buildAssertionApplyStatusCounts,
@@ -80,27 +81,9 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     }
   }
 
-  let browser: Browser | undefined;
-  let page: Page | undefined;
-
-  try {
-    browser = await chromium.launch({ headless: true });
-    page = await browser.newPage();
-  } catch (err) {
-    const launchMessage = err instanceof Error ? err.message : String(err);
-    diagnostics.push({
-      code: "runtime_browser_unavailable",
-      level: "warn",
-      message: `Browser runtime analysis unavailable. Falling back to static scoring. ${launchMessage}`,
-    });
-
-    if (wantsWrite) {
-      throw new UserError(
-        "Cannot apply improve changes without runtime validation.",
-        "Install and configure Chromium (for example: npx playwright install chromium), or run improve without apply flags (--apply, --apply-selectors, --apply-assertions)."
-      );
-    }
-  }
+  const launched = await launchImproveBrowser();
+  const browser = launched.browser;
+  const page = launched.page;
 
   try {
     const initialOutputSteps: Step[] = shouldRemoveStaleAssertions
@@ -143,7 +126,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     const report: ImproveReport = {
       testFile: absoluteTestPath,
       generatedAt: new Date().toISOString(),
-      providerUsed: page ? "playwright" : "none",
+      providerUsed: "playwright",
       summary: {
         unchanged: selectorPass.findings.filter((item) => !item.changed).length,
         improved: selectorPass.findings.filter((item) => item.changed).length,
@@ -190,6 +173,22 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       outputPath,
     };
   } finally {
-    await browser?.close();
+    await browser.close();
+  }
+}
+
+async function launchImproveBrowser(): Promise<{ browser: Browser; page: Page }> {
+  let browser: Browser | undefined;
+  try {
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
+    return { browser, page };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await browser?.close().catch(() => {});
+    if (isLikelyMissingChromium(message)) {
+      throw chromiumNotInstalledError();
+    }
+    throw err;
   }
 }

@@ -11,11 +11,11 @@
 ```bash
 # repo checkout
 npm run bootstrap
-npm run bootstrap:setup
+npm run bootstrap:init
 
 # standalone CLI (global install)
 ui-test bootstrap install
-ui-test bootstrap setup
+ui-test bootstrap init --yes
 ```
 
 Install globally if not yet installed (current):
@@ -36,7 +36,7 @@ If you see `Standalone install policy: project-local installs are not supported`
 3. Run `npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"`.
 4. Re-run `ui-test bootstrap quickstart`.
 
-If Playwright-CLI install/verify fails during bootstrap, it is reported as a warning and setup continues. `playwright-cli` is only required for:
+If Playwright-CLI install/verify fails during bootstrap, it is reported as a warning and bootstrap continues. `playwright-cli` is only required for:
 
 ```bash
 ui-test improve <file> --assertion-source snapshot-cli
@@ -50,6 +50,12 @@ Run:
 
 ```bash
 npx playwright install chromium
+```
+
+Or run onboarding again:
+
+```bash
+ui-test bootstrap quickstart
 ```
 
 ### Linux shared dependencies missing
@@ -112,18 +118,17 @@ UI_TEST_DISABLE_JSONL=1 ui-test record
 
 If you see runtime validation errors:
 - install Chromium (`npx playwright install chromium`)
-- run without `--apply`, `--apply-selectors`, or `--apply-assertions` for report-only mode
+- rerun with `ui-test bootstrap quickstart` if needed
 
 ## Assertions Not Inserted by `improve`
 
 If assertions were listed as candidates but not written to YAML:
 1. Ensure you used `--apply` or `--apply-assertions`.
-2. Keep `--assertions candidates` (not `--assertions none`). If `--apply` is used with `--assertions none`, assertion apply is silently downgraded.
+2. Keep `--assertions candidates` (not `--assertions none`). If `--apply` is used with `--assertions none`, assertion apply is downgraded.
 3. Check report `assertionCandidates[].applyStatus` for skip reasons.
 4. Re-run in a stable test environment so runtime validation can pass.
 5. Note: with `--assertion-source deterministic`, click/press assertions are intentionally not auto-generated and auto-apply targets stable form-state checks (`assertValue`/`assertChecked`). The default source (`snapshot-native`) generates assertions from page state changes.
 6. If you use `--assertion-source snapshot-native` or `--assertion-source snapshot-cli`, improve can propose snapshot-derived `assertVisible`/`assertText` candidates. In apply mode, snapshot-derived `assertVisible` is report-only (`skipped_policy`), while snapshot-derived `assertText` can be inserted after runtime validation.
-   - You can opt in to aggressive behavior with `--assertion-apply-policy aggressive` (or config `improveAssertionApplyPolicy: aggressive`) to allow snapshot-derived `assertVisible` auto-apply after runtime validation.
 7. Runtime-failing assertion candidates are never force-applied. If they fail validation, they are reported as `skipped_runtime_failure`.
 8. Apply mode limits inserted assertions to one applied assertion per source step; additional candidates are reported as `skipped_policy`.
 9. Improve does not inject coverage fallback assertions.
@@ -140,7 +145,7 @@ You can inspect invocation/version details explicitly:
 ui-test doctor
 ```
 
-Validation timing mirrors `play` post-step waiting (network idle, `2000ms` default). If that wait times out, candidates are skipped with `skipped_runtime_failure`.
+Validation timing mirrors `play` post-step waiting (network idle with Playwright default timeout behavior). If that wait times out, candidates are skipped with `skipped_runtime_failure`.
 
 ## Snapshot Assertion Source Fallback
 
@@ -160,23 +165,9 @@ If you run `--assertion-source snapshot-cli` and get no snapshot-driven candidat
 
 ## Config Errors
 
-### Legacy config filename detected
-
 Only `ui-test.config.yaml` is supported.
-Rename legacy files:
-- `easy-e2e.config.yaml`
-- `easy-e2e.config.yml`
+Unknown keys fail validation.
 
-### `llm:` block no longer supported
-
-If `ui-test.config.yaml` still contains `llm:`, remove that block.
-`improve` is deterministic-only and fails fast on legacy local LLM config.
-
-### `improveProvider:` key no longer supported
-
-If `ui-test.config.yaml` still contains `improveProvider:`, remove that key.
-`improve` no longer supports provider selection.
-
-## CI Runner Notes
-
-For self-hosted runner fallback configuration, see [Maintainers](maintainers.md).
+If validation fails:
+1. Remove unsupported keys.
+2. Keep only canonical keys (`testDir`, `baseUrl`, `startCommand`, improve defaults).

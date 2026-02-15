@@ -40,7 +40,7 @@ export function registerInit(program: Command) {
 }
 
 async function runInit(
-  opts: { yes?: boolean; promptApi?: PromptApi; overwriteSample?: boolean } = {}
+  opts: { yes?: boolean; promptApi?: PromptApi } = {}
 ) {
   ui.heading("ui-test project setup");
   console.log();
@@ -108,7 +108,6 @@ async function runInit(
 
   await fs.mkdir(path.resolve(testDir), { recursive: true });
 
-  // Create a sample test file
   const samplePath = path.join(path.resolve(testDir), "example.yaml");
   const sampleExists = await fs.access(samplePath).then(() => true).catch(() => false);
   const sample = {
@@ -128,17 +127,11 @@ async function runInit(
     ],
   };
 
-  if (opts.overwriteSample) {
-    await fs.writeFile(samplePath, yaml.dump(sample, { quotingType: '"' }), "utf-8");
-    ui.step(`Reset sample test with defaults: ${samplePath}`);
-  } else if (!sampleExists) {
+  if (!sampleExists) {
     await fs.writeFile(samplePath, yaml.dump(sample, { quotingType: '"' }), "utf-8");
     ui.step(`Created sample test: ${samplePath}`);
   } else {
-    const migrated = await migrateStockSample(samplePath);
-    if (migrated) {
-      ui.step(`Updated sample test for current defaults: ${samplePath}`);
-    }
+    ui.step(`Sample test already exists; keeping as-is: ${samplePath}`);
   }
 
   console.log();
@@ -228,83 +221,15 @@ function buildDefaultStartCommand(
   }
 }
 
-async function migrateStockSample(samplePath: string): Promise<boolean> {
-  try {
-    const content = await fs.readFile(samplePath, "utf-8");
-    const parsed = yaml.load(content);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return false;
-    }
-
-    const sample = parsed as Record<string, unknown>;
-    if (sample.name !== "Example Test") {
-      return false;
-    }
-
-    let changed = false;
-
-    if ("baseUrl" in sample) {
-      delete sample.baseUrl;
-      changed = true;
-    }
-
-    const rawSteps = sample.steps;
-    if (isUnknownArray(rawSteps) && rawSteps.length > 1) {
-      const assertVisibleStep = rawSteps[1];
-      if (
-        assertVisibleStep &&
-        typeof assertVisibleStep === "object" &&
-        !Array.isArray(assertVisibleStep)
-      ) {
-        const mutableStep = assertVisibleStep as Record<string, unknown>;
-        if (mutableStep.action === "assertVisible" && mutableStep.selector === "body") {
-          delete mutableStep.selector;
-          mutableStep.target = {
-            value: "#app",
-            kind: "css",
-            source: "manual",
-          };
-          mutableStep.description = "App root is visible";
-          changed = true;
-        } else if (
-          mutableStep.action === "assertVisible" &&
-          !mutableStep.target &&
-          mutableStep.selector === "#app"
-        ) {
-          delete mutableStep.selector;
-          mutableStep.target = {
-            value: "#app",
-            kind: "css",
-            source: "manual",
-          };
-          mutableStep.description = "App root is visible";
-          changed = true;
-        }
-      }
-    }
-
-    if (!changed) {
-      return false;
-    }
-
-    await fs.writeFile(samplePath, yaml.dump(sample, { quotingType: '"' }), "utf-8");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function parseInitOptions(value: unknown): {
   yes?: boolean;
   promptApi?: PromptApi;
-  overwriteSample?: boolean;
 } {
   if (!value || typeof value !== "object") return {};
   const record = value as Record<string, unknown>;
   return {
     yes: asOptionalBoolean(record.yes),
     promptApi: isPromptApi(record.promptApi) ? record.promptApi : undefined,
-    overwriteSample: asOptionalBoolean(record.overwriteSample),
   };
 }
 
@@ -315,10 +240,6 @@ function isPromptApi(value: unknown): value is PromptApi {
     typeof record.input === "function" &&
     typeof record.select === "function"
   );
-}
-
-function isUnknownArray(value: unknown): value is unknown[] {
-  return Array.isArray(value);
 }
 
 function asOptionalBoolean(value: unknown): boolean | undefined {
@@ -334,6 +255,5 @@ export {
   buildDefaultStartCommand,
   validateBaseOrigin,
   validatePortInput,
-  migrateStockSample,
   runInit,
 };

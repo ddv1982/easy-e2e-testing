@@ -144,62 +144,6 @@ describe("runPlay startup behavior", () => {
     expect(play).toHaveBeenCalledTimes(1);
   });
 
-  it("ignores deprecated network idle config values", async () => {
-    const child = createMockChildProcess();
-    vi.mocked(spawn).mockReturnValue(child);
-    vi.mocked(loadConfig).mockResolvedValue(
-      {
-        testDir: "e2e",
-        baseUrl: "http://127.0.0.1:5173",
-        startCommand:
-          "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
-        waitForNetworkIdle: false,
-      } as never
-    );
-
-    await runPlay("e2e/example.yaml", {});
-
-    expect(play).toHaveBeenCalledWith(path.resolve("e2e/example.yaml"), {
-      headed: false,
-      timeout: PLAY_DEFAULT_TIMEOUT_MS,
-      baseUrl: "http://127.0.0.1:5173",
-      delayMs: PLAY_DEFAULT_DELAY_MS,
-      waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
-      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
-      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
-      runId: "run-test-id",
-    });
-  });
-
-  it("lets CLI network idle flags override config", async () => {
-    const child = createMockChildProcess();
-    vi.mocked(spawn).mockReturnValue(child);
-    vi.mocked(loadConfig).mockResolvedValue(
-      {
-        testDir: "e2e",
-        baseUrl: "http://127.0.0.1:5173",
-        startCommand:
-          "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
-        waitForNetworkIdle: true,
-      } as never
-    );
-
-    await runPlay("e2e/example.yaml", {
-      waitNetworkIdle: false,
-    });
-
-    expect(play).toHaveBeenCalledWith(path.resolve("e2e/example.yaml"), {
-      headed: false,
-      timeout: PLAY_DEFAULT_TIMEOUT_MS,
-      baseUrl: "http://127.0.0.1:5173",
-      delayMs: PLAY_DEFAULT_DELAY_MS,
-      waitForNetworkIdle: false,
-      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
-      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
-      runId: "run-test-id",
-    });
-  });
-
   it("writes run-level failure index when tests fail", async () => {
     const child = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(child);

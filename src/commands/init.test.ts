@@ -10,7 +10,6 @@ import {
   DEFAULT_TEST_DIR,
   buildBaseUrl,
   buildDefaultStartCommand,
-  migrateStockSample,
   runInit,
   validateBaseOrigin,
   validatePortInput,
@@ -85,35 +84,6 @@ describe("init URL helpers", () => {
   });
 });
 
-describe("migrateStockSample", () => {
-  it("migrates stock sample to V2 target and removes baseUrl", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-init-test-"));
-    const samplePath = path.join(dir, "example.yaml");
-
-    const content = `
-name: Example Test
-baseUrl: http://localhost:3000
-steps:
-  - action: navigate
-    url: /
-  - action: assertVisible
-    description: Page has loaded
-    selector: body
-`;
-
-    await fs.writeFile(samplePath, content, "utf-8");
-
-    const migrated = await migrateStockSample(samplePath);
-    expect(migrated).toBe(true);
-
-    const updated = await fs.readFile(samplePath, "utf-8");
-    expect(updated).not.toContain("baseUrl:");
-    expect(updated).toContain("target:");
-    expect(updated).toContain('value: "#app"');
-    expect(updated).toContain("kind: css");
-  });
-});
-
 describe("runInit --yes", () => {
   it("uses defaults non-interactively and writes expected config and sample", async () => {
     const inputSpy = vi.fn(async () => {
@@ -159,8 +129,8 @@ describe("runInit --yes", () => {
     }
   });
 
-  it("overwrites existing sample when overwriteSample is true", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-init-overwrite-test-"));
+  it("keeps existing sample file unchanged", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-init-keep-sample-test-"));
     const prevCwd = process.cwd();
 
     try {
@@ -172,14 +142,12 @@ describe("runInit --yes", () => {
         "utf-8"
       );
 
-      await runInit({ yes: true, overwriteSample: true });
+      await runInit({ yes: true });
 
       const samplePath = path.join(dir, "e2e", "example.yaml");
       const sampleText = await fs.readFile(samplePath, "utf-8");
-      expect(sampleText).toContain("name: Example Test");
-      expect(sampleText).toContain("target:");
-      expect(sampleText).toContain('value: "#app"');
-      expect(sampleText).not.toContain("/custom");
+      expect(sampleText).toContain("Custom Example");
+      expect(sampleText).toContain("/custom");
     } finally {
       process.chdir(prevCwd);
       await fs.rm(dir, { recursive: true, force: true });
@@ -263,7 +231,7 @@ describe("runInit interactive intents", () => {
       .mockResolvedValueOnce("e2e")
       .mockResolvedValueOnce("http://localhost")
       .mockResolvedValueOnce("3000")
-      .mockResolvedValueOnce("npm run my-app");
+      .mockResolvedValueOnce("npm run start:custom");
     const selectSpy = vi.fn().mockResolvedValue("custom");
 
     try {
@@ -280,7 +248,7 @@ describe("runInit interactive intents", () => {
       const configPath = path.join(dir, "ui-test.config.yaml");
       const configText = await fs.readFile(configPath, "utf-8");
       const config = yaml.load(configText) as Record<string, unknown>;
-      expect(config.startCommand).toBe("npm run my-app");
+      expect(config.startCommand).toBe("npm run start:custom");
     } finally {
       process.chdir(prevCwd);
       await fs.rm(dir, { recursive: true, force: true });

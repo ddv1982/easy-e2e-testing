@@ -4,7 +4,7 @@ import yaml from "js-yaml";
 import { z } from "zod";
 import { UserError } from "./errors.js";
 
-const configSchema = z.object({
+const configSchema = z.strictObject({
   testDir: z.string().min(1).optional(),
   baseUrl: z.string().url().optional(),
   startCommand: z.string().min(1).optional(),
@@ -18,7 +18,6 @@ const configSchema = z.object({
 export type UITestConfig = z.infer<typeof configSchema>;
 
 const CONFIG_FILENAMES = ["ui-test.config.yaml"];
-const LEGACY_CONFIG_FILENAMES = ["easy-e2e.config.yaml", "easy-e2e.config.yml"];
 
 export async function loadConfig(): Promise<UITestConfig> {
   for (const filename of CONFIG_FILENAMES) {
@@ -59,28 +58,6 @@ export async function loadConfig(): Promise<UITestConfig> {
     }
 
     if (parsedYaml == null) return {};
-    if (
-      typeof parsedYaml === "object" &&
-      parsedYaml !== null &&
-      !Array.isArray(parsedYaml) &&
-      Object.prototype.hasOwnProperty.call(parsedYaml, "llm")
-    ) {
-      throw new UserError(
-        `Invalid config in ${filename}: local LLM config has been removed and must be deleted.`,
-        "Delete the `llm:` block from ui-test.config.yaml. Improve now uses deterministic ranking only."
-      );
-    }
-    if (
-      typeof parsedYaml === "object" &&
-      parsedYaml !== null &&
-      !Array.isArray(parsedYaml) &&
-      Object.prototype.hasOwnProperty.call(parsedYaml, "improveProvider")
-    ) {
-      throw new UserError(
-        `Invalid config in ${filename}: improve provider config has been removed and must be deleted.`,
-        "Delete the `improveProvider:` key from ui-test.config.yaml. Improve no longer supports provider selection."
-      );
-    }
 
     const parsedConfig = configSchema.safeParse(parsedYaml);
     if (!parsedConfig.success) {
@@ -97,27 +74,5 @@ export async function loadConfig(): Promise<UITestConfig> {
     return parsedConfig.data;
   }
 
-  const legacyConfigPath = await findLegacyConfigPath();
-  if (legacyConfigPath) {
-    throw new UserError(
-      `Legacy config file detected: ${legacyConfigPath}`,
-      "Rename it to ui-test.config.yaml. Legacy easy-e2e config filenames are no longer supported."
-    );
-  }
-
-  // No config file found — use defaults
   return {};
-}
-
-export async function findLegacyConfigPath(): Promise<string | undefined> {
-  for (const filename of LEGACY_CONFIG_FILENAMES) {
-    const configPath = path.resolve(filename);
-    try {
-      await fs.access(configPath);
-      return configPath;
-    } catch {
-      // Keep checking.
-    }
-  }
-  return undefined;
 }

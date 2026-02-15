@@ -4,7 +4,6 @@ import { registerRecord } from "./commands/record.js";
 import { registerPlay } from "./commands/play.js";
 import { registerList } from "./commands/list.js";
 import { registerExampleApp } from "./commands/example-app.js";
-import { registerSetup } from "./commands/setup.js";
 import { registerImprove } from "./commands/improve.js";
 import { registerDoctor } from "./commands/doctor.js";
 import { registerBootstrap } from "./commands/bootstrap.js";
@@ -59,7 +58,6 @@ export function run() {
 
   registerInit(program);
   registerBootstrap(program);
-  registerSetup(program);
   registerRecord(program);
   registerPlay(program);
   registerList(program);

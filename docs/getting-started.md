@@ -35,23 +35,20 @@ All command examples below use global `ui-test`.
 
 ```bash
 ui-test bootstrap install
-ui-test bootstrap setup
+ui-test bootstrap init --yes
 ui-test bootstrap quickstart
 ui-test bootstrap quickstart --run-play
-ui-test bootstrap quickstart -- --skip-browser-install
+ui-test bootstrap quickstart -- --yes
 ```
 
-`bootstrap quickstart` handles dependency install, setup, browser provisioning, and optionally a first `play` run.
+`bootstrap quickstart` handles dependency install, project init, Chromium provisioning, and optionally a first `play` run.
 
-To reset config + sample defaults:
+## Runtime Flags
 
-```bash
-ui-test setup --force-init
-```
-
-Runtime behavior is flags-first. Use:
+Runtime controls are flags-first. Use:
 - `ui-test play --help`
 - `ui-test record --help`
+- `ui-test improve --help`
 
 ## Run Tests
 
