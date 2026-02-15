@@ -54,9 +54,8 @@ Mode behavior:
 
 ## Runtime Model (Flags-First)
 
-Runtime behavior is controlled by flags and built-in defaults.
-`ui-test` no longer reads `ui-test.config.yaml`.
-Use built-in defaults and override per run with flags.
+Runtime behavior is controlled by built-in defaults and CLI flags.
+Override per run with flags.
 
 `play` defaults:
 - headless (`--headed` opt-in)

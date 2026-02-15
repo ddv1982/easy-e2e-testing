@@ -11,7 +11,7 @@ This document tracks delivery status for the simplification effort.
 | Remove `init` command | Achieved | Onboarding uses `setup` modes only. |
 | Setup modes cleanup | Achieved | Modes are `install`, `quickstart`. |
 | Browser provisioning boundary | Achieved | Provisioning happens during onboarding, not runtime commands. |
-| Config file removal | Achieved | `ui-test.config.yaml` is ignored; runtime is defaults + flags. |
+| Runtime defaults + flags | Achieved | Runtime behavior is built-in defaults with CLI overrides. |
 | Simplify `play` startup logic | Achieved | Keeps focused auto-start and reachability checks. |
 | Add `--no-start` manual override | Achieved | Users can run against already-running apps. |
 | Keep safe locator-expression support | Achieved | Allowlisted locator parsing remains in place. |

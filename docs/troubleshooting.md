@@ -166,7 +166,10 @@ If you run `--assertion-source snapshot-cli` and get no snapshot-driven candidat
 2. Check report diagnostics for `assertion_source_snapshot_cli_unavailable` or `assertion_source_snapshot_cli_step_replay_failed`.
 3. Improve falls back to deterministic assertion candidates by design (`assertion_source_snapshot_cli_fallback`).
 
-## Config File Note
+## Runtime Controls
 
-`ui-test` no longer reads `ui-test.config.yaml`.
-If that file exists in your project, it is ignored.
+Runtime behavior uses built-in defaults plus CLI flags.
+Use:
+- `ui-test play --help`
+- `ui-test record --help`
+- `ui-test improve --help`
