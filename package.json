@@ -4,11 +4,10 @@
   "description": "No-code E2E testing framework - record and replay browser tests with YAML",
   "type": "module",
   "bin": {
-    "ui-test": "./bin/ui-test.js"
+    "ui-test": "./dist/bin/ui-test.js"
   },
   "files": [
     "dist",
-    "bin/ui-test.js",
     "scripts/enforce-standalone-install.mjs",
     "examples/vue-app",
     "README.md",
