@@ -16,7 +16,7 @@ export function registerImprove(program: Command) {
     .option("--assertions <mode>", "Assertion mode: none or candidates")
     .option(
       "--assertion-source <source>",
-      "Assertion source: deterministic, snapshot-cli, or snapshot-native"
+      "Assertion source: deterministic, snapshot-cli (requires playwright-cli), or snapshot-native"
     )
     .option(
       "--assertion-apply-policy <policy>",
