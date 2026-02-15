@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserError } from "../../utils/errors.js";
 
-vi.mock("../../utils/config.js", () => ({
-  loadConfig: vi.fn(),
-}));
-
 vi.mock("../../core/improve/improve.js", () => ({
   improveTestFile: vi.fn(),
 }));
@@ -21,20 +17,12 @@ vi.mock("../../utils/ui.js", () => ({
   },
 }));
 
-import { loadConfig } from "../../utils/config.js";
 import { improveTestFile } from "../../core/improve/improve.js";
 import { runImprove } from "./improve-service.js";
 
 describe("runImprove chromium handling", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(loadConfig).mockResolvedValue({
-      improveApplyMode: "review",
-      improveApplyAssertions: false,
-      improveAssertionSource: "snapshot-native",
-      improveAssertionApplyPolicy: "reliable",
-      improveAssertions: "candidates",
-    });
     vi.mocked(improveTestFile).mockResolvedValue({
       reportPath: "e2e/sample.improve-report.json",
       outputPath: undefined,

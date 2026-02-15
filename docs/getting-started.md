@@ -84,4 +84,4 @@ ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
 
 - Record workflow: [Record Workflow](workflows/record.md)
 - Improve workflow: [Improve Workflow](workflows/improve.md)
-- Configuration reference: [Configuration](configuration.md)
+- Command help: `ui-test --help`

@@ -21,7 +21,7 @@ Current enforced thresholds from `vitest.config.ts`:
 
 ## Notes
 
-- Unit tests cover parser, schema validation, config loading, and player helpers (`resolveLocator`, `resolveNavigateUrl`, `stepDescription`).
+- Unit tests cover parser, schema validation, and player helpers (`resolveLocator`, `resolveNavigateUrl`, `stepDescription`).
 - Integration tests validate full `play()` execution with a real browser and dynamic localhost fixture server.
 - Function coverage remains a strict gate at 100% for the covered modules.
 

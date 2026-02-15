@@ -1,5 +1,5 @@
 import type { RecordBrowser } from "../../core/recorder.js";
-import type { UITestConfig } from "../../utils/config.js";
+import { PLAY_DEFAULT_TEST_DIR } from "../../core/play/play-defaults.js";
 import { UserError } from "../../utils/errors.js";
 
 export type SelectorPolicy = "reliable" | "raw";
@@ -24,8 +24,7 @@ export interface ResolvedRecordProfile {
 }
 
 export function resolveRecordProfile(
-  input: RecordProfileInput,
-  config: UITestConfig
+  input: RecordProfileInput
 ): ResolvedRecordProfile {
   return {
     selectorPolicy: parseSelectorPolicy(input.selectorPolicy) ?? "reliable",
@@ -34,7 +33,7 @@ export function resolveRecordProfile(
     testIdAttribute: cleanOptional(input.testIdAttribute),
     loadStorage: cleanOptional(input.loadStorage),
     saveStorage: cleanOptional(input.saveStorage),
-    outputDir: config.testDir ?? "e2e",
+    outputDir: PLAY_DEFAULT_TEST_DIR,
   };
 }
 

@@ -10,7 +10,6 @@ import {
 } from "../../core/play-failure-report.js";
 import { resolvePlayProfile } from "../options/play-profile.js";
 import { formatPlayProfileSummary } from "../options/profile-summary.js";
-import { loadConfig } from "../../utils/config.js";
 import { UserError } from "../../utils/errors.js";
 import { ui } from "../../utils/ui.js";
 
@@ -31,8 +30,7 @@ export async function runPlay(
   testArg: string | undefined,
   opts: PlayCliOptions
 ): Promise<void> {
-  const config = await loadConfig();
-  const profile = resolvePlayProfile(opts, config);
+  const profile = resolvePlayProfile(opts);
   const runId = createPlayRunId();
 
   ui.info(
@@ -64,7 +62,7 @@ export async function runPlay(
 
   let appProcess: ChildProcess | undefined;
   try {
-    if (profile.shouldAutoStart && profile.startCommand) {
+    if (profile.shouldAutoStart) {
       ui.info(`Starting app: ${profile.startCommand}`);
       appProcess = spawn(profile.startCommand, {
         shell: true,
@@ -75,17 +73,12 @@ export async function runPlay(
         ui.error(`Failed to start app process: ${err.message}`);
       });
 
-      if (profile.baseUrl) {
-        await waitForReachableBaseUrl(profile.baseUrl, appProcess, START_TIMEOUT_MS);
-      } else {
-        await sleep(500);
-      }
-    } else if (profile.baseUrl) {
+      await waitForReachableBaseUrl(profile.baseUrl, appProcess, START_TIMEOUT_MS);
+    } else {
       const reachable = await isBaseUrlReachable(profile.baseUrl, 2_000);
       if (!reachable) {
-        const hint = profile.startCommand
-          ? `Cannot reach ${profile.baseUrl}. Run \`${profile.startCommand}\` first, or rerun without --no-start.`
-          : `Cannot reach ${profile.baseUrl}. Start your app first, or configure startCommand in ui-test.config.yaml.`;
+        const hint =
+          `Cannot reach ${profile.baseUrl}. Run \`${profile.startCommand}\` first, or rerun without --no-start.`;
         throw new UserError(`Cannot reach app at ${profile.baseUrl}`, hint);
       }
     }
@@ -221,7 +214,7 @@ async function waitForReachableBaseUrl(
 
   throw new UserError(
     `Timed out waiting for app to become reachable at ${baseUrl}`,
-    "Check startCommand output and baseUrl in ui-test.config.yaml."
+    "Check start command output, or run ui-test play --no-start."
   );
 }
 

@@ -8,24 +8,15 @@ import {
 } from "./improve-profile.js";
 
 describe("resolveImproveProfile", () => {
-  it("merges CLI and config with proper precedence", () => {
-    const out = resolveImproveProfile(
-      {
-        apply: false,
-        applyAssertions: true,
-        assertions: "none",
-        assertionSource: "snapshot-cli",
-        assertionApplyPolicy: "aggressive",
-        report: "out.json",
-      },
-      {
-        improveApplyMode: "apply",
-        improveApplyAssertions: false,
-        improveAssertionSource: "deterministic",
-        improveAssertionApplyPolicy: "reliable",
-        improveAssertions: "candidates",
-      }
-    );
+  it("applies CLI options with proper precedence", () => {
+    const out = resolveImproveProfile({
+      apply: false,
+      applyAssertions: true,
+      assertions: "none",
+      assertionSource: "snapshot-cli",
+      assertionApplyPolicy: "aggressive",
+      report: "out.json",
+    });
 
     expect(out.assertions).toBe("none");
     expect(out.assertionSource).toBe("snapshot-cli");
@@ -36,7 +27,7 @@ describe("resolveImproveProfile", () => {
   });
 
   it("uses defaults when omitted", () => {
-    const out = resolveImproveProfile({}, {});
+    const out = resolveImproveProfile({});
     expect(out.assertions).toBe("candidates");
     expect(out.assertionSource).toBe("snapshot-native");
     expect(out.assertionApplyPolicy).toBe("reliable");
@@ -45,42 +36,42 @@ describe("resolveImproveProfile", () => {
   });
 
   it("--apply resolves both applySelectors and applyAssertions to true", () => {
-    const out = resolveImproveProfile({ apply: true }, {});
+    const out = resolveImproveProfile({ apply: true });
     expect(out.applySelectors).toBe(true);
     expect(out.applyAssertions).toBe(true);
   });
 
   it("--apply-selectors resolves applySelectors=true, applyAssertions=false", () => {
-    const out = resolveImproveProfile({ applySelectors: true }, {});
+    const out = resolveImproveProfile({ applySelectors: true });
     expect(out.applySelectors).toBe(true);
     expect(out.applyAssertions).toBe(false);
   });
 
   it("--apply-assertions resolves applySelectors=false, applyAssertions=true", () => {
-    const out = resolveImproveProfile({ applyAssertions: true }, {});
+    const out = resolveImproveProfile({ applyAssertions: true });
     expect(out.applySelectors).toBe(false);
     expect(out.applyAssertions).toBe(true);
   });
 
   it("--apply --no-apply-assertions resolves applySelectors=true, applyAssertions=false", () => {
-    const out = resolveImproveProfile({ apply: true, applyAssertions: false }, {});
+    const out = resolveImproveProfile({ apply: true, applyAssertions: false });
     expect(out.applySelectors).toBe(true);
     expect(out.applyAssertions).toBe(false);
   });
 
   it("--apply --no-apply-selectors resolves applySelectors=false, applyAssertions=true", () => {
-    const out = resolveImproveProfile({ apply: true, applySelectors: false }, {});
+    const out = resolveImproveProfile({ apply: true, applySelectors: false });
     expect(out.applySelectors).toBe(false);
     expect(out.applyAssertions).toBe(true);
   });
 
   it("granular --apply-selectors takes precedence over --apply", () => {
-    const out = resolveImproveProfile({ apply: true, applySelectors: false }, {});
+    const out = resolveImproveProfile({ apply: true, applySelectors: false });
     expect(out.applySelectors).toBe(false);
   });
 
   it("granular --apply-assertions takes precedence over --apply", () => {
-    const out = resolveImproveProfile({ apply: true, applyAssertions: false }, {});
+    const out = resolveImproveProfile({ apply: true, applyAssertions: false });
     expect(out.applyAssertions).toBe(false);
   });
 });

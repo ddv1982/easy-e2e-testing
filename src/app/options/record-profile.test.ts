@@ -8,20 +8,15 @@ import {
 } from "./record-profile.js";
 
 describe("resolveRecordProfile", () => {
-  it("prefers CLI values over config and normalizes optionals", () => {
-    const out = resolveRecordProfile(
-      {
-        selectorPolicy: "raw",
-        browser: "firefox",
-        device: "  iPhone 13  ",
-        testIdAttribute: "  data-qa  ",
-        loadStorage: "  .auth/in.json  ",
-        saveStorage: "  .auth/out.json  ",
-      },
-      {
-        testDir: "tests",
-      }
-    );
+  it("applies CLI values and normalizes optionals", () => {
+    const out = resolveRecordProfile({
+      selectorPolicy: "raw",
+      browser: "firefox",
+      device: "  iPhone 13  ",
+      testIdAttribute: "  data-qa  ",
+      loadStorage: "  .auth/in.json  ",
+      saveStorage: "  .auth/out.json  ",
+    });
 
     expect(out).toEqual({
       selectorPolicy: "raw",
@@ -30,12 +25,12 @@ describe("resolveRecordProfile", () => {
       testIdAttribute: "data-qa",
       loadStorage: ".auth/in.json",
       saveStorage: ".auth/out.json",
-      outputDir: "tests",
+      outputDir: "e2e",
     });
   });
 
-  it("uses defaults when CLI and config are unset", () => {
-    const out = resolveRecordProfile({}, {});
+  it("uses defaults when CLI values are unset", () => {
+    const out = resolveRecordProfile({});
     expect(out.selectorPolicy).toBe("reliable");
     expect(out.browser).toBe("chromium");
     expect(out.outputDir).toBe("e2e");

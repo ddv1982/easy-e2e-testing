@@ -1,8 +1,8 @@
 import { input } from "@inquirer/prompts";
 import { record as runRecording } from "../../core/recorder.js";
+import { PLAY_DEFAULT_BASE_URL } from "../../core/play/play-defaults.js";
 import { resolveRecordProfile, hasUrlProtocol, normalizeRecordUrl } from "../options/record-profile.js";
 import { formatRecordingProfileSummary } from "../options/profile-summary.js";
-import { loadConfig } from "../../utils/config.js";
 import { ensureChromiumAvailable } from "../../utils/chromium-runtime.js";
 import { UserError } from "../../utils/errors.js";
 import { ui } from "../../utils/ui.js";
@@ -20,8 +20,6 @@ export interface RecordCliOptions {
 }
 
 export async function runRecord(opts: RecordCliOptions): Promise<void> {
-  const config = await loadConfig();
-
   const name =
     opts.name ??
     (await input({
@@ -33,7 +31,7 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
     opts.url ??
     (await input({
       message: "Starting URL:",
-      default: config.baseUrl ?? "http://localhost:3000",
+      default: PLAY_DEFAULT_BASE_URL,
       validate: (value) => {
         try {
           normalizeRecordUrl(value);
@@ -58,7 +56,7 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
       message: "Description (optional):",
     }));
 
-  const profile = resolveRecordProfile(opts, config);
+  const profile = resolveRecordProfile(opts);
 
   if (profile.browser === "chromium") {
     await ensureChromiumAvailable();

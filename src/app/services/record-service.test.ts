@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserError } from "../../utils/errors.js";
 
-vi.mock("../../utils/config.js", () => ({
-  loadConfig: vi.fn(),
-}));
-
 vi.mock("../../utils/chromium-runtime.js", () => ({
   ensureChromiumAvailable: vi.fn(),
 }));
@@ -25,7 +21,6 @@ vi.mock("../../utils/ui.js", () => ({
   },
 }));
 
-import { loadConfig } from "../../utils/config.js";
 import { ensureChromiumAvailable } from "../../utils/chromium-runtime.js";
 import { record } from "../../core/recorder.js";
 import { runRecord } from "./record-service.js";
@@ -33,10 +28,6 @@ import { runRecord } from "./record-service.js";
 describe("runRecord browser preflight", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(loadConfig).mockResolvedValue({
-      testDir: "e2e",
-      baseUrl: "http://127.0.0.1:5173",
-    });
     vi.mocked(record).mockResolvedValue({
       outputPath: "e2e/sample.yaml",
       stats: {

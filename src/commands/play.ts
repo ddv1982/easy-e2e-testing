@@ -15,7 +15,7 @@ export function registerPlay(program: Command) {
     .option("--save-failure-artifacts", "Save JSON/trace/screenshot artifacts on test failure")
     .option("--no-save-failure-artifacts", "Disable failure artifact capture")
     .option("--artifacts-dir <path>", "Directory for play failure artifacts")
-    .option("--no-start", "Do not auto-start app even when startCommand is configured")
+    .option("--no-start", "Do not auto-start app before running tests")
     .action(async (testArg: unknown, opts: unknown) => {
       try {
         await runPlay(parseOptionalArgument(testArg), parsePlayCliOptions(opts));

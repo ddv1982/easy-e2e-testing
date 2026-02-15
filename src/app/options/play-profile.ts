@@ -1,4 +1,3 @@
-import type { UITestConfig } from "../../utils/config.js";
 import { UserError } from "../../utils/errors.js";
 import {
   PLAY_DEFAULT_ARTIFACTS_DIR,
@@ -36,8 +35,7 @@ export interface ResolvedPlayProfile {
 }
 
 export function resolvePlayProfile(
-  input: PlayProfileInput,
-  config: UITestConfig
+  input: PlayProfileInput
 ): ResolvedPlayProfile {
   const headed = input.headed ?? PLAY_DEFAULT_HEADED;
   const shouldAutoStart = input.start !== false;
@@ -84,8 +82,6 @@ export function resolvePlayProfile(
     );
   }
 
-  const startCommand = config.startCommand?.trim() || PLAY_DEFAULT_START_COMMAND;
-
   return {
     headed,
     timeout,
@@ -94,9 +90,9 @@ export function resolvePlayProfile(
     shouldAutoStart,
     saveFailureArtifacts,
     artifactsDir,
-    baseUrl: config.baseUrl ?? PLAY_DEFAULT_BASE_URL,
-    startCommand,
-    testDir: config.testDir ?? PLAY_DEFAULT_TEST_DIR,
+    baseUrl: PLAY_DEFAULT_BASE_URL,
+    startCommand: PLAY_DEFAULT_START_COMMAND,
+    testDir: PLAY_DEFAULT_TEST_DIR,
   };
 }
 

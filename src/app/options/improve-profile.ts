@@ -3,7 +3,6 @@ import type {
   ImproveAssertionApplyPolicy,
   ImproveAssertionSource,
 } from "../../core/improve/improve.js";
-import type { UITestConfig } from "../../utils/config.js";
 import { UserError } from "../../utils/errors.js";
 
 export interface ImproveProfileInput {
@@ -26,24 +25,21 @@ export interface ResolvedImproveProfile {
 }
 
 export function resolveImproveProfile(
-  input: ImproveProfileInput,
-  config: UITestConfig
+  input: ImproveProfileInput
 ): ResolvedImproveProfile {
   return {
-    assertions: parseImproveAssertions(input.assertions) ?? config.improveAssertions ?? "candidates",
+    assertions: parseImproveAssertions(input.assertions) ?? "candidates",
     assertionSource:
       parseImproveAssertionSource(input.assertionSource) ??
-      config.improveAssertionSource ??
       "snapshot-native",
     assertionApplyPolicy:
       parseImproveAssertionApplyPolicy(input.assertionApplyPolicy) ??
-      config.improveAssertionApplyPolicy ??
       "reliable",
-    // Precedence: granular flags (--apply-selectors, --apply-assertions) > umbrella --apply > config
+    // Precedence: granular flags (--apply-selectors, --apply-assertions) > umbrella --apply
     applySelectors: input.applySelectors ?? input.apply
-      ?? (config.improveApplyMode === "apply" ? true : false),
+      ?? false,
     applyAssertions: input.applyAssertions ?? input.apply
-      ?? config.improveApplyAssertions ?? false,
+      ?? false,
     reportPath: input.report,
   };
 }

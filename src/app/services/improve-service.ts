@@ -2,7 +2,6 @@ import path from "node:path";
 import { improveTestFile } from "../../core/improve/improve.js";
 import { resolveImproveProfile } from "../options/improve-profile.js";
 import { formatImproveProfileSummary } from "../options/profile-summary.js";
-import { loadConfig } from "../../utils/config.js";
 import { ui } from "../../utils/ui.js";
 import {
   buildExternalCliInvocationWarning,
@@ -34,8 +33,7 @@ export async function runImprove(
     ui.warn(invocationWarning);
   }
 
-  const config = await loadConfig();
-  const profile = resolveImproveProfile(opts, config);
+  const profile = resolveImproveProfile(opts);
 
   ui.info(
     formatImproveProfileSummary({

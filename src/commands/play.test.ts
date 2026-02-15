@@ -1,4 +1,6 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { EventEmitter } from "node:events";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ChildProcess } from "node:child_process";
 import { Command } from "commander";
@@ -27,17 +29,12 @@ vi.mock("../core/play-failure-report.js", () => ({
   writePlayRunReport: vi.fn(async () => "/tmp/run-report.json"),
 }));
 
-vi.mock("../utils/config.js", () => ({
-  loadConfig: vi.fn(),
-}));
-
 vi.mock("node:child_process", () => ({
   spawn: vi.fn(),
 }));
 
 import { play } from "../core/player.js";
 import { createPlayRunId, writePlayRunReport } from "../core/play-failure-report.js";
-import { loadConfig } from "../utils/config.js";
 import { spawn } from "node:child_process";
 import { registerPlay, runPlay } from "./play.js";
 
@@ -61,12 +58,6 @@ describe("runPlay startup behavior", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
     vi.mocked(createPlayRunId).mockReturnValue("run-test-id");
     vi.mocked(writePlayRunReport).mockResolvedValue("/tmp/run-report.json");
-    vi.mocked(loadConfig).mockResolvedValue({
-      testDir: "e2e",
-      baseUrl: "http://127.0.0.1:5173",
-      startCommand:
-        "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
-    });
     vi.mocked(play).mockResolvedValue({
       name: "Example Test",
       file: "e2e/example.yaml",
@@ -83,36 +74,13 @@ describe("runPlay startup behavior", () => {
     await runPlay("e2e/example.yaml", {});
 
     expect(spawn).toHaveBeenCalledWith(
-      "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
+      PLAY_DEFAULT_START_COMMAND,
       {
         shell: true,
         stdio: "inherit",
       }
     );
     expect(play).toHaveBeenCalledTimes(1);
-    expect(play).toHaveBeenCalledWith(path.resolve("e2e/example.yaml"), {
-      headed: false,
-      timeout: PLAY_DEFAULT_TIMEOUT_MS,
-      baseUrl: "http://127.0.0.1:5173",
-      delayMs: PLAY_DEFAULT_DELAY_MS,
-      waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
-      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
-      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
-      runId: "run-test-id",
-    });
-  });
-
-  it("uses built-in project defaults when config is missing", async () => {
-    const child = createMockChildProcess();
-    vi.mocked(spawn).mockReturnValue(child);
-    vi.mocked(loadConfig).mockResolvedValue({});
-
-    await runPlay("e2e/example.yaml", {});
-
-    expect(spawn).toHaveBeenCalledWith(PLAY_DEFAULT_START_COMMAND, {
-      shell: true,
-      stdio: "inherit",
-    });
     expect(play).toHaveBeenCalledWith(path.resolve("e2e/example.yaml"), {
       headed: false,
       timeout: PLAY_DEFAULT_TIMEOUT_MS,
@@ -123,6 +91,29 @@ describe("runPlay startup behavior", () => {
       artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
       runId: "run-test-id",
     });
+  });
+
+  it("ignores invalid ui-test.config.yaml if present", async () => {
+    const child = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValue(child);
+
+    const originalCwd = process.cwd();
+    const tempDir = await mkdtemp(path.join(tmpdir(), "ui-test-play-"));
+
+    try {
+      process.chdir(tempDir);
+      await writeFile(
+        path.join(tempDir, "ui-test.config.yaml"),
+        "headed: true\ntimeout: bad-value\nunknownKey: true\n",
+        "utf8"
+      );
+
+      await runPlay("e2e/example.yaml", {});
+      expect(play).toHaveBeenCalledTimes(1);
+    } finally {
+      process.chdir(originalCwd);
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it("skips startup when --no-start is used", async () => {
@@ -152,21 +143,6 @@ describe("runPlay startup behavior", () => {
     expect((child.kill as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
       "SIGTERM"
     );
-  });
-
-  it("allows auto-start when startCommand is provided in config", async () => {
-    const child = createMockChildProcess();
-    vi.mocked(spawn).mockReturnValue(child);
-    vi.mocked(loadConfig).mockResolvedValue({
-      testDir: "e2e",
-      startCommand:
-        "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
-    });
-
-    await runPlay("e2e/example.yaml", {});
-
-    expect(spawn).toHaveBeenCalledTimes(1);
-    expect(play).toHaveBeenCalledTimes(1);
   });
 
   it("writes run-level failure index when tests fail", async () => {

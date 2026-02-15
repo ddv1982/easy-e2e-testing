@@ -13,22 +13,16 @@ import {
 import { resolvePlayProfile } from "./play-profile.js";
 
 describe("resolvePlayProfile", () => {
-  it("uses CLI overrides over config", () => {
-    const out = resolvePlayProfile(
-      {
-        headed: true,
-        timeout: "1500",
-        delay: "50",
-        waitNetworkIdle: false,
-        saveFailureArtifacts: false,
-        artifactsDir: "./tmp-artifacts",
-        start: false,
-      },
-      {
-        startCommand: "npm run dev",
-        baseUrl: "http://127.0.0.1:5173",
-      }
-    );
+  it("applies CLI overrides", () => {
+    const out = resolvePlayProfile({
+      headed: true,
+      timeout: "1500",
+      delay: "50",
+      waitNetworkIdle: false,
+      saveFailureArtifacts: false,
+      artifactsDir: "./tmp-artifacts",
+      start: false,
+    });
 
     expect(out.headed).toBe(true);
     expect(out.timeout).toBe(1500);
@@ -40,7 +34,7 @@ describe("resolvePlayProfile", () => {
   });
 
   it("uses defaults when values are missing", () => {
-    const out = resolvePlayProfile({}, {});
+    const out = resolvePlayProfile({});
     expect(out.timeout).toBe(PLAY_DEFAULT_TIMEOUT_MS);
     expect(out.delayMs).toBe(PLAY_DEFAULT_DELAY_MS);
     expect(out.waitForNetworkIdle).toBe(PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE);
@@ -52,8 +46,8 @@ describe("resolvePlayProfile", () => {
   });
 
   it("throws for invalid numeric CLI flags", () => {
-    expect(() => resolvePlayProfile({ timeout: "abc" }, {})).toThrow(UserError);
-    expect(() => resolvePlayProfile({ delay: "-1" }, {})).toThrow(UserError);
-    expect(() => resolvePlayProfile({ artifactsDir: "   " }, {})).toThrow(UserError);
+    expect(() => resolvePlayProfile({ timeout: "abc" })).toThrow(UserError);
+    expect(() => resolvePlayProfile({ delay: "-1" })).toThrow(UserError);
+    expect(() => resolvePlayProfile({ artifactsDir: "   " })).toThrow(UserError);
   });
 });

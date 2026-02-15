@@ -55,7 +55,8 @@ Mode behavior:
 ## Runtime Model (Flags-First)
 
 Runtime behavior is controlled by flags and built-in defaults.
-`ui-test.config.yaml` is optional and contains project overrides only (`testDir`, `baseUrl`, `startCommand`, improve defaults).
+`ui-test` no longer reads `ui-test.config.yaml`.
+Use built-in defaults and override per run with flags.
 
 `play` defaults:
 - headless (`--headed` opt-in)
@@ -78,6 +79,10 @@ ui-test play --no-save-failure-artifacts
 ui-test play --artifacts-dir ./tmp/ui-test-artifacts
 ui-test play --no-start
 ```
+
+`--no-start` note:
+- current default workflow is example-app-first
+- reachability preflight checks the default URL (`http://127.0.0.1:5173`)
 
 Useful `record` and `improve` flags:
 
@@ -121,8 +126,6 @@ npx -y @playwright/cli@latest --help
 - Browser missing: `npx playwright install chromium`
 - Linux dependencies missing: `npx playwright install-deps chromium`
 - App not reachable: verify `baseUrl` or run `ui-test play --no-start`
-- Config filename must be `ui-test.config.yaml`
-- Unknown config keys are errors
 
 Full guide: [Troubleshooting](docs/troubleshooting.md)
 
@@ -131,7 +134,6 @@ Full guide: [Troubleshooting](docs/troubleshooting.md)
 - [Getting Started](docs/getting-started.md)
 - [Record Workflow](docs/workflows/record.md)
 - [Improve Workflow](docs/workflows/improve.md)
-- [Configuration](docs/configuration.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Maintainers](docs/maintainers.md)
 

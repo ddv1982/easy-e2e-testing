@@ -74,12 +74,12 @@ export function resolveNavigateUrl(
   } catch {
     throw new UserError(
       `Invalid navigation URL: ${stepUrl}`,
-      "Use an absolute URL, or set baseUrl in the test/config for relative paths."
+      "Use an absolute URL, or set baseUrl in the test for relative paths."
     );
   }
 
   throw new UserError(
     `Cannot resolve relative navigation URL: ${stepUrl}`,
-    "Set baseUrl in the test/config, or navigate to an absolute URL first."
+    "Set baseUrl in the test, or navigate to an absolute URL first."
   );
 }

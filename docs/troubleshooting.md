@@ -69,13 +69,16 @@ npx playwright install-deps chromium
 ## App Reachability Errors in `play`
 
 If `play` cannot reach your app:
-1. Verify `baseUrl` in `ui-test.config.yaml`.
-2. Verify `startCommand` if auto-start is expected.
-3. For manually started apps, run:
+1. Verify your app is running at the URL your test targets (default: `http://127.0.0.1:5173`).
+2. If you start the app manually, run:
 
 ```bash
 ui-test play --no-start
 ```
+
+Current scope note:
+- `ui-test` is optimized for the built-in example app workflow.
+- `--no-start` preflight checks the default URL (`http://127.0.0.1:5173`).
 
 ## Failure Artifacts Not Saved
 
@@ -163,11 +166,7 @@ If you run `--assertion-source snapshot-cli` and get no snapshot-driven candidat
 2. Check report diagnostics for `assertion_source_snapshot_cli_unavailable` or `assertion_source_snapshot_cli_step_replay_failed`.
 3. Improve falls back to deterministic assertion candidates by design (`assertion_source_snapshot_cli_fallback`).
 
-## Config Errors
+## Config File Note
 
-Only `ui-test.config.yaml` is supported.
-Unknown keys fail validation.
-
-If validation fails:
-1. Remove unsupported keys.
-2. Keep only canonical keys (`testDir`, `baseUrl`, `startCommand`, improve defaults).
+`ui-test` no longer reads `ui-test.config.yaml`.
+If that file exists in your project, it is ignored.

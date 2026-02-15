@@ -2,7 +2,7 @@ import type { Command } from "commander";
 import fs from "node:fs/promises";
 import { globby } from "globby";
 import yaml from "js-yaml";
-import { loadConfig } from "../utils/config.js";
+import { PLAY_DEFAULT_TEST_DIR } from "../core/play/play-defaults.js";
 import { ui } from "../utils/ui.js";
 import { handleError } from "../utils/errors.js";
 
@@ -20,8 +20,7 @@ export function registerList(program: Command) {
 }
 
 async function runList() {
-  const config = await loadConfig();
-  const testDir = config.testDir ?? "e2e";
+  const testDir = PLAY_DEFAULT_TEST_DIR;
 
   const files = await globby(`${testDir}/**/*.{yaml,yml}`);
 
