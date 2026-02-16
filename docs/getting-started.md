@@ -129,9 +129,10 @@ This opens a browser. Interact with your app, then close the browser to save the
 ```bash
 ui-test improve e2e/login.yaml
 ui-test improve e2e/login.yaml --apply
+ui-test improve e2e/login.yaml --no-apply
 ```
 
-Without `--apply`, improve writes a report only. With `--apply`, it updates selectors and inserts assertion candidates directly into the YAML file.
+By default, `improve` prompts you to confirm before applying changes. Use `--apply` to skip the prompt (CI-friendly), or `--no-apply` for a report-only run without prompting.
 
 For snapshot-cli assertions:
 

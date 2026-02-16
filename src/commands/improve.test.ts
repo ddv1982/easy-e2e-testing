@@ -27,6 +27,17 @@ describe("improve command options", () => {
     expect(opts.report).toBe("report.json");
   });
 
+  it("--no-apply sets apply to false", () => {
+    const program = new Command();
+    registerImprove(program);
+    const command = program.commands.find((entry) => entry.name() === "improve");
+    expect(command).toBeDefined();
+
+    command?.parseOptions(["--no-apply", "e2e/sample.yaml"]);
+    const opts = command?.opts() as Record<string, string | boolean | undefined>;
+    expect(opts.apply).toBe(false);
+  });
+
   it("defaults apply to undefined when not specified", () => {
     const program = new Command();
     registerImprove(program);

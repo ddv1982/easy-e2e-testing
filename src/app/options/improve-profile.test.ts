@@ -36,6 +36,12 @@ describe("resolveImproveProfile", () => {
     expect(out.applyAssertions).toBe(true);
   });
 
+  it("explicit apply: false sets both applySelectors and applyAssertions to false", () => {
+    const out = resolveImproveProfile({ apply: false });
+    expect(out.applySelectors).toBe(false);
+    expect(out.applyAssertions).toBe(false);
+  });
+
   it("without --apply both applySelectors and applyAssertions are false", () => {
     const out = resolveImproveProfile({});
     expect(out.applySelectors).toBe(false);

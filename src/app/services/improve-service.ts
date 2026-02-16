@@ -1,4 +1,5 @@
 import path from "node:path";
+import { confirm } from "@inquirer/prompts";
 import { improveTestFile } from "../../core/improve/improve.js";
 import { resolveImproveProfile } from "../options/improve-profile.js";
 import { formatImproveProfileSummary } from "../options/profile-summary.js";
@@ -30,7 +31,14 @@ export async function runImprove(
     ui.warn(invocationWarning);
   }
 
-  const profile = resolveImproveProfile(opts);
+  let apply = opts.apply;
+  if (apply === undefined) {
+    apply = await confirm({
+      message: "Apply improvements to " + path.basename(testFile) + "?",
+      default: true,
+    });
+  }
+  const profile = resolveImproveProfile({ ...opts, apply });
 
   ui.info(
     formatImproveProfileSummary({
@@ -74,11 +82,8 @@ export async function runImprove(
     ui.step(`... ${skippedDetails.remaining} more skipped assertion candidate(s) in report`);
   }
 
-  ui.step(`Review report: ${result.reportPath}`);
-  if (!result.outputPath) {
-    ui.step(`Apply all improvements: ui-test improve ${path.resolve(testFile)} --apply`);
-  }
-  if (!profile.applySelectors && !profile.applyAssertions && profile.assertions === "candidates") {
-    ui.step("Or apply improvements: --apply");
+  ui.step("Review report: " + result.reportPath);
+  if (!result.outputPath && opts.apply === false) {
+    ui.step("Apply improvements: ui-test improve " + path.resolve(testFile) + " --apply");
   }
 }

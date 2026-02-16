@@ -4,21 +4,35 @@
 
 ## Usage
 
-### Default (Review Only)
+### Default (Interactive)
 
 ```bash
 ui-test improve e2e/login.yaml
 ```
 
-This writes a JSON report and does not modify YAML.
+This prompts you to confirm before applying improvements:
 
-### Apply All Improvements
+```
+? Apply improvements to login.yaml? (Y/n)
+```
+
+Accept (default) to apply improved selectors and assertion candidates to the YAML file, or decline for a report-only run.
+
+### Apply Without Prompting (CI)
 
 ```bash
 ui-test improve e2e/login.yaml --apply
 ```
 
-`--apply` writes both improved selectors and high-confidence assertion candidates to the YAML file.
+`--apply` writes both improved selectors and high-confidence assertion candidates to the YAML file without prompting.
+
+### Report Only (CI)
+
+```bash
+ui-test improve e2e/login.yaml --no-apply
+```
+
+`--no-apply` writes a JSON report and does not modify YAML. Useful in CI pipelines where interactive prompts are not available.
 
 Before/after example — a CSS selector upgraded to a semantic locator:
 

@@ -13,6 +13,7 @@ export function registerImprove(program: Command) {
     .description("Analyze and improve recorded selectors")
     .argument("<test-file>", "Path to the YAML test file to analyze")
     .option("--apply", "Apply all improvements (selectors and assertions)")
+    .option("--no-apply", "Report only — do not modify the test file")
     .option("--assertions <mode>", "Assertion mode: none or candidates")
     .option(
       "--assertion-source <source>",
