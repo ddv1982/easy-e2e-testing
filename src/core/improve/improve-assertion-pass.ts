@@ -1,9 +1,6 @@
 import type { Page } from "playwright";
 import { buildAssertionCandidates } from "./assertion-candidates.js";
-import {
-  buildSnapshotCliAssertionCandidates,
-  type StepSnapshot,
-} from "./assertion-candidates-snapshot-cli.js";
+import { type StepSnapshot } from "./assertion-candidates-snapshot.js";
 import { buildSnapshotNativeAssertionCandidates } from "./assertion-candidates-snapshot-native.js";
 import {
   type AssertionApplyOutcome,
@@ -12,11 +9,9 @@ import {
   selectCandidatesForApply,
   validateCandidatesAgainstRuntime,
 } from "./assertion-apply.js";
-import { collectPlaywrightCliStepSnapshots } from "./providers/playwright-cli-replay.js";
 import {
   ASSERTION_APPLY_MIN_CONFIDENCE,
   DEFAULT_RUNTIME_TIMEOUT_MS,
-  SNAPSHOT_CLI_REPLAY_TIMEOUT_MS,
   type ImproveAssertionSource,
   type ImproveAssertionsMode,
 } from "./improve-types.js";
@@ -91,52 +86,6 @@ export async function runImproveAssertionPass(input: {
           level: "warn",
           message:
             "snapshot-native assertion source failed to parse; falling back to deterministic candidates.",
-        });
-      }
-    }
-  }
-
-  if (input.assertions === "candidates" && input.assertionSource === "snapshot-cli") {
-    const snapshotReplay = await collectPlaywrightCliStepSnapshots({
-      steps: outputSteps,
-      baseUrl: input.testBaseUrl,
-      timeoutMs: SNAPSHOT_CLI_REPLAY_TIMEOUT_MS,
-    });
-    input.diagnostics.push(...snapshotReplay.diagnostics);
-
-    if (!snapshotReplay.available || snapshotReplay.stepSnapshots.length === 0) {
-      input.diagnostics.push({
-        code: "assertion_source_snapshot_cli_fallback",
-        level: "warn",
-        message:
-          "snapshot-cli assertion source did not produce usable step snapshots; falling back to deterministic candidates.",
-      });
-    } else {
-      try {
-        const snapshotCandidates = buildSnapshotCliAssertionCandidates(
-          snapshotReplay.stepSnapshots
-        ).map((candidate) => ({
-          ...candidate,
-          index: input.outputStepOriginalIndexes[candidate.index] ?? candidate.index,
-        }));
-        rawAssertionCandidates = dedupeAssertionCandidates([
-          ...rawAssertionCandidates,
-          ...snapshotCandidates,
-        ]);
-      } catch (err) {
-        input.diagnostics.push({
-          code: "assertion_source_snapshot_cli_parse_failed",
-          level: "warn",
-          message:
-            err instanceof Error
-              ? `Failed to parse snapshot-cli assertion candidates: ${err.message}`
-              : "Failed to parse snapshot-cli assertion candidates.",
-        });
-        input.diagnostics.push({
-          code: "assertion_source_snapshot_cli_fallback",
-          level: "warn",
-          message:
-            "snapshot-cli assertion source failed to parse; falling back to deterministic candidates.",
         });
       }
     }

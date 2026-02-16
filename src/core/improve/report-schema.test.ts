@@ -22,7 +22,7 @@ describe("improveReportSchema", () => {
         },
         assertionCandidateSourceCounts: {
           deterministic: 1,
-          snapshot_cli: 1,
+          snapshot_native: 1,
         },
       },
       stepFindings: [],
@@ -48,7 +48,7 @@ describe("improveReportSchema", () => {
           },
           confidence: 0.5,
           rationale: "Policy-capped state check",
-          candidateSource: "snapshot_cli",
+          candidateSource: "snapshot_native",
           applyStatus: "skipped_policy",
           applyMessage: "Skipped by policy",
         },
@@ -59,10 +59,10 @@ describe("improveReportSchema", () => {
     expect(parsed.summary.appliedAssertions).toBe(1);
     expect(parsed.summary.assertionApplyPolicy).toBe("reliable");
     expect(parsed.summary.assertionApplyStatusCounts?.applied).toBe(1);
-    expect(parsed.summary.assertionCandidateSourceCounts?.snapshot_cli).toBe(1);
+    expect(parsed.summary.assertionCandidateSourceCounts?.snapshot_native).toBe(1);
     expect(parsed.assertionCandidates[0]?.candidateSource).toBe("deterministic");
     expect(parsed.assertionCandidates[0]?.applyStatus).toBe("applied");
-    expect(parsed.assertionCandidates[1]?.candidateSource).toBe("snapshot_cli");
+    expect(parsed.assertionCandidates[1]?.candidateSource).toBe("snapshot_native");
     expect(parsed.assertionCandidates[1]?.applyStatus).toBe("skipped_policy");
   });
 });

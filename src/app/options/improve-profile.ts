@@ -51,11 +51,10 @@ export function parseImproveAssertionSource(
 ): ImproveAssertionSource | undefined {
   if (!value) return undefined;
   const normalized = value.trim().toLowerCase();
-  if (normalized === "deterministic" || normalized === "snapshot-cli" || normalized === "snapshot-native") {
-    return normalized;
-  }
+  if (normalized === "deterministic") return "deterministic";
+  if (normalized === "snapshot-native") return "snapshot-native";
   throw new UserError(
     `Invalid assertion source: ${value}`,
-    "Use --assertion-source deterministic, --assertion-source snapshot-cli, or --assertion-source snapshot-native"
+    "Use --assertion-source deterministic or --assertion-source snapshot-native"
   );
 }

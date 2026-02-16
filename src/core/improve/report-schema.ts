@@ -32,7 +32,6 @@ export const assertionApplyStatusSchema = z.enum([
 
 export const assertionCandidateSourceSchema = z.enum([
   "deterministic",
-  "snapshot_cli",
   "snapshot_native",
 ]);
 

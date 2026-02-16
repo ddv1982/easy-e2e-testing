@@ -145,12 +145,6 @@ ui-test improve e2e/login.yaml --assertions candidates   # default
 ui-test improve e2e/login.yaml --assertions none          # skip assertions
 ```
 
-For snapshot-cli assertions:
-
-```bash
-ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
-```
-
 ## Next Steps
 
 - Record workflow: [Record Workflow](workflows/record.md)

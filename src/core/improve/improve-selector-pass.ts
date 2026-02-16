@@ -5,7 +5,7 @@ import {
   waitForPostStepNetworkIdle,
 } from "../runtime/network-idle.js";
 import type { Step } from "../yaml-schema.js";
-import type { StepSnapshot } from "./assertion-candidates-snapshot-cli.js";
+import type { StepSnapshot } from "./assertion-candidates-snapshot.js";
 import { generateAriaTargetCandidates } from "./candidate-generator-aria.js";
 import { generateTargetCandidates } from "./candidate-generator.js";
 import {

@@ -22,7 +22,6 @@ const ASSERTION_APPLY_STATUS_ORDER: AssertionApplyStatus[] = [
 const ASSERTION_SOURCE_ORDER: AssertionCandidateSource[] = [
   "deterministic",
   "snapshot_native",
-  "snapshot_cli",
 ];
 
 export function formatAssertionApplyStatusCounts(candidates: AssertionCandidate[]): string | undefined {

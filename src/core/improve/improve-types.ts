@@ -1,7 +1,7 @@
 import type { ImproveReport } from "./report-schema.js";
 
 export type ImproveAssertionsMode = "none" | "candidates";
-export type ImproveAssertionSource = "deterministic" | "snapshot-cli" | "snapshot-native";
+export type ImproveAssertionSource = "deterministic" | "snapshot-native";
 
 export interface ImproveOptions {
   testFile: string;
@@ -20,5 +20,4 @@ export interface ImproveResult {
 
 export const DEFAULT_RUNTIME_TIMEOUT_MS = 3_000;
 export const DEFAULT_SCORING_TIMEOUT_MS = 1_200;
-export const SNAPSHOT_CLI_REPLAY_TIMEOUT_MS = 15_000;
 export const ASSERTION_APPLY_MIN_CONFIDENCE = 0.75;

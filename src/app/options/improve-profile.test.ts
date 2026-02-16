@@ -11,12 +11,12 @@ describe("resolveImproveProfile", () => {
     const out = resolveImproveProfile({
       apply: true,
       assertions: "none",
-      assertionSource: "snapshot-cli",
+      assertionSource: "snapshot-native",
       report: "out.json",
     });
 
     expect(out.assertions).toBe("none");
-    expect(out.assertionSource).toBe("snapshot-cli");
+    expect(out.assertionSource).toBe("snapshot-native");
     expect(out.applySelectors).toBe(true);
     expect(out.applyAssertions).toBe(true);
     expect(out.reportPath).toBe("out.json");
@@ -52,7 +52,7 @@ describe("resolveImproveProfile", () => {
 describe("improve-profile parsing", () => {
   it("accepts valid values", () => {
     expect(parseImproveAssertions("CANDIDATES")).toBe("candidates");
-    expect(parseImproveAssertionSource("SNAPSHOT-CLI")).toBe("snapshot-cli");
+    expect(parseImproveAssertionSource("SNAPSHOT-NATIVE")).toBe("snapshot-native");
   });
 
   it("rejects invalid values", () => {

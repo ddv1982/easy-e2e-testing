@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildSnapshotCliAssertionCandidates,
+  buildSnapshotAssertionCandidates,
   parseSnapshotNodes,
-} from "./assertion-candidates-snapshot-cli.js";
+} from "./assertion-candidates-snapshot.js";
 import { richDeltaStepSnapshot } from "./assertion-candidates-snapshot.test-fixtures.js";
 
-describe("snapshot-cli assertion candidates", () => {
-  it("parses snapshot nodes from playwright-cli output", () => {
+describe("snapshot assertion candidates", () => {
+  it("parses snapshot nodes from aria snapshot output", () => {
     const snapshot = `
 - generic [ref=e1]:
   - heading "Dashboard" [level=1] [ref=e2]
@@ -23,7 +23,7 @@ describe("snapshot-cli assertion candidates", () => {
   });
 
   it("generates a high-signal text assertion from post-step snapshot delta", () => {
-    const out = buildSnapshotCliAssertionCandidates([
+    const out = buildSnapshotAssertionCandidates([
       {
         index: 1,
         step: {
@@ -34,17 +34,17 @@ describe("snapshot-cli assertion candidates", () => {
         postSnapshot:
           `- generic [ref=e1]:\n  - button "Submit" [ref=e2]\n  - heading "Welcome" [level=1] [ref=e3]\n`,
       },
-    ]);
+    ], "snapshot_native");
 
     expect(out).toHaveLength(1);
     expect(out[0]?.candidate.action).toBe("assertText");
     expect(out[0]?.confidence).toBe(0.82);
-    expect(out[0]?.candidateSource).toBe("snapshot_cli");
+    expect(out[0]?.candidateSource).toBe("snapshot_native");
   });
 
   it("excludes unchanged nodes when pre and post snapshots match", () => {
     const snapshot = `- generic [ref=e1]:\n  - heading "Dashboard" [level=1] [ref=e2]\n`;
-    const out = buildSnapshotCliAssertionCandidates([
+    const out = buildSnapshotAssertionCandidates([
       {
         index: 0,
         step: {
@@ -54,13 +54,13 @@ describe("snapshot-cli assertion candidates", () => {
         preSnapshot: snapshot,
         postSnapshot: snapshot,
       },
-    ]);
+    ], "snapshot_native");
 
     expect(out).toHaveLength(0);
   });
 
   it("does not generate same-target click visibility assertions", () => {
-    const out = buildSnapshotCliAssertionCandidates([
+    const out = buildSnapshotAssertionCandidates([
       {
         index: 2,
         step: {
@@ -74,13 +74,13 @@ describe("snapshot-cli assertion candidates", () => {
         preSnapshot: `- generic [ref=e1]:\n  - button "Log in" [ref=e2]\n`,
         postSnapshot: `- generic [ref=e1]:\n  - button "Log in" [ref=e2]\n`,
       },
-    ]);
+    ], "snapshot_native");
 
     expect(out).toHaveLength(0);
   });
 
   it("generates multiple candidates from a rich delta", () => {
-    const out = buildSnapshotCliAssertionCandidates([richDeltaStepSnapshot]);
+    const out = buildSnapshotAssertionCandidates([richDeltaStepSnapshot], "snapshot_native");
 
     expect(out.length).toBeGreaterThan(1);
     expect(out[0]?.candidate.action).toBe("assertText");
@@ -89,7 +89,7 @@ describe("snapshot-cli assertion candidates", () => {
   });
 
   it("ranks headings before status in text candidates", () => {
-    const out = buildSnapshotCliAssertionCandidates([
+    const out = buildSnapshotAssertionCandidates([
       {
         index: 0,
         step: {
@@ -103,7 +103,7 @@ describe("snapshot-cli assertion candidates", () => {
           '  - heading "Welcome" [level=1] [ref=e3]',
         ].join("\n") + "\n",
       },
-    ]);
+    ], "snapshot_native");
 
     const textCandidates = out.filter((c) => c.candidate.action === "assertText");
     expect(textCandidates.length).toBe(2);
@@ -114,7 +114,7 @@ describe("snapshot-cli assertion candidates", () => {
   });
 
   it("preserves framePath from triggering step target", () => {
-    const out = buildSnapshotCliAssertionCandidates([
+    const out = buildSnapshotAssertionCandidates([
       {
         index: 3,
         step: {
@@ -129,7 +129,7 @@ describe("snapshot-cli assertion candidates", () => {
         preSnapshot: `- generic [ref=e1]:\n`,
         postSnapshot: `- generic [ref=e1]:\n  - heading "Done" [level=1] [ref=e3]\n`,
       },
-    ]);
+    ], "snapshot_native");
 
     expect(out).toHaveLength(1);
     expect("framePath" in out[0]!.candidate.target).toBe(true);

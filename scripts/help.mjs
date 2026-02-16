@@ -19,7 +19,7 @@ const lines = [
   "  ui-test improve <file>            Analyze selector quality (report-only)",
   "  ui-test improve <file> --apply    Apply all improvements (selectors + assertions)",
   "  ui-test improve <file> --assertions none  Skip assertion candidate generation",
-  "  ui-test improve <file> --assertion-source snapshot-cli  Enable replay + snapshot assertion candidates",
+  "  ui-test improve <file> --assertion-source snapshot-native  Enable snapshot assertion candidates",
   "",
   "Maintainer",
   "  npm test                               Framework suite (Vitest)",

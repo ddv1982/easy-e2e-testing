@@ -38,12 +38,6 @@ export interface StepSnapshot {
   postSnapshot: string;
 }
 
-export function buildSnapshotCliAssertionCandidates(
-  snapshots: StepSnapshot[]
-): AssertionCandidate[] {
-  return buildSnapshotAssertionCandidates(snapshots, "snapshot_cli");
-}
-
 export function buildSnapshotAssertionCandidates(
   snapshots: StepSnapshot[],
   candidateSource: AssertionCandidateSource
