@@ -14,7 +14,7 @@ describe("improve command options", () => {
       "--assertions",
       "none",
       "--assertion-source",
-      "snapshot-cli",
+      "snapshot-native",
       "--report",
       "report.json",
       "e2e/sample.yaml",
@@ -23,7 +23,7 @@ describe("improve command options", () => {
     const opts = command?.opts() as Record<string, string | boolean>;
     expect(opts.apply).toBe(true);
     expect(opts.assertions).toBe("none");
-    expect(opts.assertionSource).toBe("snapshot-cli");
+    expect(opts.assertionSource).toBe("snapshot-native");
     expect(opts.report).toBe("report.json");
   });
 

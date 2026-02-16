@@ -49,13 +49,12 @@ describe("improve output helpers", () => {
 
   it("formats assertion source counts in stable order", () => {
     const out = formatAssertionSourceCounts([
-      buildCandidate({ candidateSource: "snapshot_cli" }),
       buildCandidate({ candidateSource: "deterministic" }),
       buildCandidate({ candidateSource: "snapshot_native" }),
       buildCandidate({ candidateSource: "snapshot_native" }),
     ]);
 
-    expect(out).toBe("deterministic=1, snapshot_native=2, snapshot_cli=1");
+    expect(out).toBe("deterministic=1, snapshot_native=2");
   });
 
   it("collects concise skipped assertion details and remaining count", () => {

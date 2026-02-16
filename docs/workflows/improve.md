@@ -60,12 +60,10 @@ ui-test improve e2e/login.yaml --assertions none --apply
 | Source | Description |
 |--------|-------------|
 | `snapshot-native` (default) | Uses Playwright's `locator.ariaSnapshot()` to capture page state changes during replay. No external tool needed. |
-| `snapshot-cli` | Replays steps in a separate Playwright-CLI process. Requires `playwright-cli` or `npx -y @playwright/cli@latest`. |
 | `deterministic` | Conservative form-state-only assertions (`assertValue`/`assertChecked`). No browser needed beyond replay. |
 
 ```bash
 ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
-ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
 ui-test improve e2e/login.yaml --apply --assertion-source deterministic
 ```
 

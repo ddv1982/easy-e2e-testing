@@ -13,8 +13,6 @@ If you see `Standalone install policy: project-local installs are not supported`
 3. Run `npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"`.
 4. Re-run `ui-test setup`.
 
-Playwright-CLI is only needed for `--assertion-source snapshot-cli`. If its install fails during setup, setup continues with a warning.
-
 ## Browser Installation Issues
 
 ### Chromium executable missing
@@ -123,12 +121,3 @@ If `--assertion-source snapshot-native` produces no snapshot-driven candidates:
    - `assertion_source_snapshot_native_parse_failed` — snapshot could not be parsed
 3. Improve falls back to deterministic assertion candidates by design.
 
-### snapshot-cli
-
-If `--assertion-source snapshot-cli` produces no snapshot-driven candidates:
-1. Verify `playwright-cli` is available (`playwright-cli --help` or `npx -y @playwright/cli@latest --help`).
-2. Check report diagnostics:
-   - `assertion_source_snapshot_cli_unavailable` — Playwright-CLI not installed
-   - `assertion_source_snapshot_cli_step_replay_failed` — step replay failed in CLI process
-   - `assertion_source_snapshot_cli_fallback` — fell back to deterministic candidates
-3. Improve falls back to deterministic assertion candidates by design.

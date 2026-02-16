@@ -23,7 +23,6 @@ export async function runOnboardingPlan(
   context: OnboardingContext
 ): Promise<void> {
   runInstallDependencies();
-  runInstallPlaywrightCli();
   installPlaywrightBrowsers(plan.browsers);
   await verifyBrowserLaunch(plan.browsers[0]);
 
@@ -62,39 +61,6 @@ function runInstallDependencies() {
 export function resolveInstallArgs() {
   const lockFilePath = path.resolve("package-lock.json");
   return existsSync(lockFilePath) ? ["ci"] : ["install"];
-}
-
-export function runInstallPlaywrightCli() {
-  const failures: string[] = [];
-  try {
-    runCommand("Verify Playwright-CLI (playwright-cli)", "playwright-cli", ["--version"], { quiet: true });
-    return true;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    failures.push(`playwright-cli --version failed: ${message}`);
-  }
-
-  try {
-    ensureCommandAvailable("npx");
-    runCommand("Install/verify Playwright-CLI (@latest)", "npx", [
-      "-y",
-      "--package",
-      "@playwright/cli@latest",
-      "playwright",
-      "--version",
-    ], { quiet: true });
-    return true;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    failures.push(`npx -y --package @playwright/cli@latest playwright --version failed: ${message}`);
-  }
-
-  console.warn(
-    `[setup] WARN: ${failures.join(" ")} ` +
-    "Retry manually: playwright-cli --help or npx -y --package @playwright/cli@latest playwright --help. " +
-    "Continuing because Playwright-CLI is only required for improve --assertion-source snapshot-cli."
-  );
-  return false;
 }
 
 function ensureCommandAvailable(command: string) {

@@ -301,7 +301,7 @@ describe("assertion apply helpers", () => {
             },
             confidence: 0.9,
             rationale: "value assertion",
-            candidateSource: "snapshot_cli",
+            candidateSource: "snapshot_native",
           },
         },
       ],

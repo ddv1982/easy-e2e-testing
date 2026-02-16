@@ -1,4 +1,4 @@
-import type { StepSnapshot } from "./assertion-candidates-snapshot-cli.js";
+import type { StepSnapshot } from "./assertion-candidates-snapshot.js";
 
 export const richDeltaStepSnapshot: StepSnapshot = {
   index: 1,

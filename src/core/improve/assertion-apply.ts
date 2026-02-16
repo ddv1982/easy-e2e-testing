@@ -313,10 +313,8 @@ function candidateSourcePriority(source: AssertionCandidate["candidateSource"]):
       return 0;
     case "snapshot_native":
       return 1;
-    case "snapshot_cli":
-      return 2;
     default:
-      return 3;
+      return 2;
   }
 }
 
@@ -324,8 +322,7 @@ function isAutoApplyAllowedByPolicy(
   candidate: AssertionCandidate
 ): boolean {
   if (
-    (candidate.candidateSource === "snapshot_native" ||
-      candidate.candidateSource === "snapshot_cli") &&
+    candidate.candidateSource === "snapshot_native" &&
     candidate.candidate.action === "assertVisible"
   ) {
     return false;

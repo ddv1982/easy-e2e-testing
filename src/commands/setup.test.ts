@@ -40,8 +40,6 @@ import {
   resolveUiTestCliEntry,
   runSetup,
 } from "./setup.js";
-import { runInstallPlaywrightCli } from "../app/services/onboarding-service.js";
-
 const mockSpawnSync = vi.mocked(spawnSync);
 const mockExistsSync = vi.mocked(existsSync);
 const mockCheckbox = vi.mocked(checkbox);
@@ -246,76 +244,3 @@ describe("setup command parsing (commander path)", () => {
   });
 });
 
-describe("setup playwright-cli provisioning", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("warns and continues when playwright-cli provisioning fails", () => {
-    mockSpawnSync
-      .mockReturnValueOnce({ status: 1, error: undefined } as never)
-      .mockReturnValueOnce({ status: 0, error: undefined } as never)
-      .mockReturnValueOnce({ status: 1, error: undefined } as never);
-
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const ok = runInstallPlaywrightCli();
-    expect(ok).toBe(false);
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--version"], {
-      stdio: "ignore",
-      shell: process.platform === "win32",
-      env: process.env,
-    });
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(2, "npx", ["--version"], {
-      stdio: "ignore",
-      shell: process.platform === "win32",
-      env: process.env,
-    });
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(
-      3,
-      "npx",
-      ["-y", "--package", "@playwright/cli@latest", "playwright", "--version"],
-      {
-        stdio: "ignore",
-        shell: process.platform === "win32",
-        env: process.env,
-      }
-    );
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Retry manually: playwright-cli --help or npx -y --package @playwright/cli@latest playwright --help."
-      )
-    );
-  });
-
-  it("falls back to npx @latest when playwright-cli is unavailable", () => {
-    mockSpawnSync
-      .mockReturnValueOnce({ status: 1, error: undefined } as never)
-      .mockReturnValueOnce({ status: 0, error: undefined } as never)
-      .mockReturnValueOnce({ status: 0, error: undefined } as never);
-
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const ok = runInstallPlaywrightCli();
-    expect(ok).toBe(true);
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--version"], {
-      stdio: "ignore",
-      shell: process.platform === "win32",
-      env: process.env,
-    });
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(2, "npx", ["--version"], {
-      stdio: "ignore",
-      shell: process.platform === "win32",
-      env: process.env,
-    });
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(
-      3,
-      "npx",
-      ["-y", "--package", "@playwright/cli@latest", "playwright", "--version"],
-      {
-        stdio: "ignore",
-        shell: process.platform === "win32",
-        env: process.env,
-      }
-    );
-    expect(warnSpy).not.toHaveBeenCalled();
-  });
-});

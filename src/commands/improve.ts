@@ -17,7 +17,7 @@ export function registerImprove(program: Command) {
     .option("--assertions <mode>", "Assertion mode: none or candidates")
     .option(
       "--assertion-source <source>",
-      "Assertion source: deterministic, snapshot-cli (requires playwright-cli), or snapshot-native"
+      "Assertion source: deterministic or snapshot-native"
     )
     .option("--report <path>", "Write JSON report to a custom path")
     .action(async (testFile: unknown, opts: unknown) => {
