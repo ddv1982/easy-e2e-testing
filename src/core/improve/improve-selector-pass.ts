@@ -23,6 +23,7 @@ export interface SelectorPassResult {
   outputSteps: Step[];
   findings: StepFinding[];
   nativeStepSnapshots: StepSnapshot[];
+  failedStepIndexes: number[];
 }
 
 export async function runImproveSelectorPass(input: {
@@ -37,6 +38,7 @@ export async function runImproveSelectorPass(input: {
   const outputSteps = [...input.steps];
   const findings: StepFinding[] = [];
   const nativeStepSnapshots: StepSnapshot[] = [];
+  const failedStepIndexes: number[] = [];
 
   for (let index = 0; index < outputSteps.length; index += 1) {
     const step = outputSteps[index];
@@ -134,6 +136,7 @@ export async function runImproveSelectorPass(input: {
         mode: "analysis",
       });
     } catch (err) {
+      failedStepIndexes.push(index);
       input.diagnostics.push({
         code: "runtime_step_execution_failed",
         level: "warn",
@@ -184,5 +187,6 @@ export async function runImproveSelectorPass(input: {
     outputSteps,
     findings,
     nativeStepSnapshots,
+    failedStepIndexes,
   };
 }

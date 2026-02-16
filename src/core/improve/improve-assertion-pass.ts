@@ -189,55 +189,34 @@ export async function runImproveAssertionPass(input: {
       }
     );
 
+    const allOutcomes = [
+      ...selection.skippedLowConfidence,
+      ...selection.skippedPolicy,
+      ...unmappedOutcomes,
+      ...outcomes,
+    ];
+
     const outcomeByCandidate = new Map<
       number,
-      {
-        applyStatus: AssertionApplyStatus;
-        applyMessage?: string;
-      }
+      { applyStatus: AssertionApplyStatus; applyMessage?: string }
     >();
 
-    for (const outcome of selection.skippedLowConfidence) {
-      outcomeByCandidate.set(outcome.candidateIndex, {
-        applyStatus: outcome.applyStatus,
-        applyMessage: outcome.applyMessage,
-      });
-      skippedAssertions += 1;
-    }
-
-    for (const outcome of selection.skippedPolicy) {
-      outcomeByCandidate.set(outcome.candidateIndex, {
-        applyStatus: outcome.applyStatus,
-        applyMessage: outcome.applyMessage,
-      });
-      skippedAssertions += 1;
-    }
-
-    for (const outcome of unmappedOutcomes) {
-      outcomeByCandidate.set(outcome.candidateIndex, {
-        applyStatus: outcome.applyStatus,
-        applyMessage: outcome.applyMessage,
-      });
-      skippedAssertions += 1;
-    }
-
-    for (const outcome of outcomes) {
+    for (const outcome of allOutcomes) {
       outcomeByCandidate.set(outcome.candidateIndex, {
         applyStatus: outcome.applyStatus,
         applyMessage: outcome.applyMessage,
       });
       if (outcome.applyStatus === "applied") {
         appliedAssertions += 1;
-        continue;
-      }
-
-      skippedAssertions += 1;
-      if (outcome.applyStatus === "skipped_runtime_failure") {
-        input.diagnostics.push({
-          code: "assertion_apply_runtime_failure",
-          level: "warn",
-          message: `Assertion candidate ${outcome.candidateIndex + 1} skipped: ${outcome.applyMessage ?? "runtime validation failed"}`,
-        });
+      } else {
+        skippedAssertions += 1;
+        if (outcome.applyStatus === "skipped_runtime_failure") {
+          input.diagnostics.push({
+            code: "assertion_apply_runtime_failure",
+            level: "warn",
+            message: `Assertion candidate ${outcome.candidateIndex + 1} skipped: ${outcome.applyMessage ?? "runtime validation failed"}`,
+          });
+        }
       }
     }
 

@@ -106,6 +106,20 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       diagnostics,
     });
 
+    if (wantsWrite) {
+      for (const index of selectorPass.failedStepIndexes) {
+        const step = selectorPass.outputSteps[index];
+        if (!step || step.action === "navigate" || step.optional) continue;
+        selectorPass.outputSteps[index] = { ...step, optional: true };
+        const originalIndex = outputStepOriginalIndexes[index] ?? index;
+        diagnostics.push({
+          code: "runtime_failing_step_marked_optional",
+          level: "info",
+          message: `Step ${originalIndex + 1}: marked optional because it failed at runtime.`,
+        });
+      }
+    }
+
     const assertionPass = await runImproveAssertionPass({
       assertions: effectiveOptions.assertions,
       assertionSource,
