@@ -78,18 +78,20 @@ export function runInstallPlaywrightCli() {
     ensureCommandAvailable("npx");
     runCommand("Install/verify Playwright-CLI (@latest)", "npx", [
       "-y",
+      "--package",
       "@playwright/cli@latest",
+      "playwright",
       "--version",
     ], { quiet: true });
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    failures.push(`npx -y @playwright/cli@latest --version failed: ${message}`);
+    failures.push(`npx -y --package @playwright/cli@latest playwright --version failed: ${message}`);
   }
 
   console.warn(
     `[setup] WARN: ${failures.join(" ")} ` +
-    "Retry manually: playwright-cli --help or npx -y @playwright/cli@latest --help. " +
+    "Retry manually: playwright-cli --help or npx -y --package @playwright/cli@latest playwright --help. " +
     "Continuing because Playwright-CLI is only required for improve --assertion-source snapshot-cli."
   );
   return false;

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm, unlink } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -65,17 +65,18 @@ async function main() {
     runStep(
       "Run ui-test setup --browsers chromium",
       "npm",
-      ["exec", "--yes", "--package", tarballPath, "ui-test", "setup", "--browsers", "chromium"],
+      ["exec", "--yes", "--package", tarballPath, "--", "ui-test", "setup", "--browsers", "chromium"],
       workspace,
       {
         printStdout: false,
         stdio: "inherit",
       }
     );
+    await writeSmokeFixture(workspace);
     runStep(
       "Run YAML browser test",
       "npm",
-      ["exec", "--yes", "--package", tarballPath, "ui-test", "play"],
+      ["exec", "--yes", "--package", tarballPath, "--", "ui-test", "play", "e2e/example.yaml"],
       workspace
     );
 
@@ -89,6 +90,27 @@ async function main() {
       await unlink(tarballPath).catch(() => {});
     }
   }
+}
+
+async function writeSmokeFixture(workspace) {
+  const e2eDir = path.join(workspace, "e2e");
+  const fixturePath = path.join(e2eDir, "example.yaml");
+  const fixture = [
+    "name: Example Smoke",
+    "description: Consumer smoke flow",
+    "steps:",
+    "  - action: navigate",
+    "    url: /",
+    "  - action: assertVisible",
+    "    target:",
+    "      value: '#app'",
+    "      kind: css",
+    "      source: manual",
+    "",
+  ].join("\n");
+
+  await mkdir(e2eDir, { recursive: true });
+  await writeFile(fixturePath, fixture, "utf-8");
 }
 
 main().catch((err) => {

@@ -273,7 +273,7 @@ describe("setup playwright-cli provisioning", () => {
     expect(mockSpawnSync).toHaveBeenNthCalledWith(
       3,
       "npx",
-      ["-y", "@playwright/cli@latest", "--version"],
+      ["-y", "--package", "@playwright/cli@latest", "playwright", "--version"],
       {
         stdio: "ignore",
         shell: process.platform === "win32",
@@ -281,7 +281,9 @@ describe("setup playwright-cli provisioning", () => {
       }
     );
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Retry manually: playwright-cli --help or npx -y @playwright/cli@latest --help.")
+      expect.stringContaining(
+        "Retry manually: playwright-cli --help or npx -y --package @playwright/cli@latest playwright --help."
+      )
     );
   });
 
@@ -307,7 +309,7 @@ describe("setup playwright-cli provisioning", () => {
     expect(mockSpawnSync).toHaveBeenNthCalledWith(
       3,
       "npx",
-      ["-y", "@playwright/cli@latest", "--version"],
+      ["-y", "--package", "@playwright/cli@latest", "playwright", "--version"],
       {
         stdio: "ignore",
         shell: process.platform === "win32",
