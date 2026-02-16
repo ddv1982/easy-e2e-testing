@@ -94,7 +94,8 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
       ui.warn(`Recorder exited unexpectedly (${codegenJsonlError.message}), but captured JSONL steps were recovered.`);
     }
 
-    const outputPath = await saveRecordingYaml(options, transformed.steps);
+    const normalizedSteps = normalizeFirstNavigate(transformed.steps, options.url);
+    const outputPath = await saveRecordingYaml(options, normalizedSteps);
     return {
       outputPath,
       stats: transformed.stats,
@@ -114,7 +115,8 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   ui.warn(`JSONL failure reason: ${codegenJsonlError.message}`);
 
   const fallback = await recordWithPlaywrightTestFallback(playwrightBin, options, browser);
-  const outputPath = await saveRecordingYaml(options, fallback.steps);
+  const normalizedSteps = normalizeFirstNavigate(fallback.steps, options.url);
+  const outputPath = await saveRecordingYaml(options, normalizedSteps);
 
   return {
     outputPath,
@@ -296,6 +298,25 @@ function slugify(text: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+export function normalizeFirstNavigate(steps: Step[], startingUrl: string): Step[] {
+  let startPath: string;
+  try {
+    const parsed = new URL(startingUrl);
+    startPath = parsed.pathname + parsed.search + parsed.hash;
+  } catch {
+    return steps;
+  }
+
+  if (steps.length === 0) return steps;
+
+  if (steps[0].action === "navigate") {
+    return [{ ...steps[0], url: startPath }, ...steps.slice(1)];
+  }
+
+  // No navigate as first step — inject one
+  return [{ action: "navigate" as const, url: startPath }, ...steps];
 }
 
 export { runCodegen, resolvePlaywrightCliPath, detectJsonlCapability };

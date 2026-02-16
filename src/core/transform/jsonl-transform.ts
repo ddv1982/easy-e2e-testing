@@ -27,7 +27,6 @@ interface CodegenAction {
   locator?: JsonlLocatorNode;
   framePath?: string[];
   pageAlias?: string;
-  signals?: Array<{ name: string; url?: string }>;
   [key: string]: unknown;
 }
 

@@ -14,6 +14,7 @@ vi.mock("node:child_process", () => ({
 import { spawn } from "node:child_process";
 import {
   detectJsonlCapability,
+  normalizeFirstNavigate,
   record,
   resolvePlaywrightCliPath,
   runCodegen,
@@ -258,6 +259,70 @@ describe("record", () => {
     expect(spawn).toHaveBeenCalledTimes(1);
 
     await fs.rm(outputDir, { recursive: true, force: true });
+  });
+});
+
+describe("normalizeFirstNavigate", () => {
+  it("replaces cross-origin redirect with starting URL path", () => {
+    const steps = normalizeFirstNavigate(
+      [
+        { action: "navigate", url: "https://consent.example.com/auth?key=abc" },
+        { action: "click", target: { value: "getByRole('button', { name: 'OK' })", kind: "locatorExpression" as const, source: "codegen-jsonl" as const } },
+      ],
+      "https://example.com"
+    );
+
+    expect(steps[0]).toEqual({ action: "navigate", url: "/" });
+    expect(steps[1]).toMatchObject({ action: "click" });
+  });
+
+  it("normalizes first navigate to relative path when it already matches", () => {
+    const steps = normalizeFirstNavigate(
+      [{ action: "navigate", url: "https://example.com/dashboard" }],
+      "https://example.com/dashboard"
+    );
+
+    expect(steps[0]).toEqual({ action: "navigate", url: "/dashboard" });
+  });
+
+  it("preserves path from starting URL", () => {
+    const steps = normalizeFirstNavigate(
+      [{ action: "navigate", url: "https://redirect.example.com/consent" }],
+      "https://example.com/login?next=/home"
+    );
+
+    expect(steps[0]).toEqual({ action: "navigate", url: "/login?next=/home" });
+  });
+
+  it("injects navigate when first step is not a navigate", () => {
+    const steps = normalizeFirstNavigate(
+      [{ action: "click", target: { value: "#btn", kind: "css" as const, source: "codegen-jsonl" as const } }],
+      "https://example.com/page"
+    );
+
+    expect(steps).toHaveLength(2);
+    expect(steps[0]).toEqual({ action: "navigate", url: "/page" });
+    expect(steps[1]).toMatchObject({ action: "click" });
+  });
+
+  it("returns steps unchanged for invalid starting URL", () => {
+    const original = [{ action: "navigate" as const, url: "https://example.com" }];
+    const steps = normalizeFirstNavigate(original, "not-a-url");
+
+    expect(steps).toEqual(original);
+  });
+
+  it("returns empty steps unchanged", () => {
+    expect(normalizeFirstNavigate([], "https://example.com")).toEqual([]);
+  });
+
+  it("preserves hash from starting URL", () => {
+    const steps = normalizeFirstNavigate(
+      [{ action: "navigate", url: "https://redirect.example.com/consent" }],
+      "https://example.com/page#section"
+    );
+
+    expect(steps[0]).toEqual({ action: "navigate", url: "/page#section" });
   });
 });
 
