@@ -4,7 +4,7 @@ const lines = [
   "ui-test command guide",
   "",
   "Basic (start here)",
-  "  ui-test setup quickstart      First-run install + Chromium provisioning",
+  "  ui-test setup                     First-run install + browser provisioning",
   "  ui-test play                      Run YAML tests",
   "  ui-test play --no-start           Run against an already running app",
   "  ui-test play --save-failure-artifacts  Enable failure artifacts",

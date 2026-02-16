@@ -1,6 +1,8 @@
 import { DEFAULT_WAIT_FOR_NETWORK_IDLE } from "../runtime/network-idle.js";
+import type { PlaywrightBrowser } from "../../infra/playwright/browser-provisioner.js";
 
 // Single source of truth for play runtime defaults.
+export const PLAY_DEFAULT_BROWSER: PlaywrightBrowser = "chromium";
 export const PLAY_DEFAULT_HEADED = false;
 export const PLAY_DEFAULT_TIMEOUT_MS = 10_000;
 export const PLAY_DEFAULT_DELAY_MS = 0;

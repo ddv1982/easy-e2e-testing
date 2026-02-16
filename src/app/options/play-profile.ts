@@ -1,7 +1,12 @@
 import { UserError } from "../../utils/errors.js";
 import {
+  validateBrowserName,
+  type PlaywrightBrowser,
+} from "../../infra/playwright/browser-provisioner.js";
+import {
   PLAY_DEFAULT_ARTIFACTS_DIR,
   PLAY_DEFAULT_BASE_URL,
+  PLAY_DEFAULT_BROWSER,
   PLAY_DEFAULT_DELAY_MS,
   PLAY_DEFAULT_HEADED,
   PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
@@ -19,6 +24,7 @@ export interface PlayProfileInput {
   start?: boolean;
   saveFailureArtifacts?: boolean;
   artifactsDir?: string;
+  browser?: string;
 }
 
 export interface ResolvedPlayProfile {
@@ -32,6 +38,7 @@ export interface ResolvedPlayProfile {
   baseUrl: string;
   startCommand: string;
   testDir: string;
+  browser: PlaywrightBrowser;
 }
 
 export function resolvePlayProfile(
@@ -60,20 +67,7 @@ export function resolvePlayProfile(
 
   const waitForNetworkIdle = input.waitNetworkIdle ?? PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE;
   const artifactsDir = (input.artifactsDir ?? PLAY_DEFAULT_ARTIFACTS_DIR).trim();
-
-  if (!Number.isFinite(timeout) || timeout <= 0 || !Number.isInteger(timeout)) {
-    throw new UserError(
-      `Invalid timeout value: ${timeout}`,
-      "Timeout must be a positive integer in milliseconds."
-    );
-  }
-
-  if (!Number.isFinite(delayMs) || delayMs < 0 || !Number.isInteger(delayMs)) {
-    throw new UserError(
-      `Invalid delay value: ${delayMs}`,
-      "Delay must be a non-negative integer in milliseconds."
-    );
-  }
+  const browser = parseBrowserOption(input.browser);
 
   if (!artifactsDir) {
     throw new UserError(
@@ -93,7 +87,13 @@ export function resolvePlayProfile(
     baseUrl: PLAY_DEFAULT_BASE_URL,
     startCommand: PLAY_DEFAULT_START_COMMAND,
     testDir: PLAY_DEFAULT_TEST_DIR,
+    browser,
   };
+}
+
+function parseBrowserOption(input: string | undefined): PlaywrightBrowser {
+  if (input === undefined) return PLAY_DEFAULT_BROWSER;
+  return validateBrowserName(input);
 }
 
 function parsePositiveInt(

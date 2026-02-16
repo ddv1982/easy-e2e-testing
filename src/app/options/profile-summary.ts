@@ -29,6 +29,7 @@ export function formatPlayProfileSummary(profile: {
   autoStart: boolean;
   saveFailureArtifacts: boolean;
   artifactsDir: string;
+  browser: string;
 }): string {
-  return `Play profile: headed=${profile.headed ? "yes" : "no"}, timeout=${profile.timeout}ms, delay=${profile.delayMs}ms, waitNetworkIdle=${profile.waitForNetworkIdle ? "yes" : "no"}, autoStart=${profile.autoStart ? "yes" : "no"}, saveFailureArtifacts=${profile.saveFailureArtifacts ? "yes" : "no"}, artifactsDir=${profile.artifactsDir}`;
+  return `Play profile: browser=${profile.browser}, headed=${profile.headed ? "yes" : "no"}, timeout=${profile.timeout}ms, delay=${profile.delayMs}ms, waitNetworkIdle=${profile.waitForNetworkIdle ? "yes" : "no"}, autoStart=${profile.autoStart ? "yes" : "no"}, saveFailureArtifacts=${profile.saveFailureArtifacts ? "yes" : "no"}, artifactsDir=${profile.artifactsDir}`;
 }

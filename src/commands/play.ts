@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { handleError } from "../utils/errors.js";
-import { runPlay, type PlayCliOptions } from "../app/services/play-service.js";
+import { runPlay } from "../app/services/play-service.js";
+import type { PlayProfileInput } from "../app/options/play-profile.js";
 import {
   asOptionalBoolean,
   asOptionalString,
@@ -20,17 +21,18 @@ export function registerPlay(program: Command) {
     .option("--save-failure-artifacts", "Save JSON/trace/screenshot artifacts on test failure")
     .option("--no-save-failure-artifacts", "Disable failure artifact capture")
     .option("--artifacts-dir <path>", "Directory for play failure artifacts")
+    .option("--browser <name>", "Browser to use: chromium, firefox, or webkit (default: chromium)")
     .option("--no-start", "Do not auto-start app before running tests")
     .action(async (testArg: unknown, opts: unknown) => {
       try {
-        await runPlay(parseOptionalArgument(testArg), parsePlayCliOptions(opts));
+        await runPlay(parseOptionalArgument(testArg), parsePlayProfileInput(opts));
       } catch (err) {
         handleError(err);
       }
     });
 }
 
-function parsePlayCliOptions(value: unknown): PlayCliOptions {
+function parsePlayProfileInput(value: unknown): PlayProfileInput {
   if (!value || typeof value !== "object") return {};
   const record = value as Record<string, unknown>;
   return {
@@ -41,6 +43,7 @@ function parsePlayCliOptions(value: unknown): PlayCliOptions {
     saveFailureArtifacts: asOptionalBoolean(record.saveFailureArtifacts),
     artifactsDir: asOptionalString(record.artifactsDir),
     start: asOptionalBoolean(record.start),
+    browser: asOptionalString(record.browser),
   };
 }
 

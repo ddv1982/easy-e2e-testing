@@ -1,21 +1,23 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { chromium, type Browser, type BrowserContext } from "playwright";
-import { testSchema } from "../yaml-schema.js";
-import { yamlToTest } from "../transform/yaml-io.js";
-import { ValidationError, UserError } from "../../utils/errors.js";
-import { chromiumNotInstalledError, isLikelyMissingChromium } from "../../utils/chromium-runtime.js";
-import {
-  buildPlayFailureArtifactPaths,
-  createPlayRunId,
-} from "../play-failure-report.js";
+import type { Browser, BrowserContext } from "playwright";
+import { browserLaunchers, type PlaywrightBrowser } from "../../infra/playwright/browser-provisioner.js";
 import {
   PLAY_DEFAULT_ARTIFACTS_DIR,
+  PLAY_DEFAULT_BROWSER,
   PLAY_DEFAULT_DELAY_MS,
   PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
   PLAY_DEFAULT_TIMEOUT_MS,
   PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
 } from "./play-defaults.js";
+import { testSchema } from "../yaml-schema.js";
+import { yamlToTest } from "../transform/yaml-io.js";
+import { ValidationError, UserError } from "../../utils/errors.js";
+import { isLikelyMissingBrowser } from "../../utils/chromium-runtime.js";
+import {
+  buildPlayFailureArtifactPaths,
+  createPlayRunId,
+} from "../play-failure-report.js";
 import {
   startTraceCapture,
   stopTraceCaptureIfNeeded,
@@ -35,13 +37,6 @@ export async function play(
   const saveFailureArtifacts = options.saveFailureArtifacts ?? PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS;
   const artifactsDir = options.artifactsDir ?? PLAY_DEFAULT_ARTIFACTS_DIR;
   const runId = options.runId ?? createPlayRunId();
-
-  if (!Number.isFinite(delayMs) || delayMs < 0 || !Number.isInteger(delayMs)) {
-    throw new UserError(
-      `Invalid delay value: ${delayMs}`,
-      "Delay must be a non-negative integer in milliseconds."
-    );
-  }
 
   const content = await fs.readFile(absoluteFilePath, "utf-8");
   const raw = yamlToTest(content);
@@ -75,7 +70,7 @@ export async function play(
   let failureArtifacts = undefined as TestResult["failureArtifacts"];
 
   try {
-    browser = await launchBrowser(options.headed);
+    browser = await launchBrowser(options.headed, options.browser);
     context = await browser.newContext();
     const page = await context.newPage();
 
@@ -121,13 +116,17 @@ export async function play(
   };
 }
 
-async function launchBrowser(headed?: boolean): Promise<Browser> {
+async function launchBrowser(headed?: boolean, browser?: PlaywrightBrowser): Promise<Browser> {
+  const browserName = browser ?? PLAY_DEFAULT_BROWSER;
   try {
-    return await chromium.launch({ headless: !headed });
+    return await browserLaunchers[browserName].launch({ headless: !headed });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (isLikelyMissingChromium(message)) {
-      throw chromiumNotInstalledError();
+    if (isLikelyMissingBrowser(message)) {
+      throw new UserError(
+        `${browserName} browser is not installed.`,
+        `Run: ui-test setup or npx playwright install ${browserName}`
+      );
     }
     throw err;
   }

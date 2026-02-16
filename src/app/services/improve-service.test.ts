@@ -53,7 +53,7 @@ describe("runImprove chromium handling", () => {
     vi.mocked(improveTestFile).mockRejectedValueOnce(
       new UserError(
         "Chromium browser is not installed.",
-        "Run: ui-test setup quickstart or npx playwright install chromium"
+        "Run: ui-test setup or npx playwright install chromium"
       )
     );
 
@@ -62,7 +62,7 @@ describe("runImprove chromium handling", () => {
     await expect(run).rejects.toBeInstanceOf(UserError);
     await expect(run).rejects.toThrow("Chromium browser is not installed.");
     await expect(run).rejects.toMatchObject({
-      hint: expect.stringContaining("ui-test setup quickstart"),
+      hint: expect.stringContaining("ui-test setup"),
     });
     expect(improveTestFile).toHaveBeenCalledTimes(1);
   });

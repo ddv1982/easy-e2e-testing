@@ -2,9 +2,9 @@ import { chromium } from "playwright";
 import { UserError } from "./errors.js";
 
 export const CHROMIUM_INSTALL_HINT =
-  "Run: ui-test setup quickstart or npx playwright install chromium";
+  "Run: ui-test setup or npx playwright install chromium";
 
-export function isLikelyMissingChromium(message: string): boolean {
+export function isLikelyMissingBrowser(message: string): boolean {
   const normalized = message.toLowerCase();
   return (
     normalized.includes("executable doesn't exist") ||
@@ -24,7 +24,7 @@ export async function ensureChromiumAvailable(): Promise<void> {
     await browser.close();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (isLikelyMissingChromium(message)) {
+    if (isLikelyMissingBrowser(message)) {
       throw chromiumNotInstalledError();
     }
     throw err;

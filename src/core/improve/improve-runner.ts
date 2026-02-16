@@ -4,7 +4,7 @@ import { chromium, type Browser, type Page } from "playwright";
 import { stepsToYaml, yamlToTest } from "../transform/yaml-io.js";
 import { testSchema, type Step } from "../yaml-schema.js";
 import { ValidationError } from "../../utils/errors.js";
-import { chromiumNotInstalledError, isLikelyMissingChromium } from "../../utils/chromium-runtime.js";
+import { chromiumNotInstalledError, isLikelyMissingBrowser } from "../../utils/chromium-runtime.js";
 import { findStaleAssertions, removeStaleAssertions } from "./assertion-cleanup.js";
 import {
   buildAssertionApplyStatusCounts,
@@ -182,7 +182,7 @@ async function launchImproveBrowser(): Promise<{ browser: Browser; page: Page }>
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await browser?.close().catch(() => {});
-    if (isLikelyMissingChromium(message)) {
+    if (isLikelyMissingBrowser(message)) {
       throw chromiumNotInstalledError();
     }
     throw err;

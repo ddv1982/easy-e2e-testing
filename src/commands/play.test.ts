@@ -103,6 +103,7 @@ describe("runPlay startup behavior", () => {
       saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
       artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
       runId: "run-test-id",
+      browser: "chromium",
     });
     if (process.platform !== "win32") {
       expect(process.kill).toHaveBeenCalledWith(-43210, "SIGTERM");
@@ -150,6 +151,7 @@ describe("runPlay startup behavior", () => {
       saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
       artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
       runId: "run-test-id",
+      browser: "chromium",
     });
   });
 
@@ -171,6 +173,7 @@ describe("runPlay startup behavior", () => {
       saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
       artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
       runId: "run-test-id",
+      browser: "chromium",
     });
   });
 

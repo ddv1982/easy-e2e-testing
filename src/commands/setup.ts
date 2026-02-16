@@ -1,70 +1,93 @@
 import type { Command } from "commander";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkbox } from "@inquirer/prompts";
 import {
   runOnboardingPlan,
-  type SetupMode,
-  resolveInstallArgs,
-  runInstallPlaywrightCli,
+  ALL_PLAYWRIGHT_BROWSERS,
+  validateBrowserName,
+  type PlaywrightBrowser,
 } from "../app/services/onboarding-service.js";
 import { handleError, UserError } from "../utils/errors.js";
-import { asOptionalBoolean } from "./parse-helpers.js";
+import { asOptionalBoolean, asOptionalString } from "./parse-helpers.js";
 
 const MIN_NODE_MAJOR = 18;
 
 const HELP_APPENDIX = [
   "",
-  "Modes:",
-  "  install       Install project dependencies and Playwright-CLI tooling",
-  '  quickstart    Run install + Chromium provisioning (default mode). Add --run-play to execute "ui-test play e2e/example.yaml"',
-  "",
   "Examples:",
-  "  ui-test setup install",
-  "  ui-test setup quickstart --run-play",
-  "",
-  "One-off fallback:",
-  "  npx -y github:ddv1982/easy-e2e-testing setup quickstart",
+  "  ui-test setup                          Interactive browser selection",
+  "  ui-test setup --browsers chromium      Non-interactive (CI-friendly)",
+  "  ui-test setup --browsers chromium,firefox",
+  "  ui-test setup --run-play               Also run example test after setup",
 ].join("\n");
 
 export interface SetupCliOptions {
   runPlay?: boolean;
+  browsers?: string;
 }
 
 export function registerSetup(program: Command) {
   program
-    .command("setup [mode]")
-    .description("Install dependencies and run onboarding/play for first-time setup")
-    .option("--run-play", "Run ui-test play e2e/example.yaml after quickstart onboarding")
+    .command("setup")
+    .description("Install dependencies, provision browsers, and run onboarding")
+    .option("--browsers <list>", "Comma-separated browsers to install: chromium, firefox, webkit")
+    .option("--run-play", "Run ui-test play e2e/example.yaml after setup")
     .addHelpText("after", HELP_APPENDIX)
-    .action(async (mode: unknown, opts: unknown) => {
+    .action(async (opts: unknown) => {
       try {
-        await runSetup(mode, parseSetupCliOptions(opts));
+        await runSetup(parseSetupCliOptions(opts));
       } catch (err) {
         handleError(err);
       }
     });
 }
 
-export async function runSetup(modeInput: unknown, opts: SetupCliOptions): Promise<void> {
+export async function runSetup(opts: SetupCliOptions): Promise<void> {
   ensureNodeVersion();
-  const mode = parseSetupMode(modeInput);
+  const browsers = await resolveBrowsers(opts.browsers);
   const runPlay = opts.runPlay ?? false;
 
-  if (mode === "install" && runPlay) {
-    throw new UserError("install mode does not support --run-play.");
-  }
-
   await runOnboardingPlan(
-    {
-      mode,
-      runPlay,
-    },
-    {
-      uiTestCliEntry: resolveUiTestCliEntry(),
-    }
+    { browsers, runPlay },
+    { uiTestCliEntry: resolveUiTestCliEntry() }
   );
 
-  printSetupNextSteps(mode, runPlay);
+  printSetupNextSteps(runPlay);
+}
+
+export async function resolveBrowsers(
+  browsersFlag: string | undefined
+): Promise<PlaywrightBrowser[]> {
+  if (browsersFlag !== undefined) {
+    return parseBrowsersFlag(browsersFlag);
+  }
+
+  const selected = await checkbox<PlaywrightBrowser>({
+    message: "Which browsers do you want to install?",
+    choices: ALL_PLAYWRIGHT_BROWSERS.map((b) => ({
+      name: b,
+      value: b,
+      checked: b === "chromium",
+    })),
+    required: true,
+  });
+
+  return selected;
+}
+
+export function parseBrowsersFlag(input: string): PlaywrightBrowser[] {
+  const raw = input.split(",").map((s) => s.trim()).filter(Boolean);
+
+  if (raw.length === 0) {
+    throw new UserError(
+      "No browsers specified.",
+      "Use --browsers chromium,firefox,webkit"
+    );
+  }
+
+  const validated = raw.map((b) => validateBrowserName(b));
+  return [...new Set(validated)];
 }
 
 function parseSetupCliOptions(value: unknown): SetupCliOptions {
@@ -72,20 +95,8 @@ function parseSetupCliOptions(value: unknown): SetupCliOptions {
   const record = value as Record<string, unknown>;
   return {
     runPlay: asOptionalBoolean(record.runPlay),
+    browsers: asOptionalString(record.browsers),
   };
-}
-
-function parseSetupMode(modeInput: unknown): SetupMode {
-  if (typeof modeInput !== "string" || modeInput.trim().length === 0) {
-    return "quickstart";
-  }
-
-  const normalized = modeInput.trim().toLowerCase();
-  if (normalized === "install" || normalized === "quickstart") {
-    return normalized;
-  }
-
-  throw new UserError(`Unknown mode: ${modeInput}`);
 }
 
 function ensureNodeVersion() {
@@ -97,18 +108,14 @@ function ensureNodeVersion() {
   }
 }
 
-function resolveUiTestCliEntry(): string {
+export function resolveUiTestCliEntry(): string {
   const commandsDir = path.dirname(fileURLToPath(import.meta.url));
   return path.resolve(commandsDir, "..", "bin", "ui-test.js");
 }
 
-function printSetupNextSteps(mode: SetupMode, runPlay: boolean) {
-  if (mode !== "quickstart") {
-    return;
-  }
-
+function printSetupNextSteps(runPlay: boolean) {
   console.log("");
-  console.log("✔ Setup complete.");
+  console.log("Setup complete.");
   console.log("");
 
   if (runPlay) {
@@ -121,10 +128,3 @@ function printSetupNextSteps(mode: SetupMode, runPlay: boolean) {
   console.log("  ui-test --help");
 }
 
-export {
-  parseSetupMode,
-  printSetupNextSteps,
-  resolveInstallArgs,
-  resolveUiTestCliEntry,
-  runInstallPlaywrightCli,
-};

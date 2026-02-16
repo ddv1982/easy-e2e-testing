@@ -1,4 +1,5 @@
 import type { Step } from "../yaml-schema.js";
+import type { PlaywrightBrowser } from "../../infra/playwright/browser-provisioner.js";
 
 export interface PlayOptions {
   headed?: boolean;
@@ -9,6 +10,7 @@ export interface PlayOptions {
   saveFailureArtifacts?: boolean;
   artifactsDir?: string;
   runId?: string;
+  browser?: PlaywrightBrowser;
 }
 
 export interface StepResult {

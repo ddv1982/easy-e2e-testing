@@ -17,22 +17,34 @@ vi.mock("playwright", () => ({
   chromium: {
     launch: vi.fn(async () => ({ close: vi.fn(async () => {}) })),
   },
+  firefox: {
+    launch: vi.fn(async () => ({ close: vi.fn(async () => {}) })),
+  },
+  webkit: {
+    launch: vi.fn(async () => ({ close: vi.fn(async () => {}) })),
+  },
+}));
+
+vi.mock("@inquirer/prompts", () => ({
+  checkbox: vi.fn(),
 }));
 
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { checkbox } from "@inquirer/prompts";
 import { UserError } from "../utils/errors.js";
 import { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../core/play/play-defaults.js";
 import {
-  parseSetupMode,
+  parseBrowsersFlag,
   registerSetup,
   resolveUiTestCliEntry,
   runSetup,
-  runInstallPlaywrightCli,
 } from "./setup.js";
+import { runInstallPlaywrightCli } from "../app/services/onboarding-service.js";
 
 const mockSpawnSync = vi.mocked(spawnSync);
 const mockExistsSync = vi.mocked(existsSync);
+const mockCheckbox = vi.mocked(checkbox);
 
 function createProgram(): Command {
   const program = new Command();
@@ -59,20 +71,31 @@ describe("setup command registration", () => {
   });
 });
 
-describe("setup mode parsing", () => {
-  it("defaults to quickstart for empty mode", () => {
-    expect(parseSetupMode(undefined)).toBe("quickstart");
-    expect(parseSetupMode("")).toBe("quickstart");
+describe("parseBrowsersFlag", () => {
+  it("parses single browser", () => {
+    expect(parseBrowsersFlag("chromium")).toEqual(["chromium"]);
   });
 
-  it("accepts install and quickstart", () => {
-    expect(parseSetupMode("install")).toBe("install");
-    expect(parseSetupMode("quickstart")).toBe("quickstart");
+  it("parses multiple browsers", () => {
+    expect(parseBrowsersFlag("chromium,firefox")).toEqual(["chromium", "firefox"]);
   });
 
-  it("rejects unknown mode", () => {
-    expect(() => parseSetupMode("init")).toThrow(UserError);
-    expect(() => parseSetupMode("init")).toThrow(/Unknown mode: init/);
+  it("deduplicates browsers", () => {
+    expect(parseBrowsersFlag("chromium,chromium")).toEqual(["chromium"]);
+  });
+
+  it("trims whitespace", () => {
+    expect(parseBrowsersFlag(" chromium , firefox ")).toEqual(["chromium", "firefox"]);
+  });
+
+  it("rejects empty input", () => {
+    expect(() => parseBrowsersFlag("")).toThrow(UserError);
+    expect(() => parseBrowsersFlag("")).toThrow(/No browsers specified/);
+  });
+
+  it("rejects unknown browsers", () => {
+    expect(() => parseBrowsersFlag("chrome")).toThrow(UserError);
+    expect(() => parseBrowsersFlag("chrome")).toThrow(/Unknown browser/);
   });
 });
 
@@ -88,8 +111,8 @@ describe("setup execution", () => {
     } as never);
   });
 
-  it("runs quickstart with runPlay when requested", async () => {
-    await runSetup("quickstart", { runPlay: true });
+  it("runs setup with runPlay when requested", async () => {
+    await runSetup({ runPlay: true, browsers: "chromium" });
 
     expect(mockSpawnSync).toHaveBeenCalledWith(
       process.execPath,
@@ -113,7 +136,7 @@ describe("setup execution", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     try {
-      await runSetup("quickstart", { runPlay: true });
+      await runSetup({ runPlay: true, browsers: "chromium" });
 
       expect(mockSpawnSync).not.toHaveBeenCalledWith(
         process.execPath,
@@ -128,8 +151,8 @@ describe("setup execution", () => {
     }
   });
 
-  it("runs install mode", async () => {
-    await runSetup("install", {});
+  it("runs setup with --browsers flag", async () => {
+    await runSetup({ browsers: "chromium" });
 
     expect(mockSpawnSync).toHaveBeenCalledWith("npm", ["ci"], {
       stdio: "inherit",
@@ -138,38 +161,45 @@ describe("setup execution", () => {
     });
   });
 
-  it("prints next-step help after quickstart", async () => {
+  it("prints next-step help after setup", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runSetup("quickstart", {});
+    await runSetup({ browsers: "chromium" });
 
     const output = logSpy.mock.calls
       .map((call) => String(call[0] ?? ""))
       .join("\n");
 
-    expect(output).toContain("✔ Setup complete.");
+    expect(output).toContain("Setup complete.");
     expect(output).toContain("Next:");
     expect(output).toContain("ui-test play");
     expect(output).toContain("ui-test --help");
   });
 
-  it("prints play-help tip after quickstart --run-play", async () => {
+  it("prints play-help tip after setup --run-play", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runSetup("quickstart", { runPlay: true });
+    await runSetup({ runPlay: true, browsers: "chromium" });
 
     const output = logSpy.mock.calls
       .map((call) => String(call[0] ?? ""))
       .join("\n");
 
-    expect(output).toContain("✔ Setup complete.");
+    expect(output).toContain("Setup complete.");
     expect(output).toContain("Tip: Explore all options with ui-test --help.");
   });
 
-  it("rejects install mode with --run-play", async () => {
-    const run = runSetup("install", { runPlay: true });
-    await expect(run).rejects.toThrow(UserError);
-    await expect(run).rejects.toThrow("install mode does not support --run-play.");
+  it("uses interactive prompt when --browsers not provided", async () => {
+    mockCheckbox.mockResolvedValue(["chromium"] as never);
+
+    await runSetup({});
+
+    expect(mockCheckbox).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Which browsers do you want to install?",
+        required: true,
+      })
+    );
   });
 });
 
@@ -182,13 +212,15 @@ describe("setup command parsing (commander path)", () => {
       stdout: "",
       stderr: "",
     } as never);
+    mockCheckbox.mockResolvedValue(["chromium"] as never);
   });
 
-  it("accepts quickstart --run-play through commander parsing", async () => {
+  it("accepts --browsers chromium --run-play through commander parsing", async () => {
     const program = createProgram();
-    await program.parseAsync(["node", "ui-test", "setup", "quickstart", "--run-play"], {
-      from: "node",
-    });
+    await program.parseAsync(
+      ["node", "ui-test", "setup", "--browsers", "chromium", "--run-play"],
+      { from: "node" }
+    );
 
     expect(mockSpawnSync).toHaveBeenCalledWith(
       process.execPath,
@@ -201,23 +233,11 @@ describe("setup command parsing (commander path)", () => {
     );
   });
 
-  it("shows top-level setup help without side effects", async () => {
+  it("shows setup help without side effects", async () => {
     const program = createProgram();
     getSetupCommand(program).exitOverride();
     await expect(
       program.parseAsync(["node", "ui-test", "setup", "--help"], {
-        from: "node",
-      })
-    ).rejects.toMatchObject({ code: "commander.helpDisplayed" });
-
-    expect(mockSpawnSync).not.toHaveBeenCalled();
-  });
-
-  it("shows quickstart help without side effects", async () => {
-    const program = createProgram();
-    getSetupCommand(program).exitOverride();
-    await expect(
-      program.parseAsync(["node", "ui-test", "setup", "quickstart", "--help"], {
         from: "node",
       })
     ).rejects.toMatchObject({ code: "commander.helpDisplayed" });
@@ -233,9 +253,9 @@ describe("setup playwright-cli provisioning", () => {
 
   it("warns and continues when playwright-cli provisioning fails", () => {
     mockSpawnSync
-      .mockReturnValueOnce({ status: 1, error: undefined })
-      .mockReturnValueOnce({ status: 0, error: undefined })
-      .mockReturnValueOnce({ status: 1, error: undefined });
+      .mockReturnValueOnce({ status: 1, error: undefined } as never)
+      .mockReturnValueOnce({ status: 0, error: undefined } as never)
+      .mockReturnValueOnce({ status: 1, error: undefined } as never);
 
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const ok = runInstallPlaywrightCli();
@@ -267,9 +287,9 @@ describe("setup playwright-cli provisioning", () => {
 
   it("falls back to npx @latest when playwright-cli is unavailable", () => {
     mockSpawnSync
-      .mockReturnValueOnce({ status: 1, error: undefined })
-      .mockReturnValueOnce({ status: 0, error: undefined })
-      .mockReturnValueOnce({ status: 0, error: undefined });
+      .mockReturnValueOnce({ status: 1, error: undefined } as never)
+      .mockReturnValueOnce({ status: 0, error: undefined } as never)
+      .mockReturnValueOnce({ status: 0, error: undefined } as never);
 
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const ok = runInstallPlaywrightCli();

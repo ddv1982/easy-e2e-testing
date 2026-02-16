@@ -10,7 +10,7 @@ import {
   type PlayRunReport,
 } from "../../core/play-failure-report.js";
 import { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../../core/play/play-defaults.js";
-import { resolvePlayProfile } from "../options/play-profile.js";
+import { resolvePlayProfile, type PlayProfileInput } from "../options/play-profile.js";
 import { formatPlayProfileSummary } from "../options/profile-summary.js";
 import { UserError } from "../../utils/errors.js";
 import { ui } from "../../utils/ui.js";
@@ -18,19 +18,9 @@ import { ui } from "../../utils/ui.js";
 const START_TIMEOUT_MS = 60_000;
 const START_POLL_MS = 500;
 
-export interface PlayCliOptions {
-  headed?: boolean;
-  timeout?: string;
-  delay?: string;
-  waitNetworkIdle?: boolean;
-  saveFailureArtifacts?: boolean;
-  artifactsDir?: string;
-  start?: boolean;
-}
-
 export async function runPlay(
   testArg: string | undefined,
-  opts: PlayCliOptions
+  opts: PlayProfileInput
 ): Promise<void> {
   const profile = resolvePlayProfile(opts);
   const runId = createPlayRunId();
@@ -63,6 +53,7 @@ export async function runPlay(
       autoStart: shouldStartApp,
       saveFailureArtifacts: profile.saveFailureArtifacts,
       artifactsDir: profile.artifactsDir,
+      browser: profile.browser,
     })
   );
 
@@ -103,6 +94,7 @@ export async function runPlay(
         saveFailureArtifacts: profile.saveFailureArtifacts,
         artifactsDir: profile.artifactsDir,
         runId,
+        browser: profile.browser,
       });
       results.push(result);
       if (result.artifactWarnings) {

@@ -4,14 +4,13 @@ import path from "node:path";
 import { UserError } from "../../utils/errors.js";
 import { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../../core/play/play-defaults.js";
 import {
-  installPlaywrightChromium,
-  verifyChromiumLaunch,
-} from "../../infra/playwright/chromium-provisioner.js";
-
-export type SetupMode = "install" | "quickstart";
+  installPlaywrightBrowsers,
+  verifyBrowserLaunch,
+  type PlaywrightBrowser,
+} from "../../infra/playwright/browser-provisioner.js";
 
 export interface OnboardingPlan {
-  mode: SetupMode;
+  browsers: PlaywrightBrowser[];
   runPlay: boolean;
 }
 
@@ -23,16 +22,11 @@ export async function runOnboardingPlan(
   plan: OnboardingPlan,
   context: OnboardingContext
 ): Promise<void> {
-  if (plan.mode === "install") {
-    runInstallDependencies();
-    runInstallPlaywrightCli();
-    return;
-  }
-
   runInstallDependencies();
   runInstallPlaywrightCli();
-  installPlaywrightChromium();
-  await verifyChromiumLaunch();
+  installPlaywrightBrowsers(plan.browsers);
+  await verifyBrowserLaunch(plan.browsers[0]);
+
   if (plan.runPlay) {
     const exampleTestPath = path.resolve(PLAY_DEFAULT_EXAMPLE_TEST_FILE);
     if (existsSync(exampleTestPath)) {
@@ -65,15 +59,15 @@ function runInstallDependencies() {
   );
 }
 
-function resolveInstallArgs() {
+export function resolveInstallArgs() {
   const lockFilePath = path.resolve("package-lock.json");
   return existsSync(lockFilePath) ? ["ci"] : ["install"];
 }
 
-function runInstallPlaywrightCli() {
+export function runInstallPlaywrightCli() {
   const failures: string[] = [];
   try {
-    runCommandQuiet("Verify Playwright-CLI (playwright-cli)", "playwright-cli", ["--version"]);
+    runCommand("Verify Playwright-CLI (playwright-cli)", "playwright-cli", ["--version"], { quiet: true });
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -82,11 +76,11 @@ function runInstallPlaywrightCli() {
 
   try {
     ensureCommandAvailable("npx");
-    runCommandQuiet("Install/verify Playwright-CLI (@latest)", "npx", [
+    runCommand("Install/verify Playwright-CLI (@latest)", "npx", [
       "-y",
       "@playwright/cli@latest",
       "--version",
-    ]);
+    ], { quiet: true });
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -115,10 +109,10 @@ function ensureCommandAvailable(command: string) {
   }
 }
 
-function runCommand(label: string, command: string, args: string[]) {
+function runCommand(label: string, command: string, args: string[], options?: { quiet?: boolean }) {
   console.log(`[setup] ${label}`);
   const result = spawnSync(command, args, {
-    stdio: "inherit",
+    stdio: options?.quiet ? "ignore" : "inherit",
     shell: process.platform === "win32",
     env: process.env,
   });
@@ -131,23 +125,5 @@ function runCommand(label: string, command: string, args: string[]) {
   }
 }
 
-function runCommandQuiet(label: string, command: string, args: string[]) {
-  console.log(`[setup] ${label}`);
-  const result = spawnSync(command, args, {
-    stdio: "ignore",
-    shell: process.platform === "win32",
-    env: process.env,
-  });
-
-  if (result.error) {
-    throw new UserError(`${label} failed: ${result.error.message}`);
-  }
-  if (result.status !== 0) {
-    throw new UserError(`${label} failed with exit code ${result.status ?? "unknown"}.`);
-  }
-}
-
-export {
-  resolveInstallArgs,
-  runInstallPlaywrightCli,
-};
+// Re-export browser types for commands layer (commands cannot import from infra directly)
+export { ALL_PLAYWRIGHT_BROWSERS, validateBrowserName, type PlaywrightBrowser } from "../../infra/playwright/browser-provisioner.js";
