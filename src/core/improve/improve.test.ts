@@ -155,7 +155,7 @@ describe("improveTestFile runner", () => {
     expect(savedReport.providerUsed).toBe("playwright");
   });
 
-  it("removes runtime-failing steps in apply mode", async () => {
+  it("marks runtime-failing steps as optional in apply mode", async () => {
     const yamlPath = await writeYamlWithTransientStep();
 
     runImproveSelectorPassMock.mockImplementation(async (input) => ({
@@ -173,16 +173,17 @@ describe("improveTestFile runner", () => {
     });
 
     expect(
-      result.report.diagnostics.some((d) => d.code === "runtime_failing_step_removed")
+      result.report.diagnostics.some((d) => d.code === "runtime_failing_step_marked_optional")
     ).toBe(true);
 
     const written = await fs.readFile(yamlPath, "utf-8");
-    expect(written).not.toContain("cookie-accept");
+    expect(written).toContain("cookie-accept");
     expect(written).toContain("submit");
-    expect(written).not.toContain("optional");
+    expect(written).toContain("optional: true");
+    expect(written).toContain("timeout: 2000");
   });
 
-  it("does not remove navigate steps even if they fail", async () => {
+  it("does not mark navigate steps as optional even if they fail", async () => {
     const yamlPath = await writeYamlWithTransientStep();
 
     runImproveSelectorPassMock.mockImplementation(async (input) => ({
@@ -201,10 +202,16 @@ describe("improveTestFile runner", () => {
 
     const written = await fs.readFile(yamlPath, "utf-8");
     expect(written).toContain("navigate");
-    expect(written).not.toContain("cookie-accept");
+    expect(written).toContain("cookie-accept");
+    // Only the cookie-accept click step should be marked optional, not the navigate step
+    const optionalCount = (written.match(/optional: true/g) ?? []).length;
+    expect(optionalCount).toBe(1);
+    // The navigate step block should not contain optional
+    const navigateBlock = written.split("- action: navigate")[1]?.split("  - ")[0] ?? "";
+    expect(navigateBlock).not.toContain("optional");
   });
 
-  it("passes filtered indexes and remapped snapshots to assertion pass", async () => {
+  it("passes all indexes and snapshots to assertion pass when steps are marked optional", async () => {
     const yamlPath = await writeYamlWithTransientStep();
 
     runImproveSelectorPassMock.mockImplementation(async (input) => ({
@@ -226,14 +233,15 @@ describe("improveTestFile runner", () => {
     });
 
     const assertionCallArgs = runImproveAssertionPassMock.mock.calls[0][0];
-    expect(assertionCallArgs.outputSteps).toHaveLength(2);
-    expect(assertionCallArgs.outputStepOriginalIndexes).toHaveLength(2);
-    expect(assertionCallArgs.nativeStepSnapshots).toHaveLength(2);
+    expect(assertionCallArgs.outputSteps).toHaveLength(3);
+    expect(assertionCallArgs.outputStepOriginalIndexes).toHaveLength(3);
+    expect(assertionCallArgs.nativeStepSnapshots).toHaveLength(3);
     expect(assertionCallArgs.nativeStepSnapshots[0].index).toBe(0);
     expect(assertionCallArgs.nativeStepSnapshots[1].index).toBe(1);
+    expect(assertionCallArgs.nativeStepSnapshots[2].index).toBe(2);
   });
 
-  it("does not remove steps in report-only mode", async () => {
+  it("does not mark steps as optional in report-only mode", async () => {
     const yamlPath = await writeYamlWithTransientStep();
 
     runImproveSelectorPassMock.mockImplementation(async (input) => ({
@@ -252,7 +260,7 @@ describe("improveTestFile runner", () => {
 
     expect(result.outputPath).toBeUndefined();
     expect(
-      result.report.diagnostics.some((d) => d.code === "runtime_failing_step_removed")
+      result.report.diagnostics.some((d) => d.code === "runtime_failing_step_marked_optional")
     ).toBe(false);
 
     const written = await fs.readFile(yamlPath, "utf-8");

@@ -99,7 +99,7 @@ The `target` object identifies the element:
 - **`kind`** — selector type (`css`, `xpath`, `locatorExpression`, `playwrightSelector`, etc.)
 - **`source`** — how the selector was created (`manual`, `codegen-jsonl`, `codegen-fallback`)
 
-Any step can include `optional: true`. Optional steps that fail are skipped instead of failing the test.
+Any step can include `optional: true`. Optional steps that fail are skipped instead of failing the test. Steps can also include `timeout: <ms>` to override the global step timeout.
 
 ## Run Tests
 
@@ -124,11 +124,11 @@ ui-test play
 
 This opens a browser. Interact with your app, then close the browser to save the recording as a YAML file in the `e2e/` directory.
 
-After recording, `ui-test` automatically improves selectors, adds assertion candidates, and removes transient steps. Use `--no-improve` to skip this.
+After recording, `ui-test` automatically improves selectors, adds assertion candidates, and marks transient steps as optional. Use `--no-improve` to skip this.
 
 ## Improve Tests
 
-`improve` upgrades selectors, generates assertion candidates, and removes transient steps that fail at runtime.
+`improve` upgrades selectors, generates assertion candidates, and marks transient steps that fail at runtime as optional.
 
 ```bash
 ui-test improve e2e/login.yaml

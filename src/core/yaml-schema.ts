@@ -20,6 +20,7 @@ export const targetSchema = z.object({
 const baseStep = z.object({
   description: z.string().optional(),
   optional: z.boolean().optional(),
+  timeout: z.number().int().positive().optional(),
 });
 
 const navigateStep = baseStep.extend({
