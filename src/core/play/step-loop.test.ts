@@ -153,6 +153,51 @@ describe("runPlayStepLoop optional step behavior", () => {
   });
 });
 
+describe("runPlayStepLoop per-step timeout", () => {
+  beforeEach(() => {
+    executeRuntimeStepMock.mockClear();
+    waitForPostStepNetworkIdleMock.mockClear();
+    warnMock.mockClear();
+    successMock.mockClear();
+    errorMock.mockClear();
+  });
+
+  it("passes step with timeout field to executeRuntimeStep", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+
+    const step: Step = {
+      action: "click",
+      target: {
+        value: "#cookie-accept",
+        kind: "css",
+        source: "manual",
+      },
+      optional: true,
+      timeout: 2000,
+    };
+
+    await runPlayStepLoop({
+      page: {} as Page,
+      context: {} as BrowserContext,
+      steps: [step],
+      timeout: 10_000,
+      delayMs: 0,
+      waitForNetworkIdle: false,
+      runId: "run-timeout-1",
+      absoluteFilePath: "/tmp/test.yaml",
+      testName: "Per-Step Timeout Test",
+      traceState: { tracingStarted: false, tracingStopped: false },
+      artifactWarnings: [],
+    });
+
+    expect(executeRuntimeStepMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ timeout: 2000, optional: true }),
+      expect.objectContaining({ timeout: 10_000 })
+    );
+  });
+});
+
 describe("runPlayStepLoop warning behavior", () => {
   beforeEach(() => {
     executeRuntimeStepMock.mockClear();

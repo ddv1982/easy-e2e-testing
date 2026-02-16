@@ -19,6 +19,7 @@ import {
   type ImproveAssertionSource,
   type ImproveOptions,
   type ImproveResult,
+  OPTIONAL_STEP_TIMEOUT_MS,
 } from "./improve-types.js";
 import {
   improveReportSchema,
@@ -106,49 +107,26 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       diagnostics,
     });
 
-    const failedIndexesToRemove = new Set(
+    const failedIndexesToMark = new Set(
       selectorPass.failedStepIndexes.filter((index) => {
         const step = selectorPass.outputSteps[index];
         return step && step.action !== "navigate";
       })
     );
 
-    let stepsAfterRemoval = selectorPass.outputSteps;
-    let indexesAfterRemoval = outputStepOriginalIndexes;
-    let snapshotsAfterRemoval = selectorPass.nativeStepSnapshots;
-
-    if (wantsWrite && failedIndexesToRemove.size > 0) {
-      for (const index of failedIndexesToRemove) {
+    if (wantsWrite && failedIndexesToMark.size > 0) {
+      for (const index of failedIndexesToMark) {
         const originalIndex = outputStepOriginalIndexes[index] ?? index;
+        // Mutate in place -- these same step objects are passed to the assertion pass below.
+        const step = selectorPass.outputSteps[index];
+        step.optional = true;
+        step.timeout = step.timeout ?? OPTIONAL_STEP_TIMEOUT_MS;
         diagnostics.push({
-          code: "runtime_failing_step_removed",
+          code: "runtime_failing_step_marked_optional",
           level: "info",
-          message: `Step ${originalIndex + 1}: removed because it failed at runtime.`,
+          message: `Step ${originalIndex + 1}: marked optional because it failed at runtime.`,
         });
       }
-
-      stepsAfterRemoval = selectorPass.outputSteps.filter(
-        (_, index) => !failedIndexesToRemove.has(index)
-      );
-      indexesAfterRemoval = outputStepOriginalIndexes.filter(
-        (_, index) => !failedIndexesToRemove.has(index)
-      );
-
-      const oldToNewIndex = new Map<number, number>();
-      let newIdx = 0;
-      for (let oldIdx = 0; oldIdx < selectorPass.outputSteps.length; oldIdx++) {
-        if (!failedIndexesToRemove.has(oldIdx)) {
-          oldToNewIndex.set(oldIdx, newIdx);
-          newIdx++;
-        }
-      }
-
-      snapshotsAfterRemoval = selectorPass.nativeStepSnapshots
-        .filter((snap) => !failedIndexesToRemove.has(snap.index))
-        .map((snap) => ({
-          ...snap,
-          index: oldToNewIndex.get(snap.index) ?? snap.index,
-        }));
     }
 
     const assertionPass = await runImproveAssertionPass({
@@ -156,10 +134,10 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       assertionSource,
       applyAssertions: effectiveOptions.applyAssertions,
       page,
-      outputSteps: stepsAfterRemoval,
+      outputSteps: selectorPass.outputSteps,
       findings: selectorPass.findings,
-      outputStepOriginalIndexes: indexesAfterRemoval,
-      nativeStepSnapshots: snapshotsAfterRemoval,
+      outputStepOriginalIndexes,
+      nativeStepSnapshots: selectorPass.nativeStepSnapshots,
       testBaseUrl: test.baseUrl,
       diagnostics,
     });
