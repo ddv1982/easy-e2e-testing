@@ -70,6 +70,20 @@ npx playwright show-trace .ui-test-artifacts/runs/<runId>/tests/<testSlug>/trace
 - Re-run recording and verify the browser window is used.
 - Check for fallback diagnostics in CLI output.
 
+## Auto-Improve After Recording Fails
+
+If auto-improve fails after recording, the recording is still saved. The CLI prints a warning with a manual command to retry.
+
+Common causes:
+- Chromium not installed — run `npx playwright install chromium`.
+- The recorded test references a URL that is no longer reachable.
+
+Fix the underlying issue, then run the improve step manually:
+
+```bash
+ui-test improve <file> --apply
+```
+
 ## Improve Apply Mode Fails
 
 If you see runtime validation errors:
@@ -80,7 +94,7 @@ If you see runtime validation errors:
 
 ### Common causes
 
-1. Use `--apply` — without it, improve writes a report only.
+1. Use `--apply` or accept the interactive prompt — with `--no-apply`, improve writes a report only.
 2. Use `--assertions candidates` (not `none`) — with `none`, assertion generation is skipped.
 3. Check the report's `applyStatus` for skip reasons (see [Improve Workflow](workflows/improve.md#report-contents)).
 4. Re-run in a stable environment so runtime validation can pass.

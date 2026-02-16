@@ -30,7 +30,7 @@ All command examples below use global `ui-test`.
 | `ui-test setup` | Onboarding and provisioning helper |
 | `ui-test play [test]` | Run one YAML test or all tests |
 | `ui-test record` | Record browser interactions into YAML |
-| `ui-test improve <file>` | Analyze and suggest selector/assertion improvements |
+| `ui-test improve <file>` | Improve selectors, add assertions, remove transient steps |
 | `ui-test list` | List discovered tests |
 | `ui-test doctor` | Show invocation/version diagnostics |
 
@@ -44,6 +44,8 @@ All command examples below use global `ui-test`.
 | `--wait-network-idle` | on |
 | `--save-failure-artifacts` | on |
 | `--artifacts-dir <path>` | `.ui-test-artifacts` |
+| `--browser <name>` | chromium |
+| `--no-start` | off (auto-start enabled) |
 
 `testDir=e2e`, `baseUrl=http://127.0.0.1:5173`. Auto-start applies to `e2e/example.yaml` only.
 
@@ -62,6 +64,7 @@ Full guide: [Troubleshooting](docs/troubleshooting.md)
 - [Getting Started](docs/getting-started.md)
 - [Record Workflow](docs/workflows/record.md)
 - [Improve Workflow](docs/workflows/improve.md)
+- [Configuration](docs/configuration.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Maintainers](docs/maintainers.md)
 

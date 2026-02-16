@@ -124,7 +124,11 @@ ui-test play
 
 This opens a browser. Interact with your app, then close the browser to save the recording as a YAML file in the `e2e/` directory.
 
-## Improve Selector Quality
+After recording, `ui-test` automatically improves selectors, adds assertion candidates, and removes transient steps. Use `--no-improve` to skip this.
+
+## Improve Tests
+
+`improve` upgrades selectors, generates assertion candidates, and removes transient steps that fail at runtime.
 
 ```bash
 ui-test improve e2e/login.yaml
@@ -133,6 +137,13 @@ ui-test improve e2e/login.yaml --no-apply
 ```
 
 By default, `improve` prompts you to confirm before applying changes. Use `--apply` to skip the prompt (CI-friendly), or `--no-apply` for a report-only run without prompting.
+
+Control assertion generation with `--assertions`:
+
+```bash
+ui-test improve e2e/login.yaml --assertions candidates   # default
+ui-test improve e2e/login.yaml --assertions none          # skip assertions
+```
 
 For snapshot-cli assertions:
 
@@ -144,4 +155,5 @@ ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
 
 - Record workflow: [Record Workflow](workflows/record.md)
 - Improve workflow: [Improve Workflow](workflows/improve.md)
+- Configuration: [Configuration](configuration.md)
 - Command help: `ui-test --help`

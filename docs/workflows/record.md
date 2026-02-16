@@ -12,6 +12,7 @@ You will be prompted for:
 - test name
 - starting URL
 - optional description
+- output directory
 
 ## Flags
 
@@ -34,6 +35,18 @@ Skip all prompts by providing name and URL:
 ```bash
 ui-test record --name "Login flow" --url http://localhost:3000/login
 ```
+
+## After Recording
+
+After the browser is closed, `ui-test` automatically runs `improve` on the new test file. This:
+
+- Upgrades selectors to more reliable alternatives
+- Generates assertion candidates (e.g. `assertVisible`, `assertText`)
+- Removes transient steps that fail at runtime
+
+The CLI prints a summary of changes. If auto-improve fails, the recording is still saved and you can run `ui-test improve <file> --apply` manually.
+
+Use `--no-improve` to skip auto-improvement entirely.
 
 ## Selector Policy
 
@@ -60,5 +73,5 @@ The `source` field records how the selector was produced: `codegen-jsonl` from t
 ## Common Tips
 
 - Record with realistic test data.
-- Add assertions after recording.
+- Review auto-improve results and adjust assertions as needed.
 - Keep selectors user-facing when possible (`getByRole`, `getByLabel`, `getByTestId`).
