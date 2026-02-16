@@ -46,6 +46,7 @@ describe("improveTestFile runner", () => {
       outputSteps: input.steps,
       findings: [],
       nativeStepSnapshots: [],
+      failedStepIndexes: [],
     }));
     runImproveAssertionPassMock.mockImplementation(async (input) => ({
       outputSteps: input.outputSteps,
@@ -67,6 +68,35 @@ describe("improveTestFile runner", () => {
     await fs.writeFile(
       yamlPath,
       `name: sample\nsteps:\n  - action: navigate\n    url: https://example.com\n  - action: click\n    target:\n      value: "#submit"\n      kind: css\n      source: manual\n`,
+      "utf-8"
+    );
+    return yamlPath;
+  }
+
+  async function writeYamlWithTransientStep(): Promise<string> {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "transient.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: transient",
+        "baseUrl: https://example.com",
+        "steps:",
+        "  - action: navigate",
+        '    url: "/"',
+        "  - action: click",
+        "    target:",
+        '      value: "#cookie-accept"',
+        "      kind: css",
+        "      source: manual",
+        "  - action: click",
+        "    target:",
+        '      value: "#submit"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n") + "\n",
       "utf-8"
     );
     return yamlPath;
@@ -123,6 +153,110 @@ describe("improveTestFile runner", () => {
       providerUsed: string;
     };
     expect(savedReport.providerUsed).toBe("playwright");
+  });
+
+  it("removes runtime-failing steps in apply mode", async () => {
+    const yamlPath = await writeYamlWithTransientStep();
+
+    runImproveSelectorPassMock.mockImplementation(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [1],
+    }));
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    expect(
+      result.report.diagnostics.some((d) => d.code === "runtime_failing_step_removed")
+    ).toBe(true);
+
+    const written = await fs.readFile(yamlPath, "utf-8");
+    expect(written).not.toContain("cookie-accept");
+    expect(written).toContain("submit");
+    expect(written).not.toContain("optional");
+  });
+
+  it("does not remove navigate steps even if they fail", async () => {
+    const yamlPath = await writeYamlWithTransientStep();
+
+    runImproveSelectorPassMock.mockImplementation(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [0, 1],
+    }));
+
+    await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    const written = await fs.readFile(yamlPath, "utf-8");
+    expect(written).toContain("navigate");
+    expect(written).not.toContain("cookie-accept");
+  });
+
+  it("passes filtered indexes and remapped snapshots to assertion pass", async () => {
+    const yamlPath = await writeYamlWithTransientStep();
+
+    runImproveSelectorPassMock.mockImplementation(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [
+        { index: 0, step: {} as any, preSnapshot: "a", postSnapshot: "a" },
+        { index: 1, step: {} as any, preSnapshot: "b", postSnapshot: "b" },
+        { index: 2, step: {} as any, preSnapshot: "c", postSnapshot: "c" },
+      ],
+      failedStepIndexes: [1],
+    }));
+
+    await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: true,
+      assertions: "candidates",
+    });
+
+    const assertionCallArgs = runImproveAssertionPassMock.mock.calls[0][0];
+    expect(assertionCallArgs.outputSteps).toHaveLength(2);
+    expect(assertionCallArgs.outputStepOriginalIndexes).toHaveLength(2);
+    expect(assertionCallArgs.nativeStepSnapshots).toHaveLength(2);
+    expect(assertionCallArgs.nativeStepSnapshots[0].index).toBe(0);
+    expect(assertionCallArgs.nativeStepSnapshots[1].index).toBe(1);
+  });
+
+  it("does not remove steps in report-only mode", async () => {
+    const yamlPath = await writeYamlWithTransientStep();
+
+    runImproveSelectorPassMock.mockImplementation(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [1],
+    }));
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    expect(result.outputPath).toBeUndefined();
+    expect(
+      result.report.diagnostics.some((d) => d.code === "runtime_failing_step_removed")
+    ).toBe(false);
+
+    const written = await fs.readFile(yamlPath, "utf-8");
+    expect(written).toContain("cookie-accept");
   });
 
   it("downgrades applyAssertions when assertions mode is none", async () => {

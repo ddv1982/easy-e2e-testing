@@ -106,18 +106,49 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       diagnostics,
     });
 
-    if (wantsWrite) {
-      for (const index of selectorPass.failedStepIndexes) {
+    const failedIndexesToRemove = new Set(
+      selectorPass.failedStepIndexes.filter((index) => {
         const step = selectorPass.outputSteps[index];
-        if (!step || step.action === "navigate" || step.optional) continue;
-        selectorPass.outputSteps[index] = { ...step, optional: true };
+        return step && step.action !== "navigate";
+      })
+    );
+
+    let stepsAfterRemoval = selectorPass.outputSteps;
+    let indexesAfterRemoval = outputStepOriginalIndexes;
+    let snapshotsAfterRemoval = selectorPass.nativeStepSnapshots;
+
+    if (wantsWrite && failedIndexesToRemove.size > 0) {
+      for (const index of failedIndexesToRemove) {
         const originalIndex = outputStepOriginalIndexes[index] ?? index;
         diagnostics.push({
-          code: "runtime_failing_step_marked_optional",
+          code: "runtime_failing_step_removed",
           level: "info",
-          message: `Step ${originalIndex + 1}: marked optional because it failed at runtime.`,
+          message: `Step ${originalIndex + 1}: removed because it failed at runtime.`,
         });
       }
+
+      stepsAfterRemoval = selectorPass.outputSteps.filter(
+        (_, index) => !failedIndexesToRemove.has(index)
+      );
+      indexesAfterRemoval = outputStepOriginalIndexes.filter(
+        (_, index) => !failedIndexesToRemove.has(index)
+      );
+
+      const oldToNewIndex = new Map<number, number>();
+      let newIdx = 0;
+      for (let oldIdx = 0; oldIdx < selectorPass.outputSteps.length; oldIdx++) {
+        if (!failedIndexesToRemove.has(oldIdx)) {
+          oldToNewIndex.set(oldIdx, newIdx);
+          newIdx++;
+        }
+      }
+
+      snapshotsAfterRemoval = selectorPass.nativeStepSnapshots
+        .filter((snap) => !failedIndexesToRemove.has(snap.index))
+        .map((snap) => ({
+          ...snap,
+          index: oldToNewIndex.get(snap.index) ?? snap.index,
+        }));
     }
 
     const assertionPass = await runImproveAssertionPass({
@@ -125,10 +156,10 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       assertionSource,
       applyAssertions: effectiveOptions.applyAssertions,
       page,
-      outputSteps: selectorPass.outputSteps,
+      outputSteps: stepsAfterRemoval,
       findings: selectorPass.findings,
-      outputStepOriginalIndexes,
-      nativeStepSnapshots: selectorPass.nativeStepSnapshots,
+      outputStepOriginalIndexes: indexesAfterRemoval,
+      nativeStepSnapshots: snapshotsAfterRemoval,
       testBaseUrl: test.baseUrl,
       diagnostics,
     });

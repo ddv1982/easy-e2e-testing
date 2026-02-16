@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { handleError } from "../utils/errors.js";
 import { runRecord, type RecordCliOptions } from "../app/services/record-service.js";
-import { asOptionalString } from "./parse-helpers.js";
+import { asOptionalBoolean, asOptionalString } from "./parse-helpers.js";
 
 export function registerRecord(program: Command) {
   program
@@ -17,6 +17,7 @@ export function registerRecord(program: Command) {
     .option("-o, --output-dir <dir>", "Output directory for recorded test")
     .option("--load-storage <path>", "Path to storage state to preload")
     .option("--save-storage <path>", "Path to write resulting storage state")
+    .option("--no-improve", "Skip automatic improvement after recording")
     .action(async (opts: unknown) => {
       try {
         await runRecord(parseRecordCliOptions(opts));
@@ -40,5 +41,6 @@ function parseRecordCliOptions(value: unknown): RecordCliOptions {
     testIdAttribute: asOptionalString(record.testIdAttribute),
     loadStorage: asOptionalString(record.loadStorage),
     saveStorage: asOptionalString(record.saveStorage),
+    improve: asOptionalBoolean(record.improve),
   };
 }

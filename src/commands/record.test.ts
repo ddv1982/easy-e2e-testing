@@ -32,4 +32,24 @@ describe("record command options", () => {
     expect(opts.loadStorage).toBe(".auth/in.json");
     expect(opts.saveStorage).toBe(".auth/out.json");
   });
+
+  it("registers --no-improve flag", () => {
+    const program = new Command();
+    registerRecord(program);
+    const command = program.commands.find((entry) => entry.name() === "record");
+
+    command?.parseOptions(["--no-improve"]);
+    const opts = command?.opts() as Record<string, unknown>;
+    expect(opts.improve).toBe(false);
+  });
+
+  it("defaults improve to true when --no-improve is not passed", () => {
+    const program = new Command();
+    registerRecord(program);
+    const command = program.commands.find((entry) => entry.name() === "record");
+
+    command?.parseOptions([]);
+    const opts = command?.opts() as Record<string, unknown>;
+    expect(opts.improve).toBe(true);
+  });
 });

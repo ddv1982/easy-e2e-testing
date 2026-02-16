@@ -27,6 +27,7 @@ You will be prompted for:
 | `--test-id-attribute <attr>` | Custom test-id attribute | none |
 | `--load-storage <path>` | Preload browser storage state | none |
 | `--save-storage <path>` | Save browser storage state | none |
+| `--no-improve` | Skip automatic improvement after recording | enabled |
 
 Skip all prompts by providing name and URL:
 

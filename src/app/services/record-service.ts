@@ -1,5 +1,6 @@
 import { input } from "@inquirer/prompts";
 import { record as runRecording } from "../../core/recorder.js";
+import { improveTestFile } from "../../core/improve/improve.js";
 import { PLAY_DEFAULT_BASE_URL, PLAY_DEFAULT_TEST_DIR } from "../../core/play/play-defaults.js";
 import { resolveRecordProfile, hasUrlProtocol, normalizeRecordUrl } from "../options/record-profile.js";
 import { formatRecordingProfileSummary } from "../options/profile-summary.js";
@@ -18,6 +19,7 @@ export interface RecordCliOptions {
   testIdAttribute?: string;
   loadStorage?: string;
   saveStorage?: string;
+  improve?: boolean;
 }
 
 export async function runRecord(opts: RecordCliOptions): Promise<void> {
@@ -103,4 +105,37 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
     `Selector quality: stable=${result.stats.stableSelectors}, fallback=${result.stats.fallbackSelectors}, frame-aware=${result.stats.frameAwareSelectors}`
   );
   ui.info("Run it with: ui-test play " + result.outputPath);
+
+  if (opts.improve !== false) {
+    try {
+      console.log();
+      ui.info("Running auto-improve...");
+      const improveResult = await improveTestFile({
+        testFile: result.outputPath,
+        applySelectors: true,
+        applyAssertions: true,
+        assertions: "candidates",
+      });
+
+      const summary = improveResult.report.summary;
+      const removedSteps = improveResult.report.diagnostics.filter(
+        (d) => d.code === "runtime_failing_step_removed"
+      ).length;
+
+      const parts: string[] = [];
+      if (summary.improved > 0) parts.push(summary.improved + " selectors improved");
+      if (summary.appliedAssertions > 0) parts.push(summary.appliedAssertions + " assertions applied");
+      if (removedSteps > 0) parts.push(removedSteps + " transient steps removed");
+
+      if (parts.length > 0) {
+        ui.success("Auto-improve: " + parts.join(", "));
+      } else {
+        ui.info("Auto-improve: no changes needed");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      ui.warn("Auto-improve failed: " + message);
+      ui.warn("You can run it manually: ui-test improve " + result.outputPath + " --apply");
+    }
+  }
 }
