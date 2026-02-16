@@ -88,6 +88,7 @@ These rules govern how assertions are inserted:
 3. Snapshot `assertText` can be auto-inserted after runtime validation.
 4. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
 5. Existing adjacent assertions are preserved (no automatic cleanup).
+6. Applied assertions are marked `optional: true` so they don't hard-fail tests when page content changes.
 
 ---
 
