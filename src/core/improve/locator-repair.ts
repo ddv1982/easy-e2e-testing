@@ -4,6 +4,7 @@ import type { Target } from "../yaml-schema.js";
 import type { ImproveDiagnostic } from "./report-schema.js";
 import type { TargetCandidate } from "./candidate-generator.js";
 import { quote } from "./candidate-generator.js";
+import { VOLATILE_KEYWORDS, detectVolatilityFlags } from "./volatility-detection.js";
 
 type SupportedRootMethod =
   | "getByRole"
@@ -19,21 +20,6 @@ interface ParsedLocatorExpression {
   exact: boolean;
   suffix: "" | ".first()" | ".last()" | `.nth(${number})`;
 }
-
-const WEATHER_OR_VOLATILE_KEYWORDS = new Set([
-  "weather",
-  "winterweer",
-  "winter",
-  "storm",
-  "sneeuw",
-  "rain",
-  "regen",
-  "temperatuur",
-  "temperature",
-  "breaking",
-  "liveblog",
-  "update",
-]);
 
 const STABLE_STOPWORDS = new Set([
   "the",
@@ -85,7 +71,7 @@ export function analyzeAndBuildLocatorRepairCandidates(input: {
     return { candidates: [], diagnostics: [] };
   }
 
-  const volatilityFlags = getVolatilityFlags(parse.queryText);
+  const volatilityFlags = detectVolatilityFlags(parse.queryText);
   const brittleFlags: string[] = [];
   if (parse.exact) brittleFlags.push("exact_true");
   if (parse.queryText.length >= 48) brittleFlags.push("long_text");
@@ -150,7 +136,7 @@ function looksPotentiallyBrittleExpression(expression: string): boolean {
   const quoted = extractFirstQuotedString(expression);
   if (!quoted) return false;
   if (quoted.length >= 48) return true;
-  return getVolatilityFlags(quoted).length > 0;
+  return detectVolatilityFlags(quoted).length > 0;
 }
 
 function extractFirstQuotedString(value: string): string | undefined {
@@ -350,7 +336,7 @@ function buildStableRegexPattern(value: string): string | undefined {
     .split(/[^a-z0-9]+/g)
     .filter((token) => token.length >= 3)
     .filter((token) => !STABLE_STOPWORDS.has(token))
-    .filter((token) => !WEATHER_OR_VOLATILE_KEYWORDS.has(token))
+    .filter((token) => !VOLATILE_KEYWORDS.has(token))
     .filter((token) => !/^\d+$/.test(token))
     .slice(0, 4);
 
@@ -360,28 +346,4 @@ function buildStableRegexPattern(value: string): string | undefined {
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function getVolatilityFlags(value: string): string[] {
-  const out: string[] = [];
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return out;
-
-  if (/\b\d{2,}\b/.test(normalized)) out.push("contains_numeric_fragment");
-  if (
-    /\b\d{1,2}[:.]\d{2}\b/.test(normalized) ||
-    /\b\d{4}-\d{2}-\d{2}\b/.test(normalized) ||
-    /\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/.test(normalized)
-  ) {
-    out.push("contains_date_or_time_fragment");
-  }
-
-  for (const keyword of WEATHER_OR_VOLATILE_KEYWORDS) {
-    if (normalized.includes(keyword)) {
-      out.push("contains_weather_or_news_fragment");
-      break;
-    }
-  }
-
-  return out;
 }
