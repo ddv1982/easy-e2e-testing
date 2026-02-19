@@ -157,7 +157,7 @@ export async function runImproveAssertionPass(input: {
             return ASSERTION_APPLY_MIN_CONFIDENCE;
           }
           if (candidate.candidate.action === "assertText") {
-            return 0.86;
+            return 0.82;
           }
           return ASSERTION_APPLY_MIN_CONFIDENCE;
         },

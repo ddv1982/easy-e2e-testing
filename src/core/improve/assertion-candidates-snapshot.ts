@@ -19,11 +19,19 @@ const VISIBLE_ROLE_ALLOWLIST = new Set([
   "heading",
   "link",
   "menuitem",
+  "navigation",
   "radio",
   "status",
   "switch",
   "tab",
   "textbox",
+]);
+
+const STABLE_STRUCTURAL_ROLES = new Set([
+  "navigation",
+  "banner",
+  "main",
+  "contentinfo",
 ]);
 
 const TEXT_ROLE_ALLOWLIST = new Set(["heading", "status", "alert", "tab", "link"]);
@@ -48,11 +56,25 @@ export function buildSnapshotAssertionCandidates(
     const preNodes = parseSnapshotNodes(snapshot.preSnapshot);
     const postNodes = parseSnapshotNodes(snapshot.postSnapshot);
     const delta = buildDeltaNodes(preNodes, postNodes);
-    if (delta.length === 0) continue;
 
     const actedTargetHint = extractActedTargetHint(snapshot.step);
     const framePath =
       snapshot.step.action === "navigate" ? undefined : snapshot.step.target.framePath;
+
+    if (snapshot.step.action === "click") {
+      const stableNodes = buildStableNodes(preNodes, postNodes);
+      const stableCandidates = buildStableVisibleCandidates(
+        snapshot.index,
+        snapshot.step.action,
+        stableNodes,
+        actedTargetHint,
+        framePath,
+        candidateSource
+      );
+      candidates.push(...stableCandidates);
+    }
+
+    if (delta.length === 0) continue;
 
     const textCandidates = buildTextCandidates(
       snapshot.index,
@@ -131,6 +153,11 @@ export function parseSnapshotNodes(snapshot: string): SnapshotNode[] {
 function buildDeltaNodes(pre: SnapshotNode[], post: SnapshotNode[]): SnapshotNode[] {
   const preKeys = new Set(pre.map((node) => nodeSignature(node)));
   return post.filter((node) => !preKeys.has(nodeSignature(node)));
+}
+
+function buildStableNodes(pre: SnapshotNode[], post: SnapshotNode[]): SnapshotNode[] {
+  const preKeys = new Set(pre.map((node) => nodeSignature(node)));
+  return post.filter((node) => preKeys.has(nodeSignature(node)));
 }
 
 function buildVisibleCandidates(
@@ -287,4 +314,48 @@ function visibleRolePriority(role: string): number {
     case "tab": return 5;
     default: return 6;
   }
+}
+
+function stableStructuralRolePriority(role: string): number {
+  switch (role) {
+    case "navigation": return 0;
+    case "banner": return 1;
+    case "main": return 2;
+    case "contentinfo": return 3;
+    default: return 5;
+  }
+}
+
+function buildStableVisibleCandidates(
+  index: number,
+  afterAction: Step["action"],
+  stableNodes: SnapshotNode[],
+  actedTargetHint: string,
+  framePath: string[] | undefined,
+  candidateSource: AssertionCandidateSource
+): AssertionCandidate[] {
+  const qualifying: SnapshotNode[] = [];
+  for (const node of stableNodes) {
+    if (!STABLE_STRUCTURAL_ROLES.has(node.role)) continue;
+    if (!node.name || isNoisyText(node.name)) continue;
+    if (matchesActedTarget(node.name, actedTargetHint)) continue;
+    qualifying.push(node);
+  }
+
+  qualifying.sort(
+    (a, b) => stableStructuralRolePriority(a.role) - stableStructuralRolePriority(b.role)
+  );
+
+  return qualifying.slice(0, 1).map((node) => ({
+    index,
+    afterAction,
+    candidate: {
+      action: "assertVisible" as const,
+      target: buildRoleTarget(node.role, node.name!, framePath),
+    },
+    confidence: 0.84,
+    rationale: "Stable structural element present in both pre- and post-snapshots.",
+    candidateSource,
+    stableStructural: true,
+  }));
 }

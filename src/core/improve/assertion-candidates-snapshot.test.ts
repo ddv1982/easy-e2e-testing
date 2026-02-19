@@ -42,7 +42,27 @@ describe("snapshot assertion candidates", () => {
     expect(out[0]?.candidateSource).toBe("snapshot_native");
   });
 
-  it("excludes unchanged nodes when pre and post snapshots match", () => {
+  it("generates stable structural candidate when pre and post snapshots match for click action", () => {
+    const snapshot = `- generic [ref=e1]:\n  - navigation "Main menu" [ref=e2]\n`;
+    const out = buildSnapshotAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "click",
+          target: { value: "#open", kind: "css", source: "manual" },
+        },
+        preSnapshot: snapshot,
+        postSnapshot: snapshot,
+      },
+    ], "snapshot_native");
+
+    expect(out).toHaveLength(1);
+    expect(out[0]?.candidate.action).toBe("assertVisible");
+    expect(out[0]?.confidence).toBe(0.84);
+    expect(out[0]?.stableStructural).toBe(true);
+  });
+
+  it("does not treat unchanged heading as stable structural", () => {
     const snapshot = `- generic [ref=e1]:\n  - heading "Dashboard" [level=1] [ref=e2]\n`;
     const out = buildSnapshotAssertionCandidates([
       {
@@ -50,6 +70,24 @@ describe("snapshot assertion candidates", () => {
         step: {
           action: "click",
           target: { value: "#open", kind: "css", source: "manual" },
+        },
+        preSnapshot: snapshot,
+        postSnapshot: snapshot,
+      },
+    ], "snapshot_native");
+
+    expect(out).toHaveLength(0);
+  });
+
+  it("excludes unchanged nodes for fill actions without delta", () => {
+    const snapshot = `- generic [ref=e1]:\n  - heading "Dashboard" [level=1] [ref=e2]\n`;
+    const out = buildSnapshotAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "fill",
+          target: { value: "#name", kind: "css", source: "manual" },
+          text: "Alice",
         },
         preSnapshot: snapshot,
         postSnapshot: snapshot,
@@ -111,6 +149,63 @@ describe("snapshot assertion candidates", () => {
     if (textCandidates[0]?.candidate.action === "assertText") {
       expect(textCandidates[0].candidate.text).toBe("Welcome");
     }
+  });
+
+  it("prioritizes navigation over heading in stable structural candidates", () => {
+    const snapshot = [
+      "- generic [ref=e1]:",
+      '  - navigation "Main menu" [ref=e2]',
+      '  - heading "Nieuws" [level=1] [ref=e3]',
+    ].join("\n") + "\n";
+
+    const out = buildSnapshotAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "click",
+          target: { value: "#open", kind: "css", source: "manual" },
+        },
+        preSnapshot: snapshot,
+        postSnapshot: snapshot,
+      },
+    ], "snapshot_native");
+
+    const stableCandidates = out.filter((c) => c.stableStructural === true);
+    expect(stableCandidates).toHaveLength(1);
+    const step = stableCandidates[0]?.candidate;
+    expect(step?.action).not.toBe("navigate");
+    if (step && step.action !== "navigate") {
+      expect(step.target.value).toContain("navigation");
+    }
+  });
+
+  it("generates stable candidate alongside delta candidates for click actions", () => {
+    const preSnapshot = [
+      "- generic [ref=e1]:",
+      '  - navigation "Main menu" [ref=e2]',
+    ].join("\n") + "\n";
+    const postSnapshot = [
+      "- generic [ref=e1]:",
+      '  - navigation "Main menu" [ref=e2]',
+      '  - heading "Welcome" [level=1] [ref=e3]',
+    ].join("\n") + "\n";
+
+    const out = buildSnapshotAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "click",
+          target: { value: "#go", kind: "css", source: "manual" },
+        },
+        preSnapshot,
+        postSnapshot,
+      },
+    ], "snapshot_native");
+
+    const stableCandidates = out.filter((c) => c.stableStructural === true);
+    const deltaCandidates = out.filter((c) => !c.stableStructural);
+    expect(stableCandidates).toHaveLength(1);
+    expect(deltaCandidates.length).toBeGreaterThan(0);
   });
 
   it("preserves framePath from triggering step target", () => {

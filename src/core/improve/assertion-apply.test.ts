@@ -132,6 +132,29 @@ describe("assertion apply helpers", () => {
     expect(out.skippedPolicy[0]?.applyMessage).toBe("forced-policy");
   });
 
+  it("allows stable structural snapshot assertVisible through policy", () => {
+    const out = selectCandidatesForApply(
+      [
+        {
+          index: 0,
+          afterAction: "click",
+          candidate: {
+            action: "assertVisible",
+            target: { value: "getByRole('navigation', { name: 'Main menu' })", kind: "locatorExpression", source: "codegen-fallback" },
+          },
+          confidence: 0.84,
+          rationale: "stable structural element",
+          candidateSource: "snapshot_native",
+          stableStructural: true,
+        },
+      ],
+      0.75
+    );
+
+    expect(out.selected).toHaveLength(1);
+    expect(out.skippedPolicy).toHaveLength(0);
+  });
+
   it("marks snapshot-derived assertVisible candidates as skipped_policy during selection", () => {
     const out = selectCandidatesForApply(
       [
@@ -357,6 +380,55 @@ describe("assertion apply helpers", () => {
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
     const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
     expect(firstAppliedStep.action).toBe("assertValue");
+  });
+
+  it("prefers higher stability score even when confidence is lower", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#status", kind: "css", source: "manual" },
+            },
+            confidence: 0.84,
+            stabilityScore: 0.70,
+            rationale: "stable visible fallback",
+            candidateSource: "snapshot_native",
+            stableStructural: true,
+          },
+        },
+        {
+          candidateIndex: 1,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertText",
+              target: { value: "#status", kind: "css", source: "manual" },
+              text: "Saved",
+            },
+            confidence: 0.82,
+            stabilityScore: 0.92,
+            rationale: "more stable text assertion",
+            candidateSource: "snapshot_native",
+          },
+        },
+      ],
+      { timeout: 1000 }
+    );
+
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
+    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    expect(firstAppliedStep.action).toBe("assertText");
   });
 
   it("prefers deterministic source when confidence and action are tied", async () => {

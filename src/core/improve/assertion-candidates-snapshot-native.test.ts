@@ -41,7 +41,27 @@ describe("snapshot-native assertion candidates", () => {
     expect(out[0]?.candidateSource).toBe("snapshot_native");
   });
 
-  it("returns empty when pre and post snapshots match", () => {
+  it("generates stable structural candidate when pre and post snapshots match for click action", () => {
+    const snapshot = "- generic [ref=e1]:\n  - navigation \"Main menu\" [ref=e2]\n";
+    const out = buildSnapshotNativeAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "click",
+          target: { value: "#open", kind: "css", source: "manual" },
+        },
+        preSnapshot: snapshot,
+        postSnapshot: snapshot,
+      },
+    ]);
+
+    expect(out).toHaveLength(1);
+    expect(out[0]?.candidate.action).toBe("assertVisible");
+    expect(out[0]?.stableStructural).toBe(true);
+    expect(out[0]?.confidence).toBe(0.84);
+  });
+
+  it("does not generate stable structural candidate for unchanged heading", () => {
     const snapshot = "- generic [ref=e1]:\n  - heading \"Dashboard\" [level=1] [ref=e2]\n";
     const out = buildSnapshotNativeAssertionCandidates([
       {

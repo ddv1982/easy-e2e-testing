@@ -109,6 +109,70 @@ describe("assertion stability", () => {
     expect(assessed.volatilityFlags).toContain("contains_weather_or_news_fragment");
   });
 
+  it("applies graduated penalties instead of flat penalty for volatility flags", () => {
+    const numericOnly = makeCandidate({
+      candidate: {
+        action: "assertText",
+        target: { value: "getByRole('heading', { name: 'Score' })", kind: "locatorExpression", source: "manual" },
+        text: "Score is 42 points",
+      },
+    });
+    const numericResult = assessAssertionCandidateStability(numericOnly);
+    // contains_numeric_fragment: penalty 0.12 (not flat 0.22)
+    expect((numericResult.stabilityScore ?? 0)).toBeGreaterThan(0.7);
+
+    const multiFlag = makeCandidate({
+      candidate: {
+        action: "assertText",
+        target: { value: "getByRole('heading', { name: 'News' })", kind: "locatorExpression", source: "manual" },
+        text: "Breaking 12:30 update 2026-02-19",
+      },
+    });
+    const multiResult = assessAssertionCandidateStability(multiFlag);
+    // Multiple flags: numeric (0.12) + date (0.15) + weather (0.15) = 0.42, capped at 0.30
+    expect(multiResult.volatilityFlags).toContain("contains_numeric_fragment");
+    expect(multiResult.volatilityFlags).toContain("contains_date_or_time_fragment");
+    expect(multiResult.volatilityFlags).toContain("contains_weather_or_news_fragment");
+    expect((multiResult.stabilityScore ?? 1)).toBeLessThan(0.7);
+  });
+
+  it("detects pipe separator as a volatility flag", () => {
+    const candidate = makeCandidate({
+      candidate: {
+        action: "assertText",
+        target: { value: "getByRole('heading', { name: 'Nav' })", kind: "locatorExpression", source: "manual" },
+        text: "Home | News | Sports",
+      },
+    });
+    const assessed = assessAssertionCandidateStability(candidate);
+    expect(assessed.volatilityFlags).toContain("contains_pipe_separator");
+  });
+
+  it("gives stable structural assertVisible a scoring bonus", () => {
+    const stableCandidate = makeCandidate({
+      candidate: {
+        action: "assertVisible",
+        target: { value: "getByRole('navigation', { name: 'Main menu' })", kind: "locatorExpression", source: "codegen-fallback" },
+      },
+      confidence: 0.84,
+      stableStructural: true,
+    });
+    const stableResult = assessAssertionCandidateStability(stableCandidate);
+    // 0.84 - 0.04 (snapshot_native) + 0.06 (stable structural) = 0.86
+    expect((stableResult.stabilityScore ?? 0)).toBeCloseTo(0.86, 2);
+
+    const nonStableCandidate = makeCandidate({
+      candidate: {
+        action: "assertVisible",
+        target: { value: "getByRole('heading', { name: 'Welcome' })", kind: "locatorExpression", source: "codegen-fallback" },
+      },
+      confidence: 0.78,
+    });
+    const nonStableResult = assessAssertionCandidateStability(nonStableCandidate);
+    // 0.78 - 0.04 (snapshot_native) - 0.06 (non-stable assertVisible) = 0.68
+    expect((nonStableResult.stabilityScore ?? 0)).toBeCloseTo(0.68, 2);
+  });
+
   it("caps snapshot candidate volume per step in smart mode", () => {
     const candidates: AssertionCandidate[] = [
       makeCandidate({ index: 0, afterAction: "navigate", confidence: 0.9, stabilityScore: 0.9 }),

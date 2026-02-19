@@ -50,12 +50,16 @@ export function assessAssertionCandidateStability(
     const volatility = detectVolatilityFlags(text);
     volatilityFlags.push(...volatility);
     if (volatility.length > 0) {
-      score -= 0.22;
+      score -= volatilityPenalty(volatility);
     }
   }
 
   if (candidate.candidate.action === "assertVisible" && candidate.candidateSource === "snapshot_native") {
-    score -= 0.06;
+    if (candidate.stableStructural === true) {
+      score += 0.06;
+    } else {
+      score -= 0.06;
+    }
   }
 
   return {
@@ -113,6 +117,23 @@ function readGetByRoleName(value: string): { role: string; name: string } | unde
   return { role: match[1], name: match[2] };
 }
 
+const VOLATILITY_PENALTIES: Record<string, number> = {
+  contains_numeric_fragment: 0.12,
+  contains_date_or_time_fragment: 0.15,
+  contains_weather_or_news_fragment: 0.15,
+  contains_headline_like_text: 0.10,
+  contains_pipe_separator: 0.10,
+};
+
+const MAX_VOLATILITY_PENALTY = 0.30;
+
+function volatilityPenalty(flags: string[]): number {
+  let total = 0;
+  for (const flag of flags) {
+    total += VOLATILITY_PENALTIES[flag] ?? 0.10;
+  }
+  return Math.min(total, MAX_VOLATILITY_PENALTY);
+}
 function clamp01(value: number): number {
   if (value < 0) return 0;
   if (value > 1) return 1;

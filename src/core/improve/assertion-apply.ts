@@ -300,6 +300,11 @@ function compareAssertionCandidateRefs(
   left: AssertionCandidateRef,
   right: AssertionCandidateRef
 ): number {
+  const leftScore = left.candidate.stabilityScore ?? left.candidate.confidence;
+  const rightScore = right.candidate.stabilityScore ?? right.candidate.confidence;
+  const scoreDelta = rightScore - leftScore;
+  if (scoreDelta !== 0) return scoreDelta;
+
   const confidenceDelta = right.candidate.confidence - left.candidate.confidence;
   if (confidenceDelta !== 0) return confidenceDelta;
 
@@ -349,7 +354,7 @@ function isAutoApplyAllowedByPolicy(
     candidate.candidateSource === "snapshot_native" &&
     candidate.candidate.action === "assertVisible"
   ) {
-    return false;
+    return candidate.stableStructural === true;
   }
 
   return true;

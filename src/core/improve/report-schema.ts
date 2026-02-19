@@ -46,6 +46,7 @@ export const assertionCandidateSchema = z.object({
   stabilityScore: z.number().min(0).max(1).optional(),
   volatilityFlags: z.array(z.string()).optional(),
   candidateSource: assertionCandidateSourceSchema.optional(),
+  stableStructural: z.boolean().optional(),
   applyStatus: assertionApplyStatusSchema.optional(),
   applyMessage: z.string().min(1).optional(),
 });
