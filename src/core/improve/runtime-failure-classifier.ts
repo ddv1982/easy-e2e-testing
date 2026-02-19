@@ -59,12 +59,15 @@ const BUSINESS_INTENT_HINTS = [
 /** Extract the accessible name from a Playwright locator expression like
  *  `getByRole('button', { name: 'Akkoord' })` → `"Akkoord"`. */
 function extractAccessibleName(targetValue: string): string | undefined {
-  const match = /name:\s*['"]([^'"]+)['"]/.exec(targetValue);
-  return match?.[1];
+  const match = /name:\s*'([^']*)'|name:\s*"([^"]*)"/.exec(targetValue);
+  return match?.[1] ?? match?.[2];
 }
 
-/** Check whether a target value references a known CMP selector. */
-function matchesCmpSelector(targetValue: string): boolean {
+/** Check whether a target value references a known CMP selector.
+ *  Only matches against CSS/xpath/playwrightSelector kinds to avoid
+ *  false positives from accessible names that happen to contain selector-like substrings. */
+function matchesCmpSelector(targetValue: string, targetKind: string): boolean {
+  if (targetKind === "locatorExpression") return false;
   const lower = targetValue.toLowerCase();
   return COOKIE_CONSENT_CMP_SELECTORS.some((selector) =>
     lower.includes(selector.toLowerCase())
@@ -107,7 +110,8 @@ export function classifyRuntimeFailingStep(
     };
   }
 
-  if (matchesCmpSelector(targetValue)) {
+  const targetKind = "target" in step ? step.target.kind : "unknown";
+  if (matchesCmpSelector(targetValue, targetKind)) {
     return {
       disposition: "remove",
       reason: "classified as cookie-consent CMP selector interaction",

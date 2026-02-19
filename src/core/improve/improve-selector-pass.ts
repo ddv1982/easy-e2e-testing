@@ -129,9 +129,19 @@ export async function runImproveSelectorPass(input: {
         reasonCodes,
       });
 
-      // Collect up to 2 runner-up candidates as fallbacks
-      const fallbacks: FallbackTarget[] = [];
-      if (input.applySelectors) {
+      if (input.applySelectors && adopt) {
+        if (selected.reasonCodes.some((reasonCode) => reasonCode.startsWith("locator_repair_"))) {
+          selectorRepairsApplied += 1;
+          input.diagnostics.push({
+            code: "selector_repair_applied",
+            level: "info",
+            message:
+              `Step ${originalIndex + 1}: applied selector repair candidate (${selected.reasonCodes.join(", ")}).`,
+          });
+        }
+
+        // Collect up to 2 runner-up candidates as fallbacks
+        const fallbacks: FallbackTarget[] = [];
         const selectedValue = selected.candidate.target.value;
         for (const candidate of scored) {
           if (fallbacks.length >= 2) break;
@@ -144,18 +154,7 @@ export async function runImproveSelectorPass(input: {
             source: candidate.candidate.target.source,
           });
         }
-      }
 
-      if (input.applySelectors && adopt) {
-        if (selected.reasonCodes.some((reasonCode) => reasonCode.startsWith("locator_repair_"))) {
-          selectorRepairsApplied += 1;
-          input.diagnostics.push({
-            code: "selector_repair_applied",
-            level: "info",
-            message:
-              `Step ${originalIndex + 1}: applied selector repair candidate (${selected.reasonCodes.join(", ")}).`,
-          });
-        }
         outputSteps[index] = {
           ...step,
           target: {

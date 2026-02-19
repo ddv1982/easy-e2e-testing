@@ -202,4 +202,33 @@ describe("classifyRuntimeFailingStep", () => {
 
     expect(out.disposition).toBe("remove");
   });
+
+  it("handles French J'accepte with apostrophe in double-quoted name", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: `getByRole('button', { name: "J'accepte" })`,
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+    });
+
+    expect(out.disposition).toBe("remove");
+    expect(out.reason).toContain("multilingual pattern match");
+  });
+
+  it("does not match CMP selectors against locator expression names", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "getByRole('button', { name: 'cc-accept form' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+    });
+
+    // Should not be classified as CMP — the text happens to contain a CSS class name
+    // but it's an accessible name in a locator expression, not a CSS selector
+    expect(out.reason).not.toContain("CMP selector");
+  });
 });

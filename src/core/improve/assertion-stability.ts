@@ -1,22 +1,5 @@
 import type { AssertionCandidate } from "./report-schema.js";
-
-const VOLATILE_KEYWORDS = new Set([
-  "weather",
-  "winterweer",
-  "storm",
-  "update",
-  "liveblog",
-  "breaking",
-  "sneeuw",
-  "regen",
-  "rain",
-  "today",
-  "vandaag",
-  "live",
-  "video",
-  "gisteren",
-  "yesterday",
-]);
+import { detectVolatilityFlags } from "./volatility-detection.js";
 
 const HIGH_SIGNAL_ROLES = new Set(["heading", "alert", "status"]);
 const HARD_FILTER_VOLATILITY_FLAGS = new Set([
@@ -64,7 +47,7 @@ export function assessAssertionCandidateStability(
       score += 0.08;
     }
 
-    const volatility = detectVolatility(text);
+    const volatility = detectVolatilityFlags(text);
     volatilityFlags.push(...volatility);
     if (volatility.length > 0) {
       score -= 0.22;
@@ -128,46 +111,6 @@ function readGetByRoleName(value: string): { role: string; name: string } | unde
   );
   if (!match?.[1] || !match?.[2]) return undefined;
   return { role: match[1], name: match[2] };
-}
-
-function detectVolatility(text: string): string[] {
-  const out: string[] = [];
-  const normalized = text.trim().toLowerCase();
-  if (!normalized) return out;
-
-  if (/\b\d{2,}\b/.test(normalized)) out.push("contains_numeric_fragment");
-  if (
-    /\b\d{1,2}[:.]\d{2}\b/.test(normalized) ||
-    /\b\d{4}-\d{2}-\d{2}\b/.test(normalized) ||
-    /\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/.test(normalized)
-  ) {
-    out.push("contains_date_or_time_fragment");
-  }
-
-  for (const keyword of VOLATILE_KEYWORDS) {
-    if (normalized.includes(keyword)) {
-      out.push("contains_weather_or_news_fragment");
-      break;
-    }
-  }
-
-  // Headline-like text: >= 30 chars, 5+ words, mixed case
-  const original = text.trim();
-  if (original.length >= 30) {
-    const words = original.split(/\s+/).filter((w) => w.length > 0);
-    const hasUpperCase = /[A-Z]/.test(original);
-    const hasLowerCase = /[a-z]/.test(original);
-    if (words.length >= 5 && hasUpperCase && hasLowerCase) {
-      out.push("contains_headline_like_text");
-    }
-  }
-
-  // Pipe separator (common in news headline concatenations)
-  if (normalized.includes("|")) {
-    out.push("contains_pipe_separator");
-  }
-
-  return out;
 }
 
 function clamp01(value: number): number {

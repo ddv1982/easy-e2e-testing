@@ -94,7 +94,6 @@ export const COOKIE_CONSENT_DISMISS_TEXTS: readonly string[] = [
   "zustimmen",
   // French
   "accepter",
-  "accepter alle",
   "j'accepte",
   "j\u2019accepte",
   "tout accepter",
