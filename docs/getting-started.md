@@ -124,11 +124,11 @@ ui-test play
 
 This opens a browser. Interact with your app, then close the browser to save the recording as a YAML file in the `e2e/` directory.
 
-After recording, `ui-test` automatically improves selectors, adds assertion candidates, and classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, optionalizes non-transient and safeguarded content/business interactions). Use `--no-improve` to skip this.
+After recording, `ui-test` automatically improves selectors, adds assertion candidates, and classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, retains non-transient and safeguarded content/business interactions as required steps). Use `--no-improve` to skip this.
 
 ## Improve Tests
 
-`improve` upgrades selectors, generates assertion candidates, and classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, optionalizes non-transient and safeguarded content/business interactions).
+`improve` upgrades selectors, generates assertion candidates, and classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, retains non-transient and safeguarded content/business interactions as required steps).
 
 ```bash
 ui-test improve e2e/login.yaml

@@ -47,7 +47,7 @@ const BUSINESS_INTENT_HINTS = [
   "plan",
 ];
 
-export type RuntimeFailureDisposition = "remove" | "optionalize";
+export type RuntimeFailureDisposition = "remove" | "retain";
 
 export interface RuntimeFailureClassification {
   disposition: RuntimeFailureDisposition;
@@ -59,7 +59,7 @@ export function classifyRuntimeFailingStep(
 ): RuntimeFailureClassification {
   if (step.action === "navigate") {
     return {
-      disposition: "optionalize",
+      disposition: "retain",
       reason: "navigation steps are never auto-removed",
     };
   }
@@ -67,7 +67,7 @@ export function classifyRuntimeFailingStep(
   const isInteraction = step.action === "click" || step.action === "press";
   if (!isInteraction) {
     return {
-      disposition: "optionalize",
+      disposition: "retain",
       reason: "non-interaction steps are never auto-removed by transient policy",
     };
   }
@@ -86,7 +86,7 @@ export function classifyRuntimeFailingStep(
 
   if (!hasAnyTransientContext) {
     return {
-      disposition: "optionalize",
+      disposition: "retain",
       reason: "classified as non-transient interaction",
     };
   }
@@ -109,14 +109,14 @@ export function classifyRuntimeFailingStep(
 
   if (looksLikeContentLink) {
     return {
-      disposition: "optionalize",
+      disposition: "retain",
       reason: "transient-context safeguard: likely content link interaction",
     };
   }
 
   if (hasBusinessIntent && !hasStrongTransientContext) {
     return {
-      disposition: "optionalize",
+      disposition: "retain",
       reason: "transient-context safeguard: likely business-intent interaction",
     };
   }
@@ -143,7 +143,7 @@ export function classifyRuntimeFailingStep(
   }
 
   return {
-    disposition: "optionalize",
+    disposition: "retain",
     reason: "transient context without dismissal/control confidence",
   };
 }

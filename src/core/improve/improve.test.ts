@@ -336,7 +336,7 @@ describe("improveTestFile runner", () => {
     ).toBe(true);
   });
 
-  it("optionalizes non-transient runtime-failing steps and removes transient ones", async () => {
+  it("retains non-transient runtime-failing steps and removes transient ones", async () => {
     const yamlPath = await writeYamlWithTransientStep();
 
     runImproveSelectorPassMock.mockImplementation(async (input) => ({
@@ -348,7 +348,7 @@ describe("improveTestFile runner", () => {
       selectorRepairsApplied: 0,
     }));
 
-    await improveTestFile({
+    const result = await improveTestFile({
       testFile: yamlPath,
       applySelectors: true,
       applyAssertions: false,
@@ -358,10 +358,20 @@ describe("improveTestFile runner", () => {
     const written = await fs.readFile(yamlPath, "utf-8");
     expect(written).not.toContain("cookie-accept");
     expect(written).toContain("submit");
-    expect(written).toContain("optional: true");
+    expect(written).not.toContain("optional:");
+    expect(result.report.summary.runtimeFailingStepsRetained).toBe(1);
+    expect(result.report.summary.runtimeFailingStepsOptionalized).toBe(1);
+    expect(
+      result.report.diagnostics.some((diagnostic) => diagnostic.code === "runtime_failing_step_retained")
+    ).toBe(true);
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "runtime_failing_step_marked_optional"
+      )
+    ).toBe(true);
   });
 
-  it("keeps likely business-intent transient-context failures as optionalized", async () => {
+  it("keeps likely business-intent transient-context failures as retained", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
     tempDirs.push(dir);
 
@@ -392,7 +402,7 @@ describe("improveTestFile runner", () => {
       selectorRepairsApplied: 0,
     }));
 
-    await improveTestFile({
+    const result = await improveTestFile({
       testFile: yamlPath,
       applySelectors: true,
       applyAssertions: false,
@@ -401,7 +411,9 @@ describe("improveTestFile runner", () => {
 
     const written = await fs.readFile(yamlPath, "utf-8");
     expect(written).toContain("Accept payment privacy settings");
-    expect(written).toContain("optional: true");
+    expect(written).not.toContain("optional:");
     expect(written).toContain("navigate");
+    expect(result.report.summary.runtimeFailingStepsRetained).toBe(1);
+    expect(result.report.summary.runtimeFailingStepsOptionalized).toBe(1);
   });
 });

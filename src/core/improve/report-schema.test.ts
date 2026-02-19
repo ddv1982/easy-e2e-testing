@@ -17,6 +17,7 @@ describe("improveReportSchema", () => {
         skippedAssertions: 1,
         selectorRepairCandidates: 3,
         selectorRepairsApplied: 1,
+        runtimeFailingStepsRetained: 2,
         runtimeFailingStepsOptionalized: 2,
         runtimeFailingStepsRemoved: 1,
         assertionCandidatesFilteredVolatile: 1,
@@ -68,6 +69,7 @@ describe("improveReportSchema", () => {
     expect(parsed.summary.appliedAssertions).toBe(1);
     expect(parsed.summary.assertionApplyPolicy).toBe("reliable");
     expect(parsed.summary.selectorRepairCandidates).toBe(3);
+    expect(parsed.summary.runtimeFailingStepsRetained).toBe(2);
     expect(parsed.summary.runtimeFailingStepsOptionalized).toBe(2);
     expect(parsed.summary.assertionCandidatesFilteredVolatile).toBe(1);
     expect(parsed.summary.assertionApplyStatusCounts?.applied).toBe(1);
@@ -76,5 +78,29 @@ describe("improveReportSchema", () => {
     expect(parsed.assertionCandidates[0]?.applyStatus).toBe("applied");
     expect(parsed.assertionCandidates[1]?.candidateSource).toBe("snapshot_native");
     expect(parsed.assertionCandidates[1]?.applyStatus).toBe("skipped_policy");
+  });
+
+  it("accepts legacy summary reports that only include runtimeFailingStepsOptionalized", () => {
+    const parsed = improveReportSchema.parse({
+      testFile: "/tmp/sample.yaml",
+      generatedAt: new Date().toISOString(),
+      providerUsed: "playwright",
+      summary: {
+        unchanged: 0,
+        improved: 0,
+        fallback: 0,
+        warnings: 0,
+        assertionCandidates: 0,
+        appliedAssertions: 0,
+        skippedAssertions: 0,
+        runtimeFailingStepsOptionalized: 1,
+      },
+      stepFindings: [],
+      assertionCandidates: [],
+      diagnostics: [],
+    });
+
+    expect(parsed.summary.runtimeFailingStepsOptionalized).toBe(1);
+    expect(parsed.summary.runtimeFailingStepsRetained).toBeUndefined();
   });
 });

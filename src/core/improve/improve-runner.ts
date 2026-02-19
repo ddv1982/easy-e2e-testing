@@ -109,7 +109,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     });
 
     const failedIndexesToRemove = new Set<number>();
-    const failedIndexesToOptionalize = new Set<number>();
+    const failedIndexesToRetain = new Set<number>();
     if (wantsWrite) {
       for (const index of selectorPass.failedStepIndexes) {
         const step = selectorPass.outputSteps[index];
@@ -128,12 +128,18 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
           continue;
         }
 
-        failedIndexesToOptionalize.add(index);
+        failedIndexesToRetain.add(index);
+        diagnostics.push({
+          code: "runtime_failing_step_retained",
+          level: "info",
+          message:
+            `Step ${originalIndex + 1}: retained as required step after runtime failure (${classification.reason}).`,
+        });
         diagnostics.push({
           code: "runtime_failing_step_marked_optional",
           level: "info",
           message:
-            `Step ${originalIndex + 1}: kept as optional because it failed at runtime (${classification.reason}).`,
+            `Deprecated alias for runtime_failing_step_retained. Step ${originalIndex + 1}: retained as required step after runtime failure (${classification.reason}).`,
         });
       }
     }
@@ -143,22 +149,10 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     let postRemovalSnapshots = selectorPass.nativeStepSnapshots;
 
     if (wantsWrite) {
-      if (failedIndexesToOptionalize.size > 0) {
-        postRemovalOutputSteps = [...selectorPass.outputSteps];
-        for (const index of failedIndexesToOptionalize) {
-          const step = postRemovalOutputSteps[index];
-          if (!step || step.action === "navigate") continue;
-          postRemovalOutputSteps[index] = {
-            ...step,
-            optional: true,
-          };
-        }
-      }
-
       if (failedIndexesToRemove.size > 0) {
         // Splice steps in reverse order to preserve earlier indexes
         const sortedRemoveIndexes = [...failedIndexesToRemove].sort((a, b) => b - a);
-        postRemovalOutputSteps = [...postRemovalOutputSteps];
+        postRemovalOutputSteps = [...selectorPass.outputSteps];
         for (const idx of sortedRemoveIndexes) {
           postRemovalOutputSteps.splice(idx, 1);
         }
@@ -214,7 +208,8 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         skippedAssertions: assertionPass.skippedAssertions,
         selectorRepairCandidates: selectorPass.selectorRepairCandidates ?? 0,
         selectorRepairsApplied: selectorPass.selectorRepairsApplied ?? 0,
-        runtimeFailingStepsOptionalized: failedIndexesToOptionalize.size,
+        runtimeFailingStepsRetained: failedIndexesToRetain.size,
+        runtimeFailingStepsOptionalized: failedIndexesToRetain.size,
         runtimeFailingStepsRemoved: failedIndexesToRemove.size,
         assertionCandidatesFilteredVolatile:
           assertionPass.filteredVolatileCandidates ?? 0,

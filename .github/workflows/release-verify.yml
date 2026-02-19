@@ -36,6 +36,24 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify silent npm pack output
+        run: npm run -s pack:check:silent
+
+      - name: Verify global install dry run
+        run: npm run -s global-install:dry-run
+
+      - name: Verify remote package global install dry run (pull request head)
+        if: github.event_name == 'pull_request'
+        env:
+          UI_TEST_REMOTE_PACKAGE_SPEC: github:${{ github.event.pull_request.head.repo.full_name }}#${{ github.event.pull_request.head.sha }}
+        run: npm run -s remote-global-install:dry-run
+
+      - name: Verify remote package global install dry run (current commit)
+        if: github.event_name != 'pull_request'
+        env:
+          UI_TEST_REMOTE_PACKAGE_SPEC: github:${{ github.repository }}#${{ github.sha }}
+        run: npm run -s remote-global-install:dry-run
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 

@@ -245,7 +245,7 @@ export async function runImproveAssertionPass(input: {
         }
         return {
           sourceIndex: runtimeIndex,
-          assertionStep: { ...candidate.candidate, optional: true },
+          assertionStep: candidate.candidate,
         };
       });
 

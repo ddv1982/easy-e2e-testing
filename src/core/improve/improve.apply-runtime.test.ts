@@ -288,6 +288,7 @@ describe("improve apply runtime replay", () => {
 
     const saved = await fs.readFile(yamlPath, "utf-8");
     expect(saved).toContain("action: assertValue");
+    expect(saved).not.toContain("optional:");
   });
 
   it("applies selector and assertion updates in one run when both flags are enabled", async () => {
@@ -339,6 +340,7 @@ describe("improve apply runtime replay", () => {
     const saved = await fs.readFile(yamlPath, "utf-8");
     expect(saved).toContain("getByRole('button', { name: 'Save' })");
     expect(saved).toContain("action: assertValue");
+    expect(saved).not.toContain("optional:");
   });
 
   it("skips low-confidence assertion candidates", async () => {

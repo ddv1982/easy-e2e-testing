@@ -60,6 +60,7 @@ export const improveSummarySchema = z.object({
   skippedAssertions: z.number().int().nonnegative(),
   selectorRepairCandidates: z.number().int().nonnegative().optional(),
   selectorRepairsApplied: z.number().int().nonnegative().optional(),
+  runtimeFailingStepsRetained: z.number().int().nonnegative().optional(),
   runtimeFailingStepsOptionalized: z.number().int().nonnegative().optional(),
   runtimeFailingStepsRemoved: z.number().int().nonnegative().optional(),
   assertionCandidatesFilteredVolatile: z.number().int().nonnegative().optional(),

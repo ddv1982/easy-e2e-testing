@@ -88,12 +88,12 @@ These rules govern how assertions are inserted:
 3. Snapshot `assertText` can be auto-inserted after runtime validation.
 4. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
 5. Existing adjacent assertions are preserved (no automatic cleanup).
-6. Applied assertions are marked `optional: true` so they don't hard-fail tests when page content changes.
-7. In apply mode, runtime-failing interaction steps are classified: transient dismissal/control interactions are removed aggressively, while likely content/business-intent interactions are safeguarded and kept as `optional: true`.
+6. Applied assertions are inserted as required steps (no `optional` field).
+7. In apply mode, runtime-failing interaction steps are classified: transient dismissal/control interactions are removed aggressively, while likely content/business-intent interactions are retained as required steps.
 
 ### Auto-Improve After Recording
 
-After recording, `ui-test record` automatically runs `improve` to upgrade selectors, add assertion candidates, and classify runtime-failing interactions (aggressively remove transient dismissal/control `click`/`press` failures, optionalize non-transient and safeguarded content/business interactions). Use `--no-improve` to skip this:
+After recording, `ui-test record` automatically runs `improve` to upgrade selectors, add assertion candidates, and classify runtime-failing interactions (aggressively remove transient dismissal/control `click`/`press` failures, retain non-transient and safeguarded content/business interactions as required steps). Use `--no-improve` to skip this:
 
 ```bash
 ui-test record --name login --url https://example.com --no-improve
@@ -134,9 +134,12 @@ The summary includes:
 
 - `selectorRepairCandidates`
 - `selectorRepairsApplied`
+- `runtimeFailingStepsRetained`
 - `runtimeFailingStepsOptionalized`
 - `runtimeFailingStepsRemoved`
 - `assertionCandidatesFilteredVolatile`
+
+`runtimeFailingStepsOptionalized` is a deprecated alias for one release cycle and mirrors `runtimeFailingStepsRetained`.
 
 Each assertion candidate has an `applyStatus`:
 
@@ -148,6 +151,8 @@ Each assertion candidate has an `applyStatus`:
 | `skipped_policy` | Apply-mode policy skip (for example `assertVisible`, or extra assertions beyond one-per-step) |
 | `skipped_existing` | Step already has an assertion |
 | `not_requested` | Report-only run (`--no-apply`): candidate was generated but not considered for apply/validation |
+
+Runtime-failing step diagnostics use `runtime_failing_step_retained` (canonical) and emit `runtime_failing_step_marked_optional` as a deprecated alias for one release cycle.
 
 Default report path: `<test-file>.improve-report.json`
 

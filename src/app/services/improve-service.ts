@@ -63,8 +63,13 @@ export async function runImprove(
     ui.success(`Applied improvements to ${result.outputPath}`);
   }
 
+  const runtimeFailingStepsRetained =
+    result.report.summary.runtimeFailingStepsRetained ??
+    result.report.summary.runtimeFailingStepsOptionalized ??
+    0;
+
   ui.info(
-    `Summary: improved=${result.report.summary.improved}, unchanged=${result.report.summary.unchanged}, fallback=${result.report.summary.fallback}, warnings=${result.report.summary.warnings}, assertionCandidates=${result.report.summary.assertionCandidates}, appliedAssertions=${result.report.summary.appliedAssertions}, skippedAssertions=${result.report.summary.skippedAssertions}, selectorRepairCandidates=${result.report.summary.selectorRepairCandidates ?? 0}, selectorRepairsApplied=${result.report.summary.selectorRepairsApplied ?? 0}, assertionCandidatesFilteredVolatile=${result.report.summary.assertionCandidatesFilteredVolatile ?? 0}, runtimeFailingStepsOptionalized=${result.report.summary.runtimeFailingStepsOptionalized ?? 0}, runtimeFailingStepsRemoved=${result.report.summary.runtimeFailingStepsRemoved ?? 0}`
+    `Summary: improved=${result.report.summary.improved}, unchanged=${result.report.summary.unchanged}, fallback=${result.report.summary.fallback}, warnings=${result.report.summary.warnings}, assertionCandidates=${result.report.summary.assertionCandidates}, appliedAssertions=${result.report.summary.appliedAssertions}, skippedAssertions=${result.report.summary.skippedAssertions}, selectorRepairCandidates=${result.report.summary.selectorRepairCandidates ?? 0}, selectorRepairsApplied=${result.report.summary.selectorRepairsApplied ?? 0}, assertionCandidatesFilteredVolatile=${result.report.summary.assertionCandidatesFilteredVolatile ?? 0}, runtimeFailingStepsRetained=${runtimeFailingStepsRetained}, runtimeFailingStepsRemoved=${result.report.summary.runtimeFailingStepsRemoved ?? 0}`
   );
   const assertionStatusSummary = formatAssertionApplyStatusCounts(result.report.assertionCandidates);
   if (assertionStatusSummary) {

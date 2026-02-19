@@ -107,6 +107,7 @@ describe("improve volatile acceptance benchmark", () => {
     const improvedYaml = await readFile(yamlPath, "utf-8");
     expect(improvedYaml).not.toContain("exact: true");
     expect(improvedYaml).not.toContain("Schiphol vluchten winterweer update 12:30");
+    expect(improvedYaml).not.toContain("optional:");
     expect(improvedYaml).toContain("getByRole('link'");
 
     const replay = await play(yamlPath, { headed: false, timeout: 2500 });

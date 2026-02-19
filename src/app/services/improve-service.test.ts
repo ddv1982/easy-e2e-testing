@@ -23,6 +23,7 @@ vi.mock("../../utils/ui.js", () => ({
 
 import { confirm } from "@inquirer/prompts";
 import { improveTestFile } from "../../core/improve/improve.js";
+import { ui } from "../../utils/ui.js";
 import { runImprove } from "./improve-service.js";
 
 describe("runImprove chromium handling", () => {
@@ -148,6 +149,37 @@ describe("runImprove confirm prompt", () => {
     expect(confirm).toHaveBeenCalledOnce();
     expect(improveTestFile).toHaveBeenCalledWith(
       expect.objectContaining({ applySelectors: false, applyAssertions: false })
+    );
+  });
+
+  it("prints retained summary using deprecated alias when canonical field is absent", async () => {
+    vi.mocked(improveTestFile).mockResolvedValue({
+      reportPath: "e2e/sample.improve-report.json",
+      outputPath: undefined,
+      report: {
+        testFile: "e2e/sample.yaml",
+        generatedAt: new Date().toISOString(),
+        providerUsed: "playwright",
+        summary: {
+          unchanged: 1,
+          improved: 0,
+          fallback: 0,
+          warnings: 0,
+          assertionCandidates: 0,
+          appliedAssertions: 0,
+          skippedAssertions: 0,
+          runtimeFailingStepsOptionalized: 2,
+        },
+        stepFindings: [],
+        assertionCandidates: [],
+        diagnostics: [],
+      },
+    });
+
+    await runImprove("e2e/sample.yaml", { apply: false });
+
+    expect(ui.info).toHaveBeenCalledWith(
+      expect.stringContaining("runtimeFailingStepsRetained=2")
     );
   });
 });

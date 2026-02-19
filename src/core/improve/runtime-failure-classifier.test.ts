@@ -17,7 +17,7 @@ describe("classifyRuntimeFailingStep", () => {
     expect(out.disposition).toBe("remove");
   });
 
-  it("classifies content interactions as optionalized non-transient failures", () => {
+  it("classifies content interactions as retained non-transient failures", () => {
     const out = classifyRuntimeFailingStep(
       {
         action: "click",
@@ -29,10 +29,10 @@ describe("classifyRuntimeFailingStep", () => {
       }
     );
 
-    expect(out.disposition).toBe("optionalize");
+    expect(out.disposition).toBe("retain");
   });
 
-  it("keeps generic business wording in transient context as optionalized", () => {
+  it("keeps generic business wording in transient context as retained", () => {
     const out = classifyRuntimeFailingStep(
       {
         action: "click",
@@ -44,10 +44,10 @@ describe("classifyRuntimeFailingStep", () => {
       }
     );
 
-    expect(out.disposition).toBe("optionalize");
+    expect(out.disposition).toBe("retain");
   });
 
-  it("keeps privacy content-link interactions as optionalized", () => {
+  it("keeps privacy content-link interactions as retained", () => {
     const out = classifyRuntimeFailingStep(
       {
         action: "click",
@@ -59,7 +59,7 @@ describe("classifyRuntimeFailingStep", () => {
       }
     );
 
-    expect(out.disposition).toBe("optionalize");
+    expect(out.disposition).toBe("retain");
   });
 
   it("still removes strong transient button interactions", () => {
