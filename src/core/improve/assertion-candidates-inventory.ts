@@ -29,6 +29,7 @@ const INVENTORY_TEXT_CONFIDENCE = 0.79;
 const INVENTORY_VISIBLE_CONFIDENCE = 0.77;
 
 type SnapshotInventoryNode = ReturnType<typeof parseSnapshotNodes>[number];
+type AssertionTargetStep = Exclude<AssertionCandidate["candidate"], { action: "navigate" }>;
 
 export function buildSnapshotInventoryAssertionCandidates(
   snapshots: StepSnapshot[]
@@ -60,8 +61,9 @@ export function buildSnapshotInventoryAssertionCandidates(
       framePath,
       new Set(
         textCandidates
-          .filter((candidate) => candidate.candidate.action !== "navigate")
-          .map((candidate) => normalizeForCompare(candidate.candidate.target.value))
+          .map((candidate) => candidate.candidate)
+          .filter(isAssertionTargetStep)
+          .map((candidateStep) => normalizeForCompare(candidateStep.target.value))
       )
     );
 
@@ -274,4 +276,10 @@ function visibleRolePriority(role: string): number {
     default:
       return 7;
   }
+}
+
+function isAssertionTargetStep(
+  step: AssertionCandidate["candidate"]
+): step is AssertionTargetStep {
+  return step.action !== "navigate";
 }
