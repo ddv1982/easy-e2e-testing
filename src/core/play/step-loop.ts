@@ -2,6 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { BrowserContext, Page } from "playwright";
 import { ui } from "../../utils/ui.js";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
+import { dismissCookieBannerIfPresent } from "../runtime/cookie-banner.js";
 import { waitForPostStepNetworkIdle } from "../runtime/network-idle.js";
 import type { Step } from "../yaml-schema.js";
 import type { PlayFailureArtifactPaths } from "../play-failure-report.js";
@@ -41,6 +42,9 @@ export async function runPlayStepLoop(input: {
     const desc = stepDescription(step, i);
 
     try {
+      await dismissCookieBannerIfPresent(input.page, Math.min(input.timeout, 1200)).catch(
+        () => false
+      );
       await executeRuntimeStep(input.page, step, {
         timeout: input.timeout,
         baseUrl: input.effectiveBaseUrl,
