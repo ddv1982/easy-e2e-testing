@@ -29,7 +29,7 @@ const INVENTORY_TEXT_CONFIDENCE = 0.79;
 const INVENTORY_VISIBLE_CONFIDENCE = 0.77;
 
 type SnapshotInventoryNode = ReturnType<typeof parseSnapshotNodes>[number];
-type AssertionTargetStep = Exclude<AssertionCandidate["candidate"], { action: "navigate" }>;
+type AssertionTargetStep = Extract<AssertionCandidate["candidate"], { target: unknown }>;
 
 export function buildSnapshotInventoryAssertionCandidates(
   snapshots: StepSnapshot[]
@@ -42,7 +42,11 @@ export function buildSnapshotInventoryAssertionCandidates(
 
     const actedTargetHint = extractActedTargetHint(snapshot.step);
     const framePath =
-      snapshot.step.action === "navigate"
+      snapshot.step.action === "navigate" ||
+      snapshot.step.action === "assertUrl" ||
+      snapshot.step.action === "assertTitle" ||
+      !("target" in snapshot.step) ||
+      !snapshot.step.target
         ? undefined
         : snapshot.step.target.framePath;
 
@@ -214,7 +218,10 @@ function extractActedTargetHint(
   step: StepSnapshot["step"]
 ): string {
   if (step.action === "navigate") return step.url;
-  return step.target.value;
+  if (step.action === "assertUrl") return step.url;
+  if (step.action === "assertTitle") return step.title;
+  if ("target" in step && step.target) return step.target.value;
+  return "";
 }
 
 function matchesActedTarget(value: string, actedTargetHint: string): boolean {
@@ -281,5 +288,5 @@ function visibleRolePriority(role: string): number {
 function isAssertionTargetStep(
   step: AssertionCandidate["candidate"]
 ): step is AssertionTargetStep {
-  return step.action !== "navigate";
+  return "target" in step && Boolean(step.target);
 }

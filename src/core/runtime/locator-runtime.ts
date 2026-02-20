@@ -3,7 +3,7 @@ import type { Step, Target } from "../yaml-schema.js";
 import { evaluateLocatorExpression } from "../locator-expression.js";
 import { UserError } from "../../utils/errors.js";
 
-export type TargetStep = Exclude<Step, { action: "navigate" }>;
+export type TargetStep = Extract<Step, { target: unknown }>;
 export type LocatorContext = Page | FrameLocator;
 
 export function resolveLocator(

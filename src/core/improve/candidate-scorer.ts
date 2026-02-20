@@ -2,6 +2,7 @@ import type { Page } from "playwright";
 import type { Target } from "../yaml-schema.js";
 import { resolveLocator } from "../runtime/locator-runtime.js";
 import type { TargetCandidate } from "./candidate-generator.js";
+import { roundScore } from "./improve-helpers.js";
 
 export interface TargetCandidateScore {
   candidate: TargetCandidate;
@@ -117,8 +118,4 @@ function selectorKindScoreByKind(target: Target): number {
     default:
       return 0.1;
   }
-}
-
-function roundScore(value: number): number {
-  return Math.round(value * 1000) / 1000;
 }

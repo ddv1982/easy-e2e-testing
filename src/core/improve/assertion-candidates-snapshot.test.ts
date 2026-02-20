@@ -230,4 +230,101 @@ describe("snapshot assertion candidates", () => {
     expect("framePath" in out[0]!.candidate.target).toBe(true);
     expect(out[0]?.candidate.target.framePath).toEqual(["iframe[name=\"app-frame\"]"]);
   });
+
+  it("applies text-change cap after filtering so later qualifying changes are retained", () => {
+    const out = buildSnapshotAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "click",
+          target: { value: "#refresh", kind: "css", source: "manual" },
+        },
+        preSnapshot: [
+          "- generic [ref=e0]:",
+          '  - button "Save" [ref=e1]: Idle',
+          '  - button "Cancel" [ref=e2]: Idle',
+          '  - status "Sync" [ref=e3]: Waiting',
+        ].join("\n") + "\n",
+        postSnapshot: [
+          "- generic [ref=e0]:",
+          '  - button "Save" [ref=e1]: Done',
+          '  - button "Cancel" [ref=e2]: Done',
+          '  - status "Sync" [ref=e3]: Complete',
+        ].join("\n") + "\n",
+      },
+    ], "snapshot_native");
+
+    const strongTextCandidate = out.find(
+      (candidate) =>
+        candidate.candidate.action === "assertText" &&
+        candidate.confidence === 0.85 &&
+        candidate.candidate.text === "Complete"
+    );
+    expect(strongTextCandidate).toBeDefined();
+  });
+
+  it("applies state-change cap after filtering so later qualifying changes are retained", () => {
+    const out = buildSnapshotAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "click",
+          target: { value: "#refresh", kind: "css", source: "manual" },
+        },
+        preSnapshot: [
+          "- generic [ref=e0]:",
+          '  - navigation "Global nav" [disabled] [ref=e1]',
+          '  - button "1234" [disabled] [ref=e2]',
+          '  - button "Submit order" [disabled] [ref=e3]',
+        ].join("\n") + "\n",
+        postSnapshot: [
+          "- generic [ref=e0]:",
+          '  - navigation "Global nav" [ref=e1]',
+          '  - button "1234" [ref=e2]',
+          '  - button "Submit order" [ref=e3]',
+        ].join("\n") + "\n",
+      },
+    ], "snapshot_native");
+
+    const enabledCandidate = out.find(
+      (candidate) =>
+        candidate.candidate.action === "assertEnabled" &&
+        candidate.candidate.enabled === true &&
+        candidate.candidate.target.value.includes("Submit order")
+    );
+    expect(enabledCandidate).toBeDefined();
+  });
+
+  it("uses snapshot refs to avoid false-positive text changes for repeated role/name nodes", () => {
+    const out = buildSnapshotAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "click",
+          target: { value: "#sync", kind: "css", source: "manual" },
+        },
+        preSnapshot: [
+          "- generic [ref=e0]:",
+          '  - status "Sync state" [ref=e1]: Ready',
+          '  - status "Sync state" [ref=e2]: Pending',
+        ].join("\n") + "\n",
+        postSnapshot: [
+          "- generic [ref=e0]:",
+          '  - status "Sync state" [ref=e1]: Ready',
+          '  - status "Sync state" [ref=e2]: Complete',
+        ].join("\n") + "\n",
+      },
+    ], "snapshot_native");
+
+    const changedTextCandidates = out.filter(
+      (candidate) =>
+        candidate.candidate.action === "assertText" &&
+        candidate.confidence === 0.85
+    );
+    expect(changedTextCandidates).toHaveLength(1);
+    const step = changedTextCandidates[0]?.candidate;
+    if (step && step.action === "assertText") {
+      expect(step.text).toBe("Complete");
+    }
+  });
 });

@@ -109,10 +109,18 @@ export function dedupeAssertionCandidates(
 
 function assertionCandidateKey(candidate: AssertionCandidate): string {
   const candidateStep = candidate.candidate;
-  const targetKey =
-    candidateStep.action === "navigate"
-      ? `navigate:${candidateStep.url}`
-      : normalizeTargetKey(candidateStep.target);
+  let targetKey: string;
+  if (candidateStep.action === "navigate") {
+    targetKey = `navigate:${candidateStep.url}`;
+  } else if (candidateStep.action === "assertUrl") {
+    targetKey = `assertUrl:${candidateStep.url}`;
+  } else if (candidateStep.action === "assertTitle") {
+    targetKey = `assertTitle:${candidateStep.title}`;
+  } else if ("target" in candidateStep && candidateStep.target) {
+    targetKey = normalizeTargetKey(candidateStep.target);
+  } else {
+    targetKey = "";
+  }
 
   return [
     candidate.index,

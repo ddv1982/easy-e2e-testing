@@ -39,6 +39,17 @@ export function assessAssertionCandidateStability(
     score += 0.08;
   }
 
+  if (candidate.candidate.action === "assertEnabled") {
+    score += 0.07;
+  }
+
+  if (
+    candidate.candidate.action === "assertUrl" ||
+    candidate.candidate.action === "assertTitle"
+  ) {
+    score += 0.05;
+  }
+
   if (candidate.candidate.action === "assertText") {
     const text = candidate.candidate.text.trim();
     if (text.length >= 4 && text.length <= 48) {
@@ -48,9 +59,11 @@ export function assessAssertionCandidateStability(
       volatilityFlags.push("long_text");
     }
 
-    const targetRole = readGetByRoleName(candidate.candidate.target.value)?.role;
-    if (targetRole && HIGH_SIGNAL_ROLES.has(targetRole)) {
-      score += 0.08;
+    if ("target" in candidate.candidate) {
+      const targetRole = readGetByRoleName(candidate.candidate.target.value)?.role;
+      if (targetRole && HIGH_SIGNAL_ROLES.has(targetRole)) {
+        score += 0.08;
+      }
     }
 
     const volatility = detectVolatilityFlags(text);
@@ -94,7 +107,8 @@ export function clampSmartSnapshotCandidateVolume(
   const byStep = new Map<number, Array<{ candidate: AssertionCandidate; candidateIndex: number }>>();
   for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
     const candidate = candidates[candidateIndex];
-    if (!candidate || candidate.candidateSource !== "snapshot_native") continue;
+    if (!candidate) continue;
+    if (candidate.candidateSource !== "snapshot_native") continue;
     const list = byStep.get(candidate.index) ?? [];
     list.push({ candidate, candidateIndex });
     byStep.set(candidate.index, list);
@@ -145,6 +159,7 @@ function volatilityPenalty(flags: string[]): number {
   }
   return Math.min(total, MAX_VOLATILITY_PENALTY);
 }
+
 function clamp01(value: number): number {
   if (value < 0) return 0;
   if (value > 1) return 1;

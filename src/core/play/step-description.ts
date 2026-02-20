@@ -86,7 +86,10 @@ function readQuotedValueAfter(input: string, marker: string): string | undefined
 
 function targetLabel(step: Step): string {
   if (step.action === "navigate") return "";
+  if (step.action === "assertUrl") return step.url;
+  if (step.action === "assertTitle") return step.title;
   if (step.action === "press") return step.key;
+  if (!("target" in step) || !step.target) return "";
   const val = step.target.value;
   if (step.target.kind === "locatorExpression") {
     const nameArg = readQuotedValueAfter(val, "name:");
@@ -101,6 +104,7 @@ const SENSITIVE_PATTERN = /password|passwd|pwd|secret|token|credential|api.?key/
 
 function isSensitiveTarget(step: Step): boolean {
   if (step.action === "navigate") return false;
+  if (!("target" in step) || !step.target) return false;
   return SENSITIVE_PATTERN.test(step.target.value);
 }
 

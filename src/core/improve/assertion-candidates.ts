@@ -1,7 +1,14 @@
 import type { AssertionCandidate, StepFinding } from "./report-schema.js";
-import type { Step } from "../yaml-schema.js";
+import type { Step, Target } from "../yaml-schema.js";
 
 const COVERAGE_FALLBACK_CONFIDENCE = 0.76;
+
+function getStepTarget(step: Step): Target | undefined {
+  if ("target" in step && step.target) {
+    return step.target;
+  }
+  return undefined;
+}
 
 export function buildAssertionCandidates(
   steps: Step[],
@@ -19,9 +26,12 @@ export function buildAssertionCandidates(
     const step = steps[index];
     if (step.action === "navigate") continue;
 
+    const stepTarget = getStepTarget(step);
+    if (!stepTarget) continue;
+
     const originalIndex = originalStepIndexes?.[index] ?? index;
     const finding = byIndex.get(originalIndex);
-    const target = finding?.recommendedTarget ?? step.target;
+    const target = finding?.recommendedTarget ?? stepTarget;
     const confidence = finding ? clamp01(finding.recommendedScore) : 0.5;
 
     if (step.action === "fill") {

@@ -51,7 +51,7 @@ export async function runImproveSelectorPass(input: {
 
     const originalIndex = input.outputStepOriginalIndexes[index] ?? index;
 
-    if (step.action !== "navigate") {
+    if (step.action !== "navigate" && "target" in step && step.target) {
       const candidates = generateTargetCandidates(step.target);
       const existingCandidateKeys = new Set(
         candidates.map((candidate) => selectorTargetKey(candidate.target))
@@ -170,11 +170,20 @@ export async function runImproveSelectorPass(input: {
     }
 
     let preSnapshot: string | undefined;
+    let preUrl: string | undefined;
+    let preTitle: string | undefined;
     if (input.wantsNativeSnapshots) {
       preSnapshot = await input.page
         .locator("body")
         .ariaSnapshot({ timeout: DEFAULT_SCORING_TIMEOUT_MS })
         .catch(() => undefined);
+      try {
+        preUrl = input.page.url();
+        preTitle = await input.page.title();
+      } catch {
+        preUrl = "";
+        preTitle = "";
+      }
     }
 
     try {
@@ -227,7 +236,25 @@ export async function runImproveSelectorPass(input: {
         .ariaSnapshot({ timeout: DEFAULT_SCORING_TIMEOUT_MS })
         .catch(() => undefined);
       if (postSnapshot) {
-        nativeStepSnapshots.push({ index, step, preSnapshot, postSnapshot });
+        let postUrl = "";
+        let postTitle = "";
+        try {
+          postUrl = input.page.url();
+          postTitle = await input.page.title();
+        } catch {
+          postUrl = "";
+          postTitle = "";
+        }
+        nativeStepSnapshots.push({
+          index,
+          step,
+          preSnapshot,
+          postSnapshot,
+          preUrl,
+          postUrl,
+          preTitle,
+          postTitle,
+        });
       }
     }
   }

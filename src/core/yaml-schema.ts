@@ -87,6 +87,21 @@ const assertCheckedStep = targetStep.extend({
   checked: z.boolean().optional().default(true),
 });
 
+const assertUrlStep = baseStep.extend({
+  action: z.literal("assertUrl"),
+  url: z.string(),
+});
+
+const assertTitleStep = baseStep.extend({
+  action: z.literal("assertTitle"),
+  title: z.string(),
+});
+
+const assertEnabledStep = targetStep.extend({
+  action: z.literal("assertEnabled"),
+  enabled: z.boolean().optional().default(true),
+});
+
 const stepOptionalDeprecationGuard = z.unknown().superRefine((value, ctx) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return;
   if (Object.prototype.hasOwnProperty.call(value, "optional")) {
@@ -111,6 +126,9 @@ const stepSchemaByAction = z.discriminatedUnion("action", [
   assertTextStep,
   assertValueStep,
   assertCheckedStep,
+  assertUrlStep,
+  assertTitleStep,
+  assertEnabledStep,
 ]);
 
 export const stepSchema = stepOptionalDeprecationGuard.pipe(stepSchemaByAction);

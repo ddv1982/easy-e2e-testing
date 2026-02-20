@@ -97,5 +97,46 @@ export async function executeRuntimeStep(
       }
       return;
     }
+
+    case "assertUrl": {
+      if (options.mode === "analysis") return;
+      const currentUrl = page.url();
+      const regex = wildcardPatternToRegExp(step.url);
+      if (!regex.test(currentUrl)) {
+        throw new Error(`URL "${currentUrl}" does not match pattern "${step.url}"`);
+      }
+      return;
+    }
+
+    case "assertTitle": {
+      if (options.mode === "analysis") return;
+      const title = await page.title();
+      if (!title.includes(step.title)) {
+        throw new Error(`Expected title to contain '${step.title}' but got '${title}'`);
+      }
+      return;
+    }
+
+    case "assertEnabled": {
+      if (options.mode === "analysis") return;
+      const locator = resolveLocator(page, step);
+      await locator.waitFor({ state: "attached", timeout });
+      const isEnabled = await locator.isEnabled({ timeout });
+      const expected = step.enabled ?? true;
+      if (expected && !isEnabled) {
+        throw new Error("Expected element to be enabled");
+      }
+      if (!expected && isEnabled) {
+        throw new Error("Expected element to be disabled");
+      }
+      return;
+    }
   }
+}
+
+function wildcardPatternToRegExp(pattern: string): RegExp {
+  const escapedSegments = pattern
+    .split("*")
+    .map((segment) => segment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`^${escapedSegments.join(".*")}$`);
 }

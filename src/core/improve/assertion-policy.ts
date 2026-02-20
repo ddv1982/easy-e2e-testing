@@ -4,7 +4,13 @@ import { UserError } from "../../utils/errors.js";
 
 type AssertionApplyAction = Extract<
   Step["action"],
-  "assertValue" | "assertChecked" | "assertText" | "assertVisible"
+  | "assertValue"
+  | "assertChecked"
+  | "assertText"
+  | "assertVisible"
+  | "assertUrl"
+  | "assertTitle"
+  | "assertEnabled"
 >;
 
 export interface SnapshotCandidateVolumeCap {
@@ -25,18 +31,14 @@ export interface AssertionPolicyConfig {
   actionPriorityForApply: Readonly<Record<AssertionApplyAction, number>>;
 }
 
-const RELIABLE_ACTION_PRIORITY: Readonly<Record<AssertionApplyAction, number>> = {
-  assertValue: 0,
-  assertChecked: 1,
+const ACTION_PRIORITY: Readonly<Record<AssertionApplyAction, number>> = {
+  assertUrl: 0,
+  assertTitle: 1,
   assertText: 2,
-  assertVisible: 3,
-};
-
-const BALANCED_ACTION_PRIORITY: Readonly<Record<AssertionApplyAction, number>> = {
-  assertText: 0,
-  assertValue: 1,
-  assertChecked: 2,
-  assertVisible: 3,
+  assertValue: 3,
+  assertChecked: 4,
+  assertEnabled: 5,
+  assertVisible: 6,
 };
 
 export const DEFAULT_IMPROVE_ASSERTION_POLICY: ImproveAssertionPolicy = "balanced";
@@ -57,7 +59,7 @@ export const ASSERTION_POLICY_CONFIG: Readonly<
       "contains_headline_like_text",
       "contains_pipe_separator",
     ]),
-    actionPriorityForApply: RELIABLE_ACTION_PRIORITY,
+    actionPriorityForApply: ACTION_PRIORITY,
   },
   balanced: {
     appliedAssertionsPerStepCap: 2,
@@ -68,7 +70,7 @@ export const ASSERTION_POLICY_CONFIG: Readonly<
       "contains_headline_like_text",
       "contains_pipe_separator",
     ]),
-    actionPriorityForApply: BALANCED_ACTION_PRIORITY,
+    actionPriorityForApply: ACTION_PRIORITY,
   },
   aggressive: {
     appliedAssertionsPerStepCap: 3,
@@ -76,7 +78,7 @@ export const ASSERTION_POLICY_CONFIG: Readonly<
     allowSnapshotVisible: "runtime_validated",
     snapshotTextMinScore: 0.72,
     hardFilterVolatilityFlags: new Set(["contains_headline_like_text"]),
-    actionPriorityForApply: BALANCED_ACTION_PRIORITY,
+    actionPriorityForApply: ACTION_PRIORITY,
   },
 } as const;
 

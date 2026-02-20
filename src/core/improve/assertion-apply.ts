@@ -307,6 +307,20 @@ function areEquivalentAssertions(left: Step, right: Step): boolean {
     return areEquivalentTargets(left.target, right.target) && leftChecked === rightChecked;
   }
 
+  if (left.action === "assertEnabled" && right.action === "assertEnabled") {
+    const leftEnabled = left.enabled ?? true;
+    const rightEnabled = right.enabled ?? true;
+    return areEquivalentTargets(left.target, right.target) && leftEnabled === rightEnabled;
+  }
+
+  if (left.action === "assertUrl" && right.action === "assertUrl") {
+    return left.url === right.url;
+  }
+
+  if (left.action === "assertTitle" && right.action === "assertTitle") {
+    return left.title === right.title;
+  }
+
   return false;
 }
 
@@ -366,9 +380,12 @@ function assertionActionPriority(
   action: Step["action"],
   policyConfig: AssertionPolicyConfig
 ): number {
+  if (action === "assertUrl") return policyConfig.actionPriorityForApply.assertUrl;
+  if (action === "assertTitle") return policyConfig.actionPriorityForApply.assertTitle;
   if (action === "assertValue") return policyConfig.actionPriorityForApply.assertValue;
   if (action === "assertChecked") return policyConfig.actionPriorityForApply.assertChecked;
   if (action === "assertText") return policyConfig.actionPriorityForApply.assertText;
+  if (action === "assertEnabled") return policyConfig.actionPriorityForApply.assertEnabled;
   if (action === "assertVisible") return policyConfig.actionPriorityForApply.assertVisible;
   return 99;
 }

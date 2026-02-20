@@ -7,6 +7,9 @@ interface SnapshotNode {
   name?: string;
   text?: string;
   ref?: string;
+  visible: boolean;
+  enabled: boolean;
+  expanded?: boolean;
   rawLine: string;
 }
 
@@ -36,14 +39,30 @@ const STABLE_STRUCTURAL_ROLES = new Set([
 
 const TEXT_ROLE_ALLOWLIST = new Set(["heading", "status", "alert", "tab", "link"]);
 
+const STATE_CHANGE_ROLE_ALLOWLIST = new Set([
+  "button",
+  "textbox",
+  "combobox",
+  "checkbox",
+  "radio",
+  "switch",
+  "tab",
+  "link",
+]);
+
 const MAX_TEXT_CANDIDATES_PER_STEP = 2;
 const MAX_VISIBLE_CANDIDATES_PER_STEP = 3;
+const MAX_STATE_CANDIDATES_PER_STEP = 2;
 
 export interface StepSnapshot {
   index: number;
   step: Step;
   preSnapshot: string;
   postSnapshot: string;
+  preUrl?: string;
+  postUrl?: string;
+  preTitle?: string;
+  postTitle?: string;
 }
 
 export function buildSnapshotAssertionCandidates(
@@ -59,7 +78,13 @@ export function buildSnapshotAssertionCandidates(
 
     const actedTargetHint = extractActedTargetHint(snapshot.step);
     const framePath =
-      snapshot.step.action === "navigate" ? undefined : snapshot.step.target.framePath;
+      snapshot.step.action !== "navigate" &&
+      snapshot.step.action !== "assertUrl" &&
+      snapshot.step.action !== "assertTitle" &&
+      "target" in snapshot.step &&
+      snapshot.step.target
+        ? snapshot.step.target.framePath
+        : undefined;
 
     if (snapshot.step.action === "click") {
       const stableNodes = buildStableNodes(preNodes, postNodes);
@@ -73,6 +98,46 @@ export function buildSnapshotAssertionCandidates(
       );
       candidates.push(...stableCandidates);
     }
+
+    const urlCandidates = buildUrlCandidates(
+      snapshot.index,
+      snapshot.step.action,
+      snapshot.preUrl,
+      snapshot.postUrl,
+      candidateSource
+    );
+    candidates.push(...urlCandidates);
+
+    const titleCandidates = buildTitleCandidates(
+      snapshot.index,
+      snapshot.step.action,
+      snapshot.preTitle,
+      snapshot.postTitle,
+      candidateSource
+    );
+    candidates.push(...titleCandidates);
+
+    const textChangeCandidates = buildTextChangedCandidates(
+      snapshot.index,
+      snapshot.step.action,
+      preNodes,
+      postNodes,
+      actedTargetHint,
+      framePath,
+      candidateSource
+    );
+    candidates.push(...textChangeCandidates);
+
+    const stateChangeCandidates = buildStateChangeCandidates(
+      snapshot.index,
+      snapshot.step.action,
+      preNodes,
+      postNodes,
+      actedTargetHint,
+      framePath,
+      candidateSource
+    );
+    candidates.push(...stateChangeCandidates);
 
     if (delta.length === 0) continue;
 
@@ -90,7 +155,7 @@ export function buildSnapshotAssertionCandidates(
     const textTargetValues = new Set(
       textCandidates.map((c) =>
         normalizeForCompare(
-          c.candidate.action !== "navigate" ? c.candidate.target.value : ""
+          "target" in c.candidate && c.candidate.target ? c.candidate.target.value : ""
         )
       )
     );
@@ -106,7 +171,7 @@ export function buildSnapshotAssertionCandidates(
     );
     for (const vc of visibleCandidates) {
       const vcTarget =
-        vc.candidate.action !== "navigate"
+        "target" in vc.candidate && vc.candidate.target
           ? normalizeForCompare(vc.candidate.target.value)
           : "";
       if (textTargetValues.has(vcTarget)) continue;
@@ -138,11 +203,19 @@ export function parseSnapshotNodes(snapshot: string): SnapshotNode[] {
 
     const name = nameMatch?.[1]?.trim();
     const text = textMatch?.[1]?.trim();
+
+    const hiddenMatch = /\[hidden\]/.test(content);
+    const disabledMatch = /\[disabled\]/.test(content);
+    const expandedMatch = /\[expanded=(true|false)\]/.exec(content);
+
     nodes.push({
       role,
       name: name || undefined,
       text: text || undefined,
       ref: refMatch?.[1],
+      visible: !hiddenMatch,
+      enabled: !disabledMatch,
+      expanded: expandedMatch ? expandedMatch[1] === "true" : undefined,
       rawLine: trimmed,
     });
   }
@@ -158,6 +231,201 @@ function buildDeltaNodes(pre: SnapshotNode[], post: SnapshotNode[]): SnapshotNod
 function buildStableNodes(pre: SnapshotNode[], post: SnapshotNode[]): SnapshotNode[] {
   const preKeys = new Set(pre.map((node) => nodeSignature(node)));
   return post.filter((node) => preKeys.has(nodeSignature(node)));
+}
+
+function buildUrlCandidates(
+  index: number,
+  afterAction: Step["action"],
+  preUrl?: string,
+  postUrl?: string,
+  candidateSource?: AssertionCandidateSource
+): AssertionCandidate[] {
+  if (!preUrl || !postUrl || preUrl === postUrl) return [];
+  if (afterAction !== "click" && afterAction !== "navigate") return [];
+
+  return [{
+    index,
+    afterAction,
+    candidate: {
+      action: "assertUrl" as const,
+      url: postUrl,
+    },
+    confidence: 0.88,
+    rationale: "URL changed after navigation action.",
+    candidateSource: candidateSource ?? "snapshot_native",
+  }];
+}
+
+function buildTitleCandidates(
+  index: number,
+  afterAction: Step["action"],
+  preTitle?: string,
+  postTitle?: string,
+  candidateSource?: AssertionCandidateSource
+): AssertionCandidate[] {
+  if (!preTitle || !postTitle || preTitle === postTitle) return [];
+  if (afterAction !== "click" && afterAction !== "navigate") return [];
+
+  if (isNoisyText(postTitle)) return [];
+
+  return [{
+    index,
+    afterAction,
+    candidate: {
+      action: "assertTitle" as const,
+      title: postTitle,
+    },
+    confidence: 0.82,
+    rationale: "Page title changed after action.",
+    candidateSource: candidateSource ?? "snapshot_native",
+  }];
+}
+
+interface TextChange {
+  node: SnapshotNode;
+  oldText: string;
+  newText: string;
+}
+
+function buildTextChangedCandidates(
+  index: number,
+  afterAction: Step["action"],
+  preNodes: SnapshotNode[],
+  postNodes: SnapshotNode[],
+  actedTargetHint: string,
+  framePath: string[] | undefined,
+  candidateSource: AssertionCandidateSource
+): AssertionCandidate[] {
+  const changes = detectTextChanges(preNodes, postNodes);
+  const qualifying: TextChange[] = [];
+  for (const change of changes) {
+    if (!TEXT_ROLE_ALLOWLIST.has(change.node.role)) continue;
+    if (isNoisyText(change.newText)) continue;
+    if (matchesActedTarget(change.newText, actedTargetHint)) continue;
+    qualifying.push(change);
+  }
+
+  const candidates: AssertionCandidate[] = [];
+  for (const change of qualifying.slice(0, MAX_TEXT_CANDIDATES_PER_STEP)) {
+    candidates.push({
+      index,
+      afterAction,
+      candidate: {
+        action: "assertText" as const,
+        target: buildTextTarget(change.node, change.newText, framePath),
+        text: change.newText,
+      },
+      confidence: 0.85,
+      rationale: "Text content changed after action.",
+      candidateSource,
+    });
+  }
+
+  return candidates;
+}
+
+function detectTextChanges(preNodes: SnapshotNode[], postNodes: SnapshotNode[]): TextChange[] {
+  const changes: TextChange[] = [];
+  const preByKey = new Map<string, SnapshotNode>();
+
+  for (const node of preNodes) {
+    const key = nodeIdentityKey(node);
+    preByKey.set(key, node);
+  }
+
+  for (const postNode of postNodes) {
+    const key = nodeIdentityKey(postNode);
+    const preNode = preByKey.get(key);
+    if (!preNode) continue;
+
+    const preText = (preNode.text ?? preNode.name ?? "").trim();
+    const postText = (postNode.text ?? postNode.name ?? "").trim();
+
+    if (preText !== postText && preText && postText) {
+      changes.push({
+        node: postNode,
+        oldText: preText,
+        newText: postText,
+      });
+    }
+  }
+
+  return changes;
+}
+
+interface StateChange {
+  node: SnapshotNode;
+  type: "enabled" | "disabled" | "expanded" | "collapsed";
+}
+
+function buildStateChangeCandidates(
+  index: number,
+  afterAction: Step["action"],
+  preNodes: SnapshotNode[],
+  postNodes: SnapshotNode[],
+  actedTargetHint: string,
+  framePath: string[] | undefined,
+  candidateSource: AssertionCandidateSource
+): AssertionCandidate[] {
+  const changes = detectStateChanges(preNodes, postNodes);
+  const qualifying: StateChange[] = [];
+  for (const change of changes) {
+    if (!STATE_CHANGE_ROLE_ALLOWLIST.has(change.node.role)) continue;
+    if (!change.node.name || isNoisyText(change.node.name)) continue;
+    if (matchesActedTarget(change.node.name, actedTargetHint)) continue;
+    if (change.type !== "enabled" && change.type !== "disabled") continue;
+    qualifying.push(change);
+  }
+
+  const candidates: AssertionCandidate[] = [];
+  for (const change of qualifying.slice(0, MAX_STATE_CANDIDATES_PER_STEP)) {
+    candidates.push({
+      index,
+      afterAction,
+      candidate: {
+        action: "assertEnabled" as const,
+        target: buildRoleTarget(change.node.role, change.node.name!, framePath),
+        enabled: change.type === "enabled",
+      },
+      confidence: 0.80,
+      rationale: `Element became ${change.type} after action.`,
+      candidateSource,
+    });
+  }
+
+  return candidates;
+}
+
+function detectStateChanges(preNodes: SnapshotNode[], postNodes: SnapshotNode[]): StateChange[] {
+  const changes: StateChange[] = [];
+  const preByKey = new Map<string, SnapshotNode>();
+
+  for (const node of preNodes) {
+    const key = nodeIdentityKey(node);
+    preByKey.set(key, node);
+  }
+
+  for (const postNode of postNodes) {
+    const key = nodeIdentityKey(postNode);
+    const preNode = preByKey.get(key);
+    if (!preNode) continue;
+
+    if (preNode.enabled !== postNode.enabled) {
+      changes.push({
+        node: postNode,
+        type: postNode.enabled ? "enabled" : "disabled",
+      });
+    }
+
+    if (preNode.expanded !== postNode.expanded && postNode.expanded !== undefined) {
+      changes.push({
+        node: postNode,
+        type: postNode.expanded ? "expanded" : "collapsed",
+      });
+    }
+  }
+
+  return changes;
 }
 
 function buildVisibleCandidates(
@@ -259,7 +527,10 @@ function buildTextTarget(
 
 function extractActedTargetHint(step: Step): string {
   if (step.action === "navigate") return step.url;
-  return step.target.value;
+  if (step.action === "assertUrl") return step.url;
+  if (step.action === "assertTitle") return step.title;
+  if ("target" in step && step.target) return step.target.value;
+  return "";
 }
 
 function matchesActedTarget(value: string, actedTargetHint: string): boolean {
@@ -277,6 +548,18 @@ function nodeSignature(node: SnapshotNode): string {
     node.role,
     normalizeForCompare(node.name ?? ""),
     normalizeForCompare(node.text ?? ""),
+    node.visible ? "v" : "h",
+    node.enabled ? "e" : "d",
+  ].join("|");
+}
+
+function nodeIdentityKey(node: SnapshotNode): string {
+  if (node.ref) {
+    return `ref:${normalizeForCompare(node.ref)}`;
+  }
+  return [
+    node.role,
+    normalizeForCompare(node.name ?? ""),
   ].join("|");
 }
 

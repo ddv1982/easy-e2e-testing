@@ -17,6 +17,7 @@ function createMockPage() {
     textContent: vi.fn(async () => ""),
     inputValue: vi.fn(async () => ""),
     isChecked: vi.fn(async () => false),
+    isEnabled: vi.fn(async () => true),
     locator: vi.fn(),
   }));
 
@@ -55,5 +56,98 @@ describe("executeRuntimeStep per-step timeout", () => {
     });
 
     expect(clickMock).toHaveBeenCalledWith({ timeout: 10_000 });
+  });
+});
+
+describe("executeRuntimeStep assertUrl", () => {
+  it("matches literal URLs that contain regex special characters", async () => {
+    const page = {
+      url: vi.fn(() => "https://example.com/search?q=test.1"),
+    } as unknown as Page;
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        { action: "assertUrl", url: "https://example.com/search?q=test.1" } as Step,
+        { timeout: 10_000, mode: "playback" }
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it("supports wildcard matching while escaping non-wildcard characters", async () => {
+    const page = {
+      url: vi.fn(() => "https://example.com/items/42/details?view=full.1"),
+    } as unknown as Page;
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        { action: "assertUrl", url: "https://example.com/items/*/details?view=full.1" } as Step,
+        { timeout: 10_000, mode: "playback" }
+      )
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("executeRuntimeStep assertTitle", () => {
+  it("passes when the current page title contains the expected value", async () => {
+    const page = {
+      title: vi.fn(async () => "Settings - Example App"),
+    } as unknown as Page;
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        { action: "assertTitle", title: "Settings" } as Step,
+        { timeout: 10_000, mode: "playback" }
+      )
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("executeRuntimeStep assertEnabled", () => {
+  it("passes when assertEnabled expects enabled state", async () => {
+    const waitFor = vi.fn(async () => {});
+    const isEnabled = vi.fn(async () => true);
+    const page = {
+      locator: vi.fn(() => ({
+        waitFor,
+        isEnabled,
+      })),
+    } as unknown as Page;
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        {
+          action: "assertEnabled",
+          target: { value: "#submit", kind: "css", source: "manual" },
+        } as Step,
+        { timeout: 10_000, mode: "playback" }
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it("passes when assertEnabled expects disabled state", async () => {
+    const waitFor = vi.fn(async () => {});
+    const isEnabled = vi.fn(async () => false);
+    const page = {
+      locator: vi.fn(() => ({
+        waitFor,
+        isEnabled,
+      })),
+    } as unknown as Page;
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        {
+          action: "assertEnabled",
+          target: { value: "#submit", kind: "css", source: "manual" },
+          enabled: false,
+        } as Step,
+        { timeout: 10_000, mode: "playback" }
+      )
+    ).resolves.toBeUndefined();
   });
 });

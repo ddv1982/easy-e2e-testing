@@ -66,6 +66,15 @@ describe("stepSchema - valid", () => {
     expect(
       stepSchema.safeParse({ action: "assertChecked", target: cssTarget, checked: false }).success
     ).toBe(true);
+    expect(
+      stepSchema.safeParse({ action: "assertUrl", url: "https://example.com/dashboard" }).success
+    ).toBe(true);
+    expect(
+      stepSchema.safeParse({ action: "assertTitle", title: "Dashboard" }).success
+    ).toBe(true);
+    expect(
+      stepSchema.safeParse({ action: "assertEnabled", target: cssTarget, enabled: false }).success
+    ).toBe(true);
   });
 
   it("accepts unrelated unknown step keys", () => {
@@ -86,6 +95,7 @@ describe("stepSchema - invalid", () => {
   it("rejects targetless selector actions", () => {
     expect(stepSchema.safeParse({ action: "click" }).success).toBe(false);
     expect(stepSchema.safeParse({ action: "fill", text: "x" }).success).toBe(false);
+    expect(stepSchema.safeParse({ action: "assertEnabled" }).success).toBe(false);
   });
 
   it("rejects wrong target kind", () => {
