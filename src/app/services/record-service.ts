@@ -146,13 +146,9 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
       const retainedStepDiagnostics = improveResult.report.diagnostics.filter(
         (d) => d.code === "runtime_failing_step_retained"
       ).length;
-      const retainedAliasDiagnostics = improveResult.report.diagnostics.filter(
-        (d) => d.code === "runtime_failing_step_marked_optional"
-      ).length;
       const retainedSteps =
         summary.runtimeFailingStepsRetained ??
-        summary.runtimeFailingStepsOptionalized ??
-        (retainedStepDiagnostics > 0 ? retainedStepDiagnostics : retainedAliasDiagnostics);
+        retainedStepDiagnostics;
 
       const parts: string[] = [];
       if (summary.improved > 0) parts.push(summary.improved + " selectors improved");

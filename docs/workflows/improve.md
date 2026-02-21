@@ -203,7 +203,6 @@ The summary includes:
 - `selectorRepairsGeneratedByPrivateFallback`
 - `selectorRepairsAppliedFromPrivateFallback`
 - `runtimeFailingStepsRetained`
-- `runtimeFailingStepsOptionalized`
 - `runtimeFailingStepsRemoved`
 - `assertionCandidatesFilteredDynamic`
 - `assertionCoverageStepsTotal`
@@ -218,8 +217,6 @@ The summary includes:
 - `assertionInventoryCandidatesAdded`
 - `assertionInventoryGapStepsFilled`
 
-`runtimeFailingStepsOptionalized` is a deprecated alias for one release cycle and mirrors `runtimeFailingStepsRetained`.
-
 Each assertion candidate has an `applyStatus`:
 
 | Status | Meaning |
@@ -231,7 +228,7 @@ Each assertion candidate has an `applyStatus`:
 | `skipped_existing` | Step already has an assertion |
 | `not_requested` | Report-only run (`--no-apply`): candidate was generated but not considered for apply/validation |
 
-Runtime-failing step diagnostics use `runtime_failing_step_retained` (canonical) and emit `runtime_failing_step_marked_optional` as a deprecated alias for one release cycle.
+Runtime-failing step diagnostics use `runtime_failing_step_retained`.
 
 Default report path: `<test-file>.improve-report.json`
 

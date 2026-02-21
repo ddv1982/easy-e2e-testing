@@ -72,9 +72,7 @@ export async function runImprove(
   }
 
   const runtimeFailingStepsRetained =
-    result.report.summary.runtimeFailingStepsRetained ??
-    result.report.summary.runtimeFailingStepsOptionalized ??
-    0;
+    result.report.summary.runtimeFailingStepsRetained ?? 0;
   const assertionCoverageStepsTotal =
     result.report.summary.assertionCoverageStepsTotal ?? 0;
   const assertionCoverageStepsWithCandidates =

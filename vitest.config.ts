@@ -21,9 +21,7 @@ export default defineConfig({
         "src/core/improve/assertion-apply.ts", // re-export shim
         "src/core/improve/assertion-apply-types.ts", // type-only declarations
         "src/core/play/play-types.ts", // type-only declarations
-        "src/core/transform/selector-normalize.ts", // parser-normalization utility with broad combinatorics
         "src/utils/chromium-runtime.ts", // environment-dependent launcher diagnostics
-        "src/core/recorder.ts", // Interactive wrapper around Playwright codegen subprocess
         "src/utils/ui.ts", // Display-only formatting helpers
       ],
       thresholds: {

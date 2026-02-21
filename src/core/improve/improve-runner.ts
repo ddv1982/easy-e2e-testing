@@ -145,12 +145,6 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
           message:
             `Step ${originalIndex + 1}: retained as required step after runtime failure (${classification.reason}).`,
         });
-        diagnostics.push({
-          code: "runtime_failing_step_marked_optional",
-          level: "info",
-          message:
-            `Deprecated alias for runtime_failing_step_retained. Step ${originalIndex + 1}: retained as required step after runtime failure (${classification.reason}).`,
-        });
       }
     }
 
@@ -244,7 +238,6 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         deterministicAssertionsSkippedNavigationLikeClick:
           assertionPass.deterministicAssertionsSkippedNavigationLikeClick ?? 0,
         runtimeFailingStepsRetained: failedIndexesToRetain.size,
-        runtimeFailingStepsOptionalized: failedIndexesToRetain.size,
         runtimeFailingStepsRemoved: failedIndexesToRemove.size,
         assertionCandidatesFilteredDynamic:
           assertionPass.filteredDynamicCandidates ?? 0,

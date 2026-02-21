@@ -202,7 +202,6 @@ describe("runRecord auto-improve", () => {
           appliedAssertions: 0,
           skippedAssertions: 0,
           runtimeFailingStepsRetained: 2,
-          runtimeFailingStepsOptionalized: 7,
         },
         stepFindings: [],
         assertionCandidates: [],
@@ -221,42 +220,6 @@ describe("runRecord auto-improve", () => {
 
     expect(ui.success).toHaveBeenCalledWith(
       "Auto-improve: 1 selectors improved, 2 failing steps retained"
-    );
-  });
-
-  it("falls back to deprecated retained alias summary field when canonical is absent", async () => {
-    vi.mocked(improveTestFile).mockResolvedValue({
-      report: {
-        testFile: "e2e/sample.yaml",
-        generatedAt: new Date().toISOString(),
-        providerUsed: "playwright",
-        summary: {
-          unchanged: 0,
-          improved: 1,
-          fallback: 0,
-          warnings: 0,
-          assertionCandidates: 0,
-          appliedAssertions: 0,
-          skippedAssertions: 0,
-          runtimeFailingStepsOptionalized: 3,
-        },
-        stepFindings: [],
-        assertionCandidates: [],
-        diagnostics: [],
-      },
-      reportPath: "e2e/sample.improve-report.json",
-    });
-
-    await runRecord({
-      name: "sample",
-      url: "http://127.0.0.1:5173",
-      description: "demo",
-      outputDir: "e2e",
-      browser: "firefox",
-    });
-
-    expect(ui.success).toHaveBeenCalledWith(
-      "Auto-improve: 1 selectors improved, 3 failing steps retained"
     );
   });
 
@@ -282,11 +245,6 @@ describe("runRecord auto-improve", () => {
             code: "runtime_failing_step_retained",
             level: "info",
             message: "Step 2 retained.",
-          },
-          {
-            code: "runtime_failing_step_marked_optional",
-            level: "info",
-            message: "Deprecated alias.",
           },
         ],
       },

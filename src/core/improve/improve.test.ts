@@ -360,14 +360,8 @@ describe("improveTestFile runner", () => {
     expect(written).toContain("submit");
     expect(written).not.toContain("optional:");
     expect(result.report.summary.runtimeFailingStepsRetained).toBe(1);
-    expect(result.report.summary.runtimeFailingStepsOptionalized).toBe(1);
     expect(
       result.report.diagnostics.some((diagnostic) => diagnostic.code === "runtime_failing_step_retained")
-    ).toBe(true);
-    expect(
-      result.report.diagnostics.some(
-        (diagnostic) => diagnostic.code === "runtime_failing_step_marked_optional"
-      )
     ).toBe(true);
   });
 
@@ -414,6 +408,5 @@ describe("improveTestFile runner", () => {
     expect(written).not.toContain("optional:");
     expect(written).toContain("navigate");
     expect(result.report.summary.runtimeFailingStepsRetained).toBe(1);
-    expect(result.report.summary.runtimeFailingStepsOptionalized).toBe(1);
   });
 });

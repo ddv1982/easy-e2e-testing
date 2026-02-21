@@ -152,7 +152,7 @@ describe("runImprove confirm prompt", () => {
     );
   });
 
-  it("prints retained summary using deprecated alias when canonical field is absent", async () => {
+  it("prints retained summary using canonical field", async () => {
     vi.mocked(improveTestFile).mockResolvedValue({
       reportPath: "e2e/sample.improve-report.json",
       outputPath: undefined,
@@ -168,7 +168,7 @@ describe("runImprove confirm prompt", () => {
           assertionCandidates: 0,
           appliedAssertions: 0,
           skippedAssertions: 0,
-          runtimeFailingStepsOptionalized: 2,
+          runtimeFailingStepsRetained: 2,
         },
         stepFindings: [],
         assertionCandidates: [],

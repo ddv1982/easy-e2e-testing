@@ -10,10 +10,10 @@ Run `npm run test:coverage` to generate current coverage numbers.
 
 Latest local run snapshot (`npm run test:coverage`):
 
-- **Statements:** 82.34%
-- **Branches:** 70.10%
-- **Functions:** 94.89%
-- **Lines:** 86.44%
+- **Statements:** 80.64%
+- **Branches:** 68.70%
+- **Functions:** 92.99%
+- **Lines:** 84.48%
 
 ## Coverage Thresholds
 
@@ -39,9 +39,7 @@ The following files are excluded from coverage requirements:
 - `src/core/contracts/**` - Contract-only interfaces
 - `src/core/improve/improve.ts` - Re-export shim
 - `src/core/play/play-types.ts` - Type-only declarations
-- `src/core/transform/selector-normalize.ts` - Parser normalization utility
 - `src/utils/chromium-runtime.ts` - Environment-dependent launcher diagnostics
-- `src/core/recorder.ts` - Interactive Playwright codegen wrapper with spawned subprocesses
 - `src/utils/ui.ts` - Display formatting utility
 
 ## Integration Harness Notes
