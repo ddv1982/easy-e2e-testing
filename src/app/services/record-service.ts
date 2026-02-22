@@ -137,6 +137,7 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
         applySelectors: true,
         applyAssertions: true,
         assertions: "candidates",
+        assertionPolicy: "reliable",
       });
 
       const summary = improveResult.report.summary;

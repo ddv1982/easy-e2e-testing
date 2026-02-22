@@ -256,6 +256,19 @@ function shouldDropExactForDynamicText(text: string, enabled: boolean): boolean 
   );
   const hasNumericSignal = dynamicSignals.includes("contains_numeric_fragment");
   const hasHeadlineSignal = dynamicSignals.includes("contains_headline_like_text");
+  const hasPipeSeparatorSignal = dynamicSignals.includes("contains_pipe_separator");
+
+  // Long and headline-like text tends to churn frequently on news pages.
+  if (hasHeadlineSignal && (normalized.length >= 48 || hasPipeSeparatorSignal)) {
+    return true;
+  }
+
+  if (
+    hasHeadlineSignal &&
+    (hasWeatherOrNewsSignal || hasDateOrTimeSignal || hasNumericSignal)
+  ) {
+    return true;
+  }
 
   const hasDynamicNumericSignal = hasNumericSignal && hasHeadlineSignal;
   const strongSignalCount = [

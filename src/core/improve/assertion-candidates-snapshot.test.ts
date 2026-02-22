@@ -117,6 +117,30 @@ describe("snapshot assertion candidates", () => {
     expect(out).toHaveLength(0);
   });
 
+  it("suppresses snapshot text assertions for navigation-like dynamic clicks", () => {
+    const out = buildSnapshotAssertionCandidates([
+      {
+        index: 1,
+        step: {
+          action: "click",
+          target: {
+            value:
+              "getByRole('link', { name: 'Nederlaag voor Trump: hooggerechtshof VS oordeelt dat heffingen onwettig zijn', exact: true })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+        },
+        preSnapshot: `- generic [ref=e1]:\n  - link "Nieuws" [ref=e2]\n`,
+        postSnapshot: `- generic [ref=e1]:\n  - heading "Ajax komt goed weg" [level=1] [ref=e3]\n`,
+        preUrl: "https://www.nu.nl/",
+        postUrl: "https://www.nu.nl/algemeen",
+      },
+    ], "snapshot_native");
+
+    expect(out.some((candidate) => candidate.candidate.action === "assertText")).toBe(false);
+    expect(out.some((candidate) => candidate.candidate.action === "assertUrl")).toBe(true);
+  });
+
   it("generates multiple candidates from a rich delta", () => {
     const out = buildSnapshotAssertionCandidates([richDeltaStepSnapshot], "snapshot_native");
 
