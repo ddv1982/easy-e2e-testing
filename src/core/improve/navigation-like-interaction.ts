@@ -8,9 +8,6 @@ function isNavigationLikeAction(action: Step["action"]): boolean {
   return action === "click" || action === "press" || action === "hover";
 }
 
-const CONTENT_CARD_TEXT_PATTERN =
-  /headline|teaser|article|story|content[-_ ]?card|breaking[-_ ]?push|hero[-_ ]?card/i;
-
 export function classifyNavigationLikeInteraction(
   step: Step,
   target: Target
@@ -19,11 +16,14 @@ export function classifyNavigationLikeInteraction(
 
   const targetValue = target.value;
   const isRoleLink = /getByRole\(\s*['"]link['"]/.test(targetValue);
-  const queryTexts = extractTargetTextFragments(target);
-  const hasContentCardPattern = queryTexts.some((text) =>
-    CONTENT_CARD_TEXT_PATTERN.test(text)
-  );
+  const hasExact = /exact\s*:\s*true/.test(targetValue);
+  const hasContentCardPattern =
+    /headline|teaser|article|story|content[-_ ]?card|breaking[-_ ]?push|hero[-_ ]?card/i.test(
+      targetValue
+    );
+
   const { dynamicSignals } = assessTargetDynamics(target);
+  const queryTexts = extractTargetTextFragments(target);
   const hasHeadlineLikeText =
     queryTexts.some((text) => text.length >= 48) ||
     dynamicSignals.includes("contains_headline_like_text") ||
@@ -31,7 +31,11 @@ export function classifyNavigationLikeInteraction(
     dynamicSignals.includes("contains_pipe_separator") ||
     dynamicSignals.includes("contains_date_or_time_fragment");
 
-  if ((isRoleLink && hasHeadlineLikeText) || hasContentCardPattern) {
+  if (
+    (isRoleLink && hasHeadlineLikeText) ||
+    (isRoleLink && hasExact) ||
+    hasContentCardPattern
+  ) {
     return "navigation-like dynamic click target";
   }
 
