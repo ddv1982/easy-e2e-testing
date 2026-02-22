@@ -44,7 +44,10 @@ export function devtoolsRecordingToSteps(json: string): DevToolsConvertResult {
   }
 
   if (!recording || !Array.isArray(recording.steps)) {
-    return { steps: [], title: recording?.title, skipped: 0 };
+    const title = recording?.title;
+    return title === undefined
+      ? { steps: [], skipped: 0 }
+      : { steps: [], title, skipped: 0 };
   }
 
   const steps: Step[] = [];
@@ -65,7 +68,8 @@ export function devtoolsRecordingToSteps(json: string): DevToolsConvertResult {
     steps.push(result);
   }
 
-  return { steps, title: recording.title, skipped };
+  const title = recording.title;
+  return title === undefined ? { steps, skipped } : { steps, title, skipped };
 }
 
 function convertStep(
@@ -237,7 +241,8 @@ function ariaToLocatorExpression(ariaSelector: string): string | null {
   if (roleMatch) {
     const roleIdx = body.indexOf(roleMatch[0]);
     const name = body.slice(0, roleIdx).trim();
-    const role = roleMatch[1]!;
+    const role = roleMatch[1];
+    if (!role) return `getByLabel('${escapeSingleQuotes(body)}')`;
     if (name) {
       return `getByRole('${escapeSingleQuotes(role)}', { name: '${escapeSingleQuotes(name)}' })`;
     }

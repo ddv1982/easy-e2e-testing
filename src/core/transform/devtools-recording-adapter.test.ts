@@ -240,6 +240,14 @@ describe("devtoolsRecordingToSteps", () => {
     expect(result.steps).toEqual([]);
   });
 
+  it("omits title when recording title is absent", () => {
+    const result = devtoolsRecordingToSteps(JSON.stringify({
+      steps: [{ type: "navigate", url: "https://example.com" }],
+    }));
+
+    expect("title" in result).toBe(false);
+  });
+
   it("handles complete recording flow", () => {
     const result = devtoolsRecordingToSteps(JSON.stringify({
       title: "Login Flow",
