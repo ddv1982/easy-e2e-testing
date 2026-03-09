@@ -39,3 +39,4 @@ Testing surface, tools, setup steps, and known quirks.
 
 - `improve` runtime treats `data:` navigation URLs as relative and reports `Cannot resolve relative navigation URL`; this can be used as deterministic runtime-failure evidence in candidate-skip assertions.
 - If transient local TypeScript worktree errors block `npm run build`, validators may use the existing `dist/bin/ui-test.js` binary for CLI-flow checks.
+- Vitest in this repo only runs tests under configured include globs; ad-hoc validator test files created under `/tmp` will be ignored. Place any temporary flow tests under `scripts/` (with unique prefixes) if dynamic test generation is needed.
