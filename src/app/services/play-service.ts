@@ -17,6 +17,19 @@ import { ui } from "../../utils/ui.js";
 import { buildFailedTestsReport, summarizePlayResults } from "./play-reporting.js";
 import { startPlayApp, stopStartedAppProcess } from "./play-startup.js";
 
+export {
+  PLAY_DEFAULT_ARTIFACTS_DIR,
+  PLAY_DEFAULT_BASE_URL,
+  PLAY_DEFAULT_DELAY_MS,
+  PLAY_DEFAULT_EXAMPLE_TEST_FILE,
+  PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+  PLAY_DEFAULT_START_COMMAND,
+  PLAY_DEFAULT_TIMEOUT_MS,
+  PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+} from "../../core/play/play-defaults.js";
+export { startPlayApp } from "./play-startup.js";
+export { createPlayRunId, writePlayRunReport, type PlayRunReport } from "../../core/play-failure-report.js";
+
 export async function runPlay(
   testArg: string | undefined,
   opts: PlayProfileInput

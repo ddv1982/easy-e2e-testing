@@ -68,5 +68,6 @@ function runCommand(label: string, command: string, args: string[], options?: { 
   }
 }
 
+export { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../../core/play/play-defaults.js";
 // Re-export browser types for commands layer (commands cannot import from infra directly)
 export { ALL_PLAYWRIGHT_BROWSERS, validateBrowserName, type PlaywrightBrowser } from "../../infra/playwright/browser-provisioner.js";

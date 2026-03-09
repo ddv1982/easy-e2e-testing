@@ -15,7 +15,8 @@ import {
   PLAY_DEFAULT_START_COMMAND,
   PLAY_DEFAULT_TIMEOUT_MS,
   PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
-} from "../core/play/play-defaults.js";
+} from "../app/services/play-service.js";
+import { createPlayRunId, writePlayRunReport } from "../core/play-failure-report.js";
 
 vi.mock("globby", () => ({
   globby: vi.fn(),
@@ -25,18 +26,23 @@ vi.mock("../core/play/player-runner.js", () => ({
   play: vi.fn(),
 }));
 
-vi.mock("../core/play-failure-report.js", () => ({
-  createPlayRunId: vi.fn(() => "run-test-id"),
-  writePlayRunReport: vi.fn(async () => "/tmp/run-report.json"),
-}));
+vi.mock("../core/play-failure-report.js", async () => {
+  const actual = await vi.importActual<typeof import("../core/play-failure-report.js")>(
+    "../core/play-failure-report.js"
+  );
+  return {
+    ...actual,
+    createPlayRunId: vi.fn(() => "run-test-id"),
+    writePlayRunReport: vi.fn(async () => "/tmp/run-report.json"),
+  };
+});
 
 vi.mock("node:child_process", () => ({
   spawn: vi.fn(),
 }));
 
-import { play } from "../core/play/player-runner.js";
-import { createPlayRunId, writePlayRunReport } from "../core/play-failure-report.js";
 import { spawn } from "node:child_process";
+import { play } from "../core/play/player-runner.js";
 import { registerPlay, runPlay } from "./play.js";
 
 function createMockChildProcess() {

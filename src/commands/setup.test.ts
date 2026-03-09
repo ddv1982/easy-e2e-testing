@@ -33,7 +33,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { checkbox } from "@inquirer/prompts";
 import { UserError } from "../utils/errors.js";
-import { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../core/play/play-defaults.js";
+import { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../app/services/onboarding-service.js";
 import {
   parseBrowsersFlag,
   registerSetup,
