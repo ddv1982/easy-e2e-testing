@@ -1,0 +1,38 @@
+{
+  "milestone": "recording-provenance-auto-apply",
+  "round": 2,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" test -- --maxWorkers=5",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" run typecheck:test",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" run lint",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [
+    {
+      "observation": "The fix transcript did not include an explicit manual/CLI sanity check despite user-facing command behavior changes.",
+      "reason": "duplicate"
+    }
+  ],
+  "previousRound": ".factory/validation/recording-provenance-auto-apply/scrutiny/synthesis.round1.json"
+}

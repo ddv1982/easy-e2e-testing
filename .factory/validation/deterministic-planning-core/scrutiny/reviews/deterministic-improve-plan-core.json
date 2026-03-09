@@ -1,0 +1,26 @@
+{
+  "featureId": "deterministic-improve-plan-core",
+  "reviewedAt": "2026-03-09T06:26:58.784479+00:00",
+  "commitId": "89a3b4a8105657f051c0d4836616fd6ef48998c3",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The implementation covers the feature contract: v2 improve plans now carry deterministic, reviewable payload metadata; plan generation remains non-mutating; apply-plan writes the reviewed payload directly; moved-file same-content applies with warning; and source drift fails closed before any YAML write. Focused service/schema/core tests provide direct evidence for these behaviors.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "Known full-suite baseline failures discovered by the worker are not captured in shared mission library notes, so future workers may keep re-discovering them.",
+      "evidence": "Handoff `/Users/vriesd/.factory/missions/0b99802b-e794-4378-8e69-1426fde695f4/handoffs/2026-03-08T23-57-33-900Z__deterministic-improve-plan-core__ad067bfe-64b6-4fb6-aa31-552a7b848184.json` lists pre-existing failures in `src/core/player.integration.test.ts` and `src/core/improve/assertion-candidates-inventory.test.ts`; `.factory/library/user-testing.md` currently has no known-failures section."
+    },
+    {
+      "area": "skills",
+      "observation": "The skill requires a CLI-level sanity check but does not require the check to run against freshly built/current sources, which can allow stale `dist` verification.",
+      "evidence": "Transcript skeleton for session `ad067bfe-64b6-4fb6-aa31-552a7b848184` includes `node ./dist/index.js improve ... --apply-plan ...` without a preceding build step."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. I reviewed the feature entry, handoff, transcript skeleton, skill, and commit diff; the deterministic plan/apply behavior matches the feature requirements and no blocking code defects were found in the reviewed implementation."
+}

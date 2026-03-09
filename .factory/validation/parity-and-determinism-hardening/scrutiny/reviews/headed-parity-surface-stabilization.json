@@ -1,0 +1,22 @@
+{
+  "featureId": "headed-parity-surface-stabilization",
+  "reviewedAt": "2026-03-09T07:42:23Z",
+  "commitId": "aad204e",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The headed parity implementation meets the feature contract: resolver-based suite discovery now fails loudly on zero-match suites, mission-critical player/improve parity files are included, and parity-focused integration coverage demonstrates the same improved YAML passes in headless and headed runs when parity is required.",
+    "issues": [
+      {
+        "file": "scripts/run-headed-parity.test.mjs",
+        "line": 16,
+        "severity": "non_blocking",
+        "description": "The resolver contract test allows extra files (`length >= 2`) rather than asserting the exact expected parity set, so future broad-glob drift could silently expand parity scope without a failing test."
+      }
+    ]
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Review passed. The feature behavior is correctly implemented and validated for headed/headless parity, with one non-blocking test strictness gap in resolver-scope assertions."
+}

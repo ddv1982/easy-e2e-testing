@@ -110,7 +110,13 @@ describe("record", () => {
     expect(result.recordingMode).toBe("codegen");
     expect(result.stepCount).toBeGreaterThan(0);
     expect(saved).toContain("name: Codegen Recording");
+    expect(saved).toContain("baseUrl: http://127.0.0.1:5173");
+    expect(saved).toContain("url: /");
     expect(saved).toContain("action: click");
+    expect(saved).toContain("target:");
+    expect(saved).toContain("value: \"getByRole('button', { name: 'Save' })\"");
+    expect(saved).toContain("kind: locatorExpression");
+    expect(saved).toContain("source: codegen");
 
     await fs.rm(outputDir, { recursive: true, force: true });
   });
@@ -264,5 +270,17 @@ describe("normalizeFirstNavigate", () => {
     );
 
     expect(steps[0]).toEqual({ action: "navigate", url: "/page#section" });
+  });
+
+  it("preserves first-navigation query and hash for persisted baseUrl context", () => {
+    const steps = normalizeFirstNavigate(
+      [{ action: "navigate", url: "https://redirect.example.com/consent" }],
+      "https://example.com/start?next=%2Fcheckout#summary"
+    );
+
+    expect(steps[0]).toEqual({
+      action: "navigate",
+      url: "/start?next=%2Fcheckout#summary",
+    });
   });
 });
