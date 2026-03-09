@@ -1,6 +1,6 @@
 import { spawn, type SpawnOptions } from "node:child_process";
 
-export interface InteractiveCommandResult {
+interface InteractiveCommandResult {
   exitCode?: number;
   signal?: NodeJS.Signals | null;
 }

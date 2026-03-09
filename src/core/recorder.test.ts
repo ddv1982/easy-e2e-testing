@@ -18,6 +18,8 @@ import {
   resolvePlaywrightCliPath,
   runCodegen,
 } from "./recorder.js";
+import { runInteractiveCommand as defaultRunInteractiveCommand } from "../infra/process/command-runner.js";
+import type { RunInteractiveCommand } from "./contracts/process-runner.js";
 
 function createMockChildProcess() {
   return new EventEmitter() as ChildProcess;
@@ -36,7 +38,7 @@ describe("runCodegen", () => {
       url: "http://127.0.0.1:5173",
       outputFile: "/tmp/out.spec.ts",
       browser: "chromium",
-    });
+    }, defaultRunInteractiveCommand as RunInteractiveCommand);
     child.emit("close", 0, null);
 
     await expect(run).resolves.toBeUndefined();
@@ -50,7 +52,7 @@ describe("runCodegen", () => {
       url: "http://127.0.0.1:5173",
       outputFile: "/tmp/out.spec.ts",
       browser: "chromium",
-    });
+    }, defaultRunInteractiveCommand as RunInteractiveCommand);
     child.emit("close", 1, null);
 
     await expect(run).rejects.toThrow("Playwright codegen exited with code 1");
@@ -97,7 +99,7 @@ describe("record", () => {
       name: "Codegen Recording",
       url: "http://127.0.0.1:5173",
       outputDir,
-    });
+    }, { runInteractiveCommand: defaultRunInteractiveCommand });
 
     await vi.waitFor(() => {
       expect(spawn).toHaveBeenCalledTimes(1);
@@ -145,7 +147,7 @@ describe("record", () => {
       name: "Recovered Recording",
       url: "http://127.0.0.1:5173",
       outputDir,
-    });
+    }, { runInteractiveCommand: defaultRunInteractiveCommand });
 
     await vi.waitFor(() => {
       expect(spawn).toHaveBeenCalledTimes(1);
@@ -170,7 +172,7 @@ describe("record", () => {
       name: "Empty Recording",
       url: "http://127.0.0.1:5173",
       outputDir,
-    });
+    }, { runInteractiveCommand: defaultRunInteractiveCommand });
 
     await vi.waitFor(() => {
       expect(spawn).toHaveBeenCalledTimes(1);
@@ -195,7 +197,7 @@ describe("record", () => {
       name: "Failed Recording",
       url: "http://127.0.0.1:5173",
       outputDir,
-    });
+    }, { runInteractiveCommand: defaultRunInteractiveCommand });
 
     await vi.waitFor(() => {
       expect(spawn).toHaveBeenCalledTimes(1);

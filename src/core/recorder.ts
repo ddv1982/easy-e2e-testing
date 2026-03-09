@@ -10,7 +10,6 @@ import type {
   RunInteractiveCommand,
 } from "./contracts/process-runner.js";
 import {
-  defaultRunInteractiveCommand,
   resolvePlaywrightCliPath,
   runCodegen,
   type CodegenBrowser,
@@ -50,8 +49,10 @@ export async function record(
   dependencies: RecorderDependencies = {}
 ): Promise<RecordResult> {
   const playwrightBin = await findPlaywrightCli();
-  const runInteractiveCommand =
-    dependencies.runInteractiveCommand ?? defaultRunInteractiveCommand;
+  const runInteractiveCommand = dependencies.runInteractiveCommand;
+  if (!runInteractiveCommand) {
+    throw new Error("Recorder requires a runInteractiveCommand dependency.");
+  }
   const browser = options.browser ?? "chromium";
 
   ui.info("Opening browser for recording...");

@@ -1,7 +1,5 @@
-import { spawn, type SpawnOptions } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type {
-  InteractiveCommandResult,
   RunInteractiveCommand,
 } from "./contracts/process-runner.js";
 
@@ -20,7 +18,7 @@ export interface CodegenRunOptions {
 export async function runCodegen(
   playwrightBin: string,
   options: CodegenRunOptions,
-  runInteractiveCommand: RunInteractiveCommand = defaultRunInteractiveCommand
+  runInteractiveCommand: RunInteractiveCommand
 ): Promise<void> {
   const argsCore = [
     "codegen",
@@ -62,23 +60,4 @@ export function resolvePlaywrightCliPath(pathOrFileUrl: string): string {
   return pathOrFileUrl.startsWith("file://")
     ? fileURLToPath(pathOrFileUrl)
     : pathOrFileUrl;
-}
-
-export function defaultRunInteractiveCommand(
-  command: string,
-  args: string[],
-  options?: SpawnOptions
-): Promise<InteractiveCommandResult> {
-  return new Promise((resolve, reject) => {
-    const child = options ? spawn(command, args, options) : spawn(command, args);
-
-    child.on("error", (err) => reject(err));
-    child.on("close", (code: number | null, signal: NodeJS.Signals | null) => {
-      if (code === null) {
-        resolve({ signal });
-        return;
-      }
-      resolve({ exitCode: code, signal });
-    });
-  });
 }
