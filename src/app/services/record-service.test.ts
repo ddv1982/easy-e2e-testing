@@ -139,6 +139,7 @@ describe("runRecord auto-improve", () => {
       applySelectors: true,
       applyAssertions: true,
       assertions: "candidates",
+      assertionSource: "snapshot-native",
       assertionPolicy: "reliable",
       appliedBy: "auto_apply",
     });
@@ -159,6 +160,7 @@ describe("runRecord auto-improve", () => {
       applySelectors: false,
       applyAssertions: false,
       assertions: "candidates",
+      assertionSource: "snapshot-native",
       assertionPolicy: "reliable",
       appliedBy: "report_only",
     });
@@ -181,6 +183,7 @@ describe("runRecord auto-improve", () => {
       applySelectors: true,
       applyAssertions: true,
       assertions: "candidates",
+      assertionSource: "snapshot-native",
       assertionPolicy: "reliable",
       appliedBy: "auto_apply",
     });
@@ -353,7 +356,7 @@ describe("runRecord auto-improve", () => {
     expect(ui.warn).toHaveBeenCalledWith(
       "You can run it manually: ui-test improve " +
         path.resolve("e2e/sample.yaml") +
-        " --plan && ui-test improve " +
+        " --assertions candidates --assertion-source snapshot-native --assertion-policy reliable --plan && ui-test improve " +
         path.resolve("e2e/sample.yaml") +
         " --apply-plan " +
         path.resolve("e2e/sample.improve-plan.json")
@@ -375,10 +378,36 @@ describe("runRecord auto-improve", () => {
     expect(ui.warn).toHaveBeenCalledWith(
       "You can run it manually: ui-test improve " +
         path.resolve("e2e/sample.yaml") +
-        " --plan && ui-test improve " +
+        " --assertions candidates --assertion-source snapshot-native --assertion-policy reliable --plan && ui-test improve " +
         path.resolve("e2e/sample.yaml") +
         " --apply-plan " +
         path.resolve("e2e/sample.improve-plan.json")
+    );
+  });
+
+  it("prints the same assertion profile in manual fallback guidance as auto-apply uses", async () => {
+    vi.mocked(improveTestFile).mockRejectedValue(new Error("browser crashed"));
+
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      improveMode: "report",
+    });
+
+    expect(improveTestFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assertions: "candidates",
+        assertionSource: "snapshot-native",
+        assertionPolicy: "reliable",
+      })
+    );
+    expect(ui.warn).toHaveBeenCalledWith(
+      "You can run it manually: ui-test improve " +
+        path.resolve("e2e/sample.yaml") +
+        " --assertions candidates --assertion-source snapshot-native --assertion-policy reliable --no-apply"
     );
   });
 });
@@ -542,6 +571,7 @@ describe("runRecordFromFile", () => {
       expect.objectContaining({
         applySelectors: false,
         applyAssertions: false,
+        assertionSource: "snapshot-native",
         appliedBy: "report_only",
       })
     );
@@ -554,6 +584,7 @@ describe("runRecordFromFile", () => {
       expect.objectContaining({
         applySelectors: true,
         applyAssertions: true,
+        assertionSource: "snapshot-native",
         appliedBy: "auto_apply",
       })
     );
@@ -567,6 +598,7 @@ describe("runRecordFromFile", () => {
         outputPath: expect.stringContaining("login-flow.improved.yaml"),
         applySelectors: true,
         applyAssertions: true,
+        assertionSource: "snapshot-native",
         appliedBy: "auto_apply",
       })
     );

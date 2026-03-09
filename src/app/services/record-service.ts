@@ -11,6 +11,11 @@ import {
   hasUrlProtocol,
   normalizeRecordUrl,
 } from "../options/record-profile.js";
+import {
+  resolveImproveProfile,
+  type ImproveProfileInput,
+  type ResolvedImproveProfile,
+} from "../options/improve-profile.js";
 import { formatRecordingProfileSummary } from "../options/profile-summary.js";
 import { ensureChromiumAvailable } from "../../utils/chromium-runtime.js";
 import { UserError } from "../../utils/errors.js";
@@ -22,6 +27,16 @@ import {
   canonicalEventsToSteps,
   stepsToCanonicalEvents,
 } from "../../core/recording/canonical-events.js";
+
+function resolveRecordAutoImproveProfile(improveMode: RecordImproveMode): ResolvedImproveProfile {
+  const improveProfileInput: ImproveProfileInput = {
+    apply: improveMode === "apply",
+    assertions: "candidates",
+    assertionSource: "snapshot-native",
+    assertionPolicy: "reliable",
+  };
+  return resolveImproveProfile(improveProfileInput);
+}
 
 export interface RecordCliOptions {
   name?: string;
@@ -240,7 +255,8 @@ async function runAutoImprove(
     return;
   }
 
-  const applyMutations = improveMode === "apply";
+  const improveProfile = resolveRecordAutoImproveProfile(improveMode);
+  const applyMutations = improveProfile.applySelectors || improveProfile.applyAssertions;
   const appliedBy = applyMutations ? "auto_apply" : "report_only";
 
   console.log();
@@ -248,10 +264,11 @@ async function runAutoImprove(
   const improveResult = await improveTestFile({
     testFile,
     ...(applyMutations ? { outputPath: resolveDefaultImproveOutputPath(testFile) } : {}),
-    applySelectors: applyMutations,
-    applyAssertions: applyMutations,
-    assertions: "candidates",
-    assertionPolicy: "reliable",
+    applySelectors: improveProfile.applySelectors,
+    applyAssertions: improveProfile.applyAssertions,
+    assertions: improveProfile.assertions,
+    assertionSource: improveProfile.assertionSource,
+    assertionPolicy: improveProfile.assertionPolicy,
     appliedBy,
   });
 
@@ -328,9 +345,15 @@ function buildManualImproveCommand(
   improveMode: RecordImproveMode
 ): string {
   const absolutePath = path.resolve(testFile);
+  const improveProfile = resolveRecordAutoImproveProfile(improveMode);
+  const profileArgs = [
+    `--assertions ${improveProfile.assertions}`,
+    `--assertion-source ${improveProfile.assertionSource}`,
+    `--assertion-policy ${improveProfile.assertionPolicy}`,
+  ].join(" ");
   if (improveMode === "apply") {
     const planPath = absolutePath.replace(/(\.[^.]+)?$/, ".improve-plan.json");
-    return `ui-test improve ${absolutePath} --plan && ui-test improve ${absolutePath} --apply-plan ${planPath}`;
+    return `ui-test improve ${absolutePath} ${profileArgs} --plan && ui-test improve ${absolutePath} --apply-plan ${planPath}`;
   }
-  return `ui-test improve ${absolutePath} --no-apply`;
+  return `ui-test improve ${absolutePath} ${profileArgs} --no-apply`;
 }
