@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import path from "node:path";
 import { UserError } from "../../utils/errors.js";
 
 vi.mock("node:fs/promises", () => ({
@@ -55,6 +56,7 @@ function mockRecordDefaults() {
       testFile: "e2e/sample.yaml",
       generatedAt: new Date().toISOString(),
       providerUsed: "playwright",
+      appliedBy: "report_only",
       summary: {
         unchanged: 1,
         improved: 0,
@@ -133,12 +135,34 @@ describe("runRecord auto-improve", () => {
 
     expect(improveTestFile).toHaveBeenCalledWith({
       testFile: "e2e/sample.yaml",
+      applySelectors: false,
+      applyAssertions: false,
+      assertions: "candidates",
+      assertionPolicy: "reliable",
+      appliedBy: "report_only",
+    });
+    expect(ui.info).toHaveBeenCalledWith("Auto-improve report: no recommendations");
+  });
+
+  it("supports explicit auto-improve apply mode", async () => {
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      improveMode: "apply",
+    });
+
+    expect(improveTestFile).toHaveBeenCalledWith({
+      testFile: "e2e/sample.yaml",
+      outputPath: "e2e/sample.improved.yaml",
       applySelectors: true,
       applyAssertions: true,
       assertions: "candidates",
       assertionPolicy: "reliable",
+      appliedBy: "auto_apply",
     });
-    expect(ui.info).toHaveBeenCalledWith("Auto-improve: no changes needed");
   });
 
   it("skips auto-improve when improve is false", async () => {
@@ -160,6 +184,7 @@ describe("runRecord auto-improve", () => {
         testFile: "e2e/sample.yaml",
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
+        appliedBy: "report_only",
         summary: {
           unchanged: 0,
           improved: 2,
@@ -190,8 +215,8 @@ describe("runRecord auto-improve", () => {
       browser: "firefox",
     });
 
-    expect(ui.success).toHaveBeenCalledWith(
-      "Auto-improve: 2 selectors improved, 1 assertions applied, 1 transient steps removed"
+    expect(ui.info).toHaveBeenCalledWith(
+      "Auto-improve report: 2 selector recommendations, 1 assertion candidates"
     );
   });
 
@@ -201,6 +226,7 @@ describe("runRecord auto-improve", () => {
         testFile: "e2e/sample.yaml",
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
+        appliedBy: "report_only",
         summary: {
           unchanged: 0,
           improved: 1,
@@ -224,6 +250,7 @@ describe("runRecord auto-improve", () => {
       description: "demo",
       outputDir: "e2e",
       browser: "firefox",
+      improveMode: "apply",
     });
 
     expect(ui.success).toHaveBeenCalledWith(
@@ -237,6 +264,7 @@ describe("runRecord auto-improve", () => {
         testFile: "e2e/sample.yaml",
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
+        appliedBy: "report_only",
         summary: {
           unchanged: 0,
           improved: 1,
@@ -265,6 +293,7 @@ describe("runRecord auto-improve", () => {
       description: "demo",
       outputDir: "e2e",
       browser: "firefox",
+      improveMode: "apply",
     });
 
     expect(ui.success).toHaveBeenCalledWith(
@@ -287,7 +316,28 @@ describe("runRecord auto-improve", () => {
       expect.stringContaining("browser crashed")
     );
     expect(ui.warn).toHaveBeenCalledWith(
-      expect.stringContaining("You can run it manually")
+      "You can run it manually: ui-test improve " +
+        path.resolve("e2e/sample.yaml") +
+        " --no-apply"
+    );
+  });
+
+  it("preserves apply mode in the manual retry hint when auto-improve apply fails", async () => {
+    vi.mocked(improveTestFile).mockRejectedValue(new Error("browser crashed"));
+
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      improveMode: "apply",
+    });
+
+    expect(ui.warn).toHaveBeenCalledWith(
+      "You can run it manually: ui-test improve " +
+        path.resolve("e2e/sample.yaml") +
+        " --apply"
     );
   });
 });
@@ -311,6 +361,7 @@ describe("runRecordFromFile", () => {
         testFile: "e2e/login-flow.yaml",
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
+        appliedBy: "report_only",
         summary: {
           unchanged: 1,
           improved: 0,
@@ -337,8 +388,58 @@ describe("runRecordFromFile", () => {
       expect.stringContaining("name: Login Flow"),
       "utf-8"
     );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining("baseUrl: https://example.com"),
+      "utf-8"
+    );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining("url: /login"),
+      "utf-8"
+    );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining("source: devtools-import"),
+      "utf-8"
+    );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining("kind: locatorExpression"),
+      "utf-8"
+    );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining("value: \"getByRole('button', { name: 'Submit' })\""),
+      "utf-8"
+    );
     expect(ui.success).toHaveBeenCalledWith(
       expect.stringContaining("Test saved to")
+    );
+  });
+
+  it("imports first navigation as normalized path while preserving derived baseUrl", async () => {
+    vi.mocked(fs.readFile).mockResolvedValue(
+      JSON.stringify({
+        title: "Deep Link",
+        steps: [
+          { type: "navigate", url: "https://example.com/login?next=%2Fhome#cta" },
+          { type: "click", selectors: [["#submit"]] },
+        ],
+      })
+    );
+
+    await runRecord({ fromFile: "/tmp/deep-link.json", improve: false });
+
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("deep-link.yaml"),
+      expect.stringContaining("baseUrl: https://example.com"),
+      "utf-8"
+    );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("deep-link.yaml"),
+      expect.stringContaining("url: /login?next=%2Fhome#cta"),
+      "utf-8"
     );
   });
 
@@ -391,5 +492,29 @@ describe("runRecordFromFile", () => {
     await runRecord({ fromFile: "/tmp/recording.json", improve: false });
 
     expect(improveTestFile).not.toHaveBeenCalled();
+  });
+
+  it("runs from-file auto-improve in report mode by default", async () => {
+    await runRecord({ fromFile: "/tmp/recording.json" });
+
+    expect(improveTestFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applySelectors: false,
+        applyAssertions: false,
+        appliedBy: "report_only",
+      })
+    );
+  });
+
+  it("runs from-file auto-improve in apply mode when requested", async () => {
+    await runRecord({ fromFile: "/tmp/recording.json", improveMode: "apply" });
+
+    expect(improveTestFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applySelectors: true,
+        applyAssertions: true,
+        appliedBy: "auto_apply",
+      })
+    );
   });
 });
