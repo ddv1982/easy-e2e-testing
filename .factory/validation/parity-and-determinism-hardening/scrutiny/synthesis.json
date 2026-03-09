@@ -1,0 +1,40 @@
+{
+  "milestone": "parity-and-determinism-hardening",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" test -- --maxWorkers=5",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" run typecheck:test",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" run lint",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Require dirty-worktree feature handoffs to include explicit edited file paths and diff anchors in addition to commit IDs so scrutiny can reliably trace implementation evidence.",
+      "evidence": "Review for feature brittle-fixture-repair-determinism observed worker session eeb1546a-f90c-4174-aa32-55801f27d419 validated behavior in dirty worktree while cited commit aad204e only changed .factory/library/user-testing.md.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [],
+  "previousRound": null
+}
