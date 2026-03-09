@@ -1,0 +1,15 @@
+{
+  "featureId": "coverage-assertion-apply-insertion",
+  "reviewedAt": "2026-03-09T20:56:28Z",
+  "commitId": "667cdfe484f2513fa8663ac7afa47517e124fce0",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The feature adds a dedicated co-located test suite for assertion insertion/deduplication logic and satisfies the stated objective of raising assertion-apply-insertion coverage above the 80% statement target. Diff scope is limited to tests, and coverage evidence in the handoff indicates 95.74% statement coverage for the target module with quality gates passing.",
+    "issues": []
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed commit 667cdfe484f2513fa8663ac7afa47517e124fce0 for feature coverage-assertion-apply-insertion: dedicated tests were added at src/core/improve/assertion-apply/assertion-apply-insertion.test.ts, transcript skeleton and handoff are consistent, and no blocking or non-blocking issues were found for the feature requirements."
+}

@@ -1,0 +1,15 @@
+{
+  "featureId": "coverage-canonical-events",
+  "reviewedAt": "2026-03-09T20:56:26Z",
+  "commitId": "36e7f15",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The commit adds focused unit tests that exercise previously uncovered canonicalization and fallback paths in src/core/recording/canonical-events.ts, including specialized action mappings, default reconstruction behavior, and clone isolation for selector metadata. The implementation aligns with the feature description and expected behavior, and no correctness issues were identified in the reviewed diff.",
+    "issues": []
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed feature coverage-canonical-events using handoff evidence, commit 36e7f15 diff, transcript skeleton, and skill procedure. The change is scoped to canonical-events tests, covers the intended missing canonicalization paths, and is acceptable with no blocking or non-blocking issues found."
+}
