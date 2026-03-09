@@ -6,7 +6,6 @@ import type { ChildProcess } from "node:child_process";
 import { Command } from "commander";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { globby } from "globby";
-import type * as playFailureReportModule from "../core/play-failure-report.js";
 import {
   PLAY_DEFAULT_ARTIFACTS_DIR,
   PLAY_DEFAULT_BASE_URL,
@@ -16,8 +15,10 @@ import {
   PLAY_DEFAULT_START_COMMAND,
   PLAY_DEFAULT_TIMEOUT_MS,
   PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+  play,
+  createPlayRunId,
+  writePlayRunReport,
 } from "../app/services/play-service.js";
-import { createPlayRunId, writePlayRunReport } from "../core/play-failure-report.js";
 
 vi.mock("globby", () => ({
   globby: vi.fn(),
@@ -28,7 +29,7 @@ vi.mock("../core/play/player-runner.js", () => ({
 }));
 
 vi.mock("../core/play-failure-report.js", async () => {
-  const actual = (await vi.importActual("../core/play-failure-report.js")) as typeof playFailureReportModule;
+  const actual = await vi.importActual("../core/play-failure-report.js");
   return {
     ...actual,
     createPlayRunId: vi.fn(() => "run-test-id"),
@@ -41,7 +42,6 @@ vi.mock("node:child_process", () => ({
 }));
 
 import { spawn } from "node:child_process";
-import { play } from "../core/play/player-runner.js";
 import { registerPlay, runPlay } from "./play.js";
 
 function createMockChildProcess() {

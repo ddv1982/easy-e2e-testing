@@ -27,6 +27,7 @@ export {
   PLAY_DEFAULT_TIMEOUT_MS,
   PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
 } from "../../core/play/play-defaults.js";
+export { play } from "../../core/play/player-runner.js";
 export { startPlayApp } from "./play-startup.js";
 export { createPlayRunId, writePlayRunReport, type PlayRunReport } from "../../core/play-failure-report.js";
 
