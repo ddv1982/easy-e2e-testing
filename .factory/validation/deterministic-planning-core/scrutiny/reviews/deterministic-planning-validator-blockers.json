@@ -1,0 +1,21 @@
+{
+  "featureId": "deterministic-planning-validator-blockers",
+  "reviewedAt": "2026-03-09T06:26:41Z",
+  "commitId": "89a3b4a8105657f051c0d4836616fd6ef48998c3",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The blocker fixes are minimal and aligned with deterministic-planning intent: overlay locator-handler triggering is narrowed to dialog/CMP contexts to avoid strict-mode collisions, network-idle warning coverage now matches the opt-in readiness contract, and assertion inventory expectations are updated to landmark-scoped fallback behavior.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Handoff commit provenance is ambiguous for dirty-worktree fix features: the handoff commitId points to a prior commit whose diff does not contain this feature's three edited files, so review evidence had to come from current working-tree file diffs.",
+      "evidence": "Handoff commitId=89a3b4a8105657f051c0d4836616fd6ef48998c3; `git show --stat 89a3b4a` changes only improve-service/improve-plan files, while `git diff -- src/core/runtime/overlay-handler.ts src/core/player.integration.test.ts src/core/improve/assertion-candidates-inventory.test.ts` shows the actual blocker-fix edits."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. The feature restores validator blockers with targeted edits in exactly the expected areas (overlay handler trigger scope, network-idle opt-in test semantics, and scoped inventory fallback assertions), with no new blocking code issues found in the reviewed changes."
+}

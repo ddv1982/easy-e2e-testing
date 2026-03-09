@@ -1,0 +1,51 @@
+{
+  "milestone": "deterministic-planning-core",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" test -- --maxWorkers=5",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" run typecheck:test",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" run lint",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "skills/record-improve-worker",
+      "suggestion": "Require CLI sanity checks that exercise built outputs to run after an explicit build step (or against source entrypoints) so validation cannot silently use stale dist artifacts.",
+      "evidence": "Review of deterministic-improve-plan-core noted transcript usage of `node ./dist/index.js improve ... --apply-plan ...` without a preceding build step.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "For dirty-worktree fix features, require handoffs to include explicit edited file paths and diff anchors in addition to commitId, since commitId may not isolate the feature's changes.",
+      "evidence": "Review of deterministic-planning-validator-blockers found handoff commitId `89a3b4a...` did not include the blocker-fix files; evidence had to come from direct working-tree diffs.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Known full-suite baseline failures should be added to mission library notes.",
+      "reason": "ambiguous"
+    }
+  ],
+  "previousRound": null
+}
