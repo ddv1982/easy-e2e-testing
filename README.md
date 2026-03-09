@@ -12,13 +12,13 @@ npm run setup
 
 **Global install:**
 ```bash
-npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
+npm i -g "$(npm pack github:ddv1982/ui-test --silent)"
 ui-test setup --browsers chromium
 ```
 
 **One-off run (no install):**
 ```bash
-npx -y github:ddv1982/easy-e2e-testing setup --browsers chromium
+npx -y github:ddv1982/ui-test setup --browsers chromium
 ```
 
 All command examples below use global `ui-test`.

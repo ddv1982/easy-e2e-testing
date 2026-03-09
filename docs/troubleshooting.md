@@ -10,7 +10,7 @@
 If you see `Standalone install policy: project-local installs are not supported`:
 1. Remove `ui-test` from `dependencies`/`devDependencies` in `package.json`.
 2. Run `npm uninstall ui-test`.
-3. Run `npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"`.
+3. Run `npm i -g "$(npm pack github:ddv1982/ui-test --silent)"`.
 4. Re-run `ui-test setup`.
 
 ## Browser Installation Issues

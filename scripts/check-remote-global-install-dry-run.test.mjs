@@ -75,7 +75,7 @@ describe("check-remote-global-install-dry-run", () => {
     });
 
     expect(() => runRemoteGlobalInstallDryRun()).toThrow(
-      /npm pack github:ddv1982\/easy-e2e-testing --silent failed/
+      /npm pack github:ddv1982\/ui-test --silent failed/
     );
     expect(mockRemoveTarball).not.toHaveBeenCalled();
     expect(mockRmSync).not.toHaveBeenCalled();

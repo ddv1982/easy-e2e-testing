@@ -94,7 +94,7 @@ describe("improve output helpers", () => {
 
     expect(out).toContain("outside this workspace");
     expect(out).toContain(
-      "npx -y github:ddv1982/easy-e2e-testing improve " + path.resolve(cwd, testFile)
+      "npx -y github:ddv1982/ui-test improve " + path.resolve(cwd, testFile)
     );
     expect(out).toContain(path.resolve(cwd, testFile));
   });
@@ -114,7 +114,7 @@ describe("improve output helpers", () => {
 
     expect(out).toContain("Could not verify ui-test binary path");
     expect(out).toContain(
-      "npx -y github:ddv1982/easy-e2e-testing improve " + path.resolve(cwd, "e2e/login.yaml")
+      "npx -y github:ddv1982/ui-test improve " + path.resolve(cwd, "e2e/login.yaml")
     );
   });
 

@@ -24,9 +24,9 @@ export interface RuntimeInfo {
 }
 
 const VERSION_FALLBACK = "0.1.0";
-export const GITHUB_ONE_OFF_PREFIX = "npx -y github:ddv1982/easy-e2e-testing";
-const GITHUB_ONE_OFF_SPEC_PREFIX = "github:ddv1982/easy-e2e-testing";
-const GITHUB_ONE_OFF_SPEC_REPO_FRAGMENT = "github.com/ddv1982/easy-e2e-testing";
+export const GITHUB_ONE_OFF_PREFIX = "npx -y github:ddv1982/ui-test";
+const GITHUB_ONE_OFF_SPEC_PREFIX = "github:ddv1982/ui-test";
+const GITHUB_ONE_OFF_SPEC_REPO_FRAGMENT = "github.com/ddv1982/ui-test";
 const NPM_CACHE_SEGMENT = "/_npx/";
 
 export function isLikelyNpxCacheInvocation(argv1 = process.argv[1]): boolean {

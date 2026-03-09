@@ -186,7 +186,7 @@ describe("runtime-info", () => {
         packages: {
           "": {
             dependencies: {
-              "ui-test": "github:ddv1982/easy-e2e-testing",
+              "ui-test": "github:ddv1982/ui-test",
             },
           },
         },

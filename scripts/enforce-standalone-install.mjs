@@ -26,7 +26,7 @@ export function getStandaloneInstallBlockMessage(env = process.env, cwd = proces
     "Install/run ui-test in standalone mode instead:",
     "  npm i -g ui-test",
     "  ui-test setup",
-    "  npx -y github:ddv1982/easy-e2e-testing setup --browsers chromium",
+    "  npx -y github:ddv1982/ui-test setup --browsers chromium",
     "",
     "If ui-test is already installed in this project, clean it up:",
     "  1) Remove ui-test from dependencies/devDependencies in package.json",

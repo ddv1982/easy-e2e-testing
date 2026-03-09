@@ -27,7 +27,7 @@ describe("enforce-standalone-install", () => {
   });
 
   it("allows repo-root installs for maintainers", () => {
-    const cwd = "/Users/dev/projects/easy-e2e-testing";
+    const cwd = "/Users/dev/projects/ui-test";
     const message = getStandaloneInstallBlockMessage(
       {
         npm_command: "install",
@@ -50,7 +50,7 @@ describe("enforce-standalone-install", () => {
     );
     expect(message).toContain("project-local installs are not supported");
     expect(message).toContain("npm i -g ui-test");
-    expect(message).toContain("npx -y github:ddv1982/easy-e2e-testing setup --browsers chromium");
+    expect(message).toContain("npx -y github:ddv1982/ui-test setup --browsers chromium");
     expect(message).toContain("npm uninstall ui-test");
   });
 });

@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractTarballName, removeTarball } from "./check-pack-silent.mjs";
 
-const DEFAULT_REMOTE_PACKAGE_SPEC = "github:ddv1982/easy-e2e-testing";
+const DEFAULT_REMOTE_PACKAGE_SPEC = "github:ddv1982/ui-test";
 
 export function runRemoteGlobalInstallDryRun() {
   const remotePackageSpec =

@@ -14,7 +14,7 @@ const STANDALONE_POLICY_HINT = [
   "Run ui-test in standalone mode instead:",
   "  npm i -g ui-test",
   "  ui-test setup",
-  "  npx -y github:ddv1982/easy-e2e-testing setup --browsers chromium",
+  "  npx -y github:ddv1982/ui-test setup --browsers chromium",
   "",
   "If ui-test is installed locally in this project:",
   "  1) Remove ui-test from dependencies/devDependencies in package.json",
