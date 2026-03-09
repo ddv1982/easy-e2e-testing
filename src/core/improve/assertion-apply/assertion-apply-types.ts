@@ -1,9 +1,9 @@
-import type { Step } from "../yaml-schema.js";
+import type { Step } from "../../yaml-schema.js";
 import type {
   AssertionApplyStatus,
   AssertionCandidate,
-} from "./report-schema.js";
-import type { AssertionPolicyConfig } from "./assertion-policy.js";
+} from "../report-schema.js";
+import type { AssertionPolicyConfig } from "../assertion-policy.js";
 
 export interface AssertionCandidateRef {
   candidateIndex: number;

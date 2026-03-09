@@ -8,7 +8,7 @@ import {
   insertAppliedAssertions,
   selectCandidatesForApply,
   validateCandidatesAgainstRuntime,
-} from "./assertion-apply.js";
+} from "./assertion-apply/assertion-apply.js";
 import {
   ASSERTION_APPLY_MIN_CONFIDENCE,
   DEFAULT_RUNTIME_TIMEOUT_MS,

@@ -1,4 +1,4 @@
-import type { Step, Target } from "../yaml-schema.js";
+import type { Step, Target } from "../../yaml-schema.js";
 import type { AssertionInsertion } from "./assertion-apply-types.js";
 
 export function insertAppliedAssertions(

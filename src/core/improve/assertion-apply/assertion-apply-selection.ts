@@ -1,10 +1,10 @@
-import type { Step } from "../yaml-schema.js";
-import type { AssertionPolicyConfig } from "./assertion-policy.js";
+import type { Step } from "../../yaml-schema.js";
+import type { AssertionPolicyConfig } from "../assertion-policy.js";
 import {
   ASSERTION_POLICY_CONFIG,
   DEFAULT_IMPROVE_ASSERTION_POLICY,
-} from "./assertion-policy.js";
-import type { AssertionCandidate } from "./report-schema.js";
+} from "../assertion-policy.js";
+import type { AssertionCandidate } from "../report-schema.js";
 import type {
   AssertionApplyOutcome,
   AssertionCandidateRef,

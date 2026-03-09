@@ -1,22 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Page } from "playwright";
-import type { Step } from "../yaml-schema.js";
+import type { Step } from "../../yaml-schema.js";
 import {
   insertAppliedAssertions,
   isDuplicateAdjacentAssertion,
   selectCandidatesForApply,
   validateCandidatesAgainstRuntime,
 } from "./assertion-apply.js";
-import { ASSERTION_POLICY_CONFIG } from "./assertion-policy.js";
+import { ASSERTION_POLICY_CONFIG } from "../assertion-policy.js";
 
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
   executeRuntimeStepMock: vi.fn<
-    typeof import("../runtime/step-executor.js").executeRuntimeStep
+    typeof import("../../runtime/step-executor.js").executeRuntimeStep
   >(async () => {}),
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../runtime/network-idle.js").waitForPostStepReadiness
+    typeof import("../../runtime/network-idle.js").waitForPostStepReadiness
   >(async () => ({
     navigationTimedOut: false,
     networkIdleTimedOut: false,
@@ -25,11 +25,11 @@ const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock("../runtime/step-executor.js", () => ({
+vi.mock("../../runtime/step-executor.js", () => ({
   executeRuntimeStep: executeRuntimeStepMock,
 }));
 
-vi.mock("../runtime/network-idle.js", () => ({
+vi.mock("../../runtime/network-idle.js", () => ({
   DEFAULT_WAIT_FOR_NETWORK_IDLE: false,
   waitForPostStepReadiness: waitForPostStepNetworkIdleMock,
 }));

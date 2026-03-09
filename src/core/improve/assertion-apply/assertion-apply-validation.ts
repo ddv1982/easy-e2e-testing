@@ -1,10 +1,10 @@
 import type { Page } from "playwright";
-import { executeRuntimeStep } from "../runtime/step-executor.js";
+import { executeRuntimeStep } from "../../runtime/step-executor.js";
 import {
   DEFAULT_WAIT_FOR_NETWORK_IDLE,
   waitForPostStepReadiness,
-} from "../runtime/network-idle.js";
-import type { Step } from "../yaml-schema.js";
+} from "../../runtime/network-idle.js";
+import type { Step } from "../../yaml-schema.js";
 import type { AssertionApplyOutcome } from "./assertion-apply-types.js";
 import type {
   AssertionApplyValidationOptions,
