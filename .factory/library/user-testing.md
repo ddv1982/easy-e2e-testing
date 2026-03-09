@@ -37,3 +37,12 @@ Configured in `vitest.config.ts`:
 - Architecture tests run as part of the normal test suite
 - `tsconfig.build.json` is stricter than `tsconfig.json` (adds `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, etc.)
 - Test files are excluded from build compilation but included in `tsconfig.json` check
+- Coverage/test output can exceed terminal limits; for deterministic evidence, run coverage with `--coverage.reporter=json-summary` and parse `coverage-summary.json`.
+
+## Flow Validator Guidance: terminal-cli
+
+- Surface: terminal-only CLI validation (`npm` scripts), no browser/app session required.
+- Isolation requirement: each flow validator must use a unique temp workspace namespace for artifacts/log output (for example `TMPDIR` subpaths like `user-testing-coverage-<group>`), and must not delete shared repo outputs.
+- Shared-state boundaries: do not run concurrent validators that both execute `npm run test:coverage` unless each writes to isolated output paths; default to a single validator for coverage-heavy assertions to avoid race conditions.
+- Allowed commands for this milestone: `npm test`, `npm run test:coverage`, and read-only inspection commands used to confirm module coverage lines and global thresholds.
+- Off-limits actions: no changes to source files, package manifests, lockfiles, git history, or external services.

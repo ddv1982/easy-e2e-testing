@@ -1,0 +1,108 @@
+{
+  "milestone": "coverage",
+  "surface": "terminal-cli",
+  "groupId": "core-quality-gates",
+  "assignedAssertions": [
+    "VAL-COV-001",
+    "VAL-COV-002",
+    "VAL-COV-003",
+    "VAL-COV-004",
+    "VAL-CROSS-001",
+    "VAL-CROSS-005"
+  ],
+  "results": [
+    {
+      "id": "VAL-COV-001",
+      "status": "pass",
+      "reason": "step-executor statement coverage is 91.13%, which is >= 80%.",
+      "evidence": [
+        {
+          "command": "TMPDIR=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2\" npm --prefix \"/Users/vriesd/projects/ui-test\" run test:coverage -- --reporter=dot --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2/coverage\"",
+          "observation": "Coverage run completed with exit code 0."
+        },
+        {
+          "command": "python3 - <<'PY' ... (parse /tmp/user-testing-coverage-flow-core-quality.DkKaj2/coverage/coverage-summary.json) ... PY",
+          "observation": "/Users/vriesd/projects/ui-test/src/core/runtime/step-executor.ts: statements=91.13"
+        }
+      ]
+    },
+    {
+      "id": "VAL-COV-002",
+      "status": "pass",
+      "reason": "canonical-events statement coverage is 86.36%, which is >= 80%.",
+      "evidence": [
+        {
+          "command": "TMPDIR=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2\" npm --prefix \"/Users/vriesd/projects/ui-test\" run test:coverage -- --reporter=dot --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2/coverage\"",
+          "observation": "Coverage run completed with exit code 0."
+        },
+        {
+          "command": "python3 - <<'PY' ... (parse /tmp/user-testing-coverage-flow-core-quality.DkKaj2/coverage/coverage-summary.json) ... PY",
+          "observation": "/Users/vriesd/projects/ui-test/src/core/recording/canonical-events.ts: statements=86.36"
+        }
+      ]
+    },
+    {
+      "id": "VAL-COV-003",
+      "status": "pass",
+      "reason": "assertion-apply-insertion statement coverage is 95.74%, which is >= 80%.",
+      "evidence": [
+        {
+          "command": "TMPDIR=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2\" npm --prefix \"/Users/vriesd/projects/ui-test\" run test:coverage -- --reporter=dot --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2/coverage\"",
+          "observation": "Coverage run completed with exit code 0."
+        },
+        {
+          "command": "python3 - <<'PY' ... (parse /tmp/user-testing-coverage-flow-core-quality.DkKaj2/coverage/coverage-summary.json) ... PY",
+          "observation": "/Users/vriesd/projects/ui-test/src/core/improve/assertion-apply/assertion-apply-insertion.ts: statements=95.74"
+        }
+      ]
+    },
+    {
+      "id": "VAL-COV-004",
+      "status": "pass",
+      "reason": "locator-repair statement coverage is 82.89%, which is >= 80%.",
+      "evidence": [
+        {
+          "command": "TMPDIR=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2\" npm --prefix \"/Users/vriesd/projects/ui-test\" run test:coverage -- --reporter=dot --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2/coverage\"",
+          "observation": "Coverage run completed with exit code 0."
+        },
+        {
+          "command": "python3 - <<'PY' ... (parse /tmp/user-testing-coverage-flow-core-quality.DkKaj2/coverage/coverage-summary.json) ... PY",
+          "observation": "/Users/vriesd/projects/ui-test/src/core/improve/locator-repair.ts: statements=82.89"
+        }
+      ]
+    },
+    {
+      "id": "VAL-CROSS-001",
+      "status": "pass",
+      "reason": "The full test suite passed with zero failures.",
+      "evidence": [
+        {
+          "command": "TMPDIR=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2\" npm --prefix \"/Users/vriesd/projects/ui-test\" test -- --reporter=dot",
+          "observation": "Test Files: 67 passed; Tests: 626 passed; exit code 0."
+        }
+      ]
+    },
+    {
+      "id": "VAL-CROSS-005",
+      "status": "pass",
+      "reason": "Overall coverage thresholds are met: statements 86.08, branches 75.46, functions 96.36, lines 90.28.",
+      "evidence": [
+        {
+          "command": "TMPDIR=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2\" npm --prefix \"/Users/vriesd/projects/ui-test\" run test:coverage -- --reporter=dot --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=\"/tmp/user-testing-coverage-flow-core-quality.DkKaj2/coverage\"",
+          "observation": "Coverage run passed (exit code 0) and rendered full text report."
+        },
+        {
+          "command": "python3 - <<'PY' ... (parse /tmp/user-testing-coverage-flow-core-quality.DkKaj2/coverage/coverage-summary.json) ... PY",
+          "observation": "total.statements=86.08, total.branches=75.46, total.functions=96.36, total.lines=90.28"
+        }
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "terminal-cli"
+  ],
+  "frictions": [
+    "Vitest output is very verbose and command output was truncated in the terminal capture, so coverage-summary.json from an isolated temp namespace was parsed for deterministic per-file percentages."
+  ],
+  "blockers": []
+}
